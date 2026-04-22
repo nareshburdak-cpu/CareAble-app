@@ -1,4 +1,14 @@
+/**
+ * Dashboard Page
+ * --------------
+ * Uses AuthContext — no manual API call needed.
+ */
+
+import { useAuth } from "../hooks/useAuth";
+
 function Dashboard() {
+  const { user } = useAuth();
+
   return (
     <section className="flex-1 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
@@ -6,8 +16,13 @@ function Dashboard() {
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
             Your Dashboard
           </h1>
+
           <p className="text-gray-500 mb-8">
-            Welcome back! Here's your caregiving journey at a glance.
+            Welcome back,{" "}
+            <span className="font-medium text-gray-900">
+              {user?.name || "friend"}
+            </span>
+            ! Here's your caregiving journey at a glance.
           </p>
 
           <div className="grid md:grid-cols-3 gap-4 mb-8">

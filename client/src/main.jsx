@@ -1,16 +1,19 @@
 /**
  * main.jsx — Entry point
  * ----------------------
- * Renders <App /> into the #root div in index.html.
+ * Wraps <App /> with <AuthProvider> so any component can access auth state.
  */
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App.jsx";
+import { AuthProvider } from "./context/AuthProvider";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <App />
+    <AuthProvider>
+      <App />
+    </AuthProvider>
   </StrictMode>
 );

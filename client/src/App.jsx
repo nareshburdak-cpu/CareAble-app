@@ -3,16 +3,28 @@
  * --------------------
  * Route structure:
  *   <Layout> wraps all pages with Navbar + Footer.
- *     /              → Home
- *     /login         → Login
- *     /register      → Register
- *     /dashboard     → Dashboard
- *     *              → NotFound
+ *
+ *   Public routes (anyone):
+ *     /             → Home
+ *
+ *   Public-only routes (logged OUT only):
+ *     /login        → Login
+ *     /register     → Register
+ *
+ *   Protected routes (logged IN only):
+ *     /dashboard    → Dashboard
+ *
+ *   Catch-all:
+ *     *             → NotFound
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -22,13 +34,52 @@ import NotFound from "./pages/NotFound";
 function App() {
   return (
     <BrowserRouter>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            borderRadius: "12px",
+            background: "#1a202c",
+            color: "#fff",
+          },
+        }}
+      />
+
       <Routes>
-        {/* All routes inside <Layout> get Navbar + Footer */}
         <Route element={<Layout />}>
+          {/* Public */}
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Public-only (redirect away if logged in) */}
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            }
+          />
+
+          {/* Protected (must be logged in) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
