@@ -19,6 +19,7 @@ const connectDB = require("./config/db");
 
 // Route imports
 const healthRoutes = require("./routes/healthRoutes");
+const authRoutes = require("./routes/authRoutes");
 
 // Middleware imports
 const notFound = require("./middleware/notFound");
@@ -39,6 +40,7 @@ if (process.env.NODE_ENV !== "production") {
 
 // ---- API Routes ----
 app.use("/api/health", healthRoutes);
+app.use("/api/auth", authRoutes);
 
 // Root route
 app.get("/", (req, res) => {
