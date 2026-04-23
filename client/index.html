@@ -2,12 +2,93 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CareAble</title>
+    <meta name="theme-color" content="#6366f1" />
+    <title>CareAble — Supporting hidden caregiving workers</title>
+    <meta
+      name="description"
+      content="Self-assess your caregiving skills and align with the Australian Skills Classification."
+    />
+
+    <!-- Pre-React loading screen — renders instantly -->
+    <style>
+      /* Minimal base — Tailwind handles everything else once loaded */
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+
+      /* Fullscreen loading screen */
+      #initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+
+      #initial-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loader-logo {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        animation: loader-pulse 1.4s ease-in-out infinite;
+      }
+
+      .loader-brand {
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.5rem;
+      }
+
+      .loader-tagline {
+        font-size: 0.875rem;
+        opacity: 0.8;
+        margin-bottom: 2rem;
+      }
+
+      .loader-spinner {
+        width: 36px;
+        height: 36px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: loader-spin 0.9s linear infinite;
+      }
+
+      @keyframes loader-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      @keyframes loader-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
+    <!-- This shows IMMEDIATELY, before React loads -->
+    <div id="initial-loader">
+      <div class="loader-logo">🫶</div>
+      <div class="loader-brand">CareAble</div>
+      <div class="loader-tagline">Supporting hidden caregiving workers</div>
+      <div class="loader-spinner" aria-label="Loading"></div>
+    </div>
+
+    <!-- React mounts here -->
     <div id="root"></div>
+
+    <!-- Main app bundle -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

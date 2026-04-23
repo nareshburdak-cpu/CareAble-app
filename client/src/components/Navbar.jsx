@@ -52,6 +52,12 @@ function Navbar() {
               <NavLink to="/dashboard" className={linkStyle}>
                 Dashboard
               </NavLink>
+              
+            )}
+            {isAuthenticated && (
+              <NavLink to="/assessment" className={linkStyle}>
+                Assessment
+              </NavLink>
             )}
           </div>
 
@@ -113,6 +119,11 @@ function Navbar() {
             {isAuthenticated && (
               <NavLink to="/dashboard" className={linkStyle} onClick={() => setMenuOpen(false)}>
                 Dashboard
+              </NavLink>
+            )}
+            {isAuthenticated && (
+              <NavLink to="/assessment" className={linkStyle} onClick={() => setMenuOpen(false)}>
+                Assessment
               </NavLink>
             )}
 

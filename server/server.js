@@ -15,11 +15,14 @@ const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 
+
 const connectDB = require("./config/db");
 
 // Route imports
 const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
+const questionRoutes = require("./routes/questionRoutes");
+const assessmentRoutes = require("./routes/assessmentRoutes");
 
 // Middleware imports
 const notFound = require("./middleware/notFound");
@@ -41,6 +44,9 @@ if (process.env.NODE_ENV !== "production") {
 // ---- API Routes ----
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/questions", questionRoutes);
+app.use("/api/assessments", assessmentRoutes);
+
 
 // Root route
 app.get("/", (req, res) => {

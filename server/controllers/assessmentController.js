@@ -1,0 +1,361 @@
+/**
+ * Assessment Controller
+ * ---------------------
+ *   startAssessment     (POST   /api/assessments/start)
+ *   getCurrent          (GET    /api/assessments/current)
+ *   saveAnswer          (PATCH  /api/assessments/:id/answer)
+ *   submitAssessment    (POST   /api/assessments/:id/submit)
+ *   listMyAssessments   (GET    /api/assessments)
+ */
+
+const Assessment = require("../models/Assessment");
+const Question = require("../models/Question");
+const ApiError = require("../utils/ApiError");
+const asyncHandler = require("../utils/asyncHandler");
+const { calculateScores } = require("../utils/scoring");
+const generateCertificate = require("../utils/generateCertificate");
+const { customAlphabet } = require("nanoid");
+
+// Readable alphabet: no confusing chars (no 0/O, 1/I/l, etc.)
+const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const nanoid = customAlphabet(ID_ALPHABET, 10);
+
+
+/**
+ * @desc    Start a new assessment (or return existing in-progress one)
+ * @route   POST /api/assessments/start
+ * @access  Private
+ *
+ * Guards against race conditions by cleaning up any duplicate
+ * in-progress assessments before returning the latest.
+ */
+const startAssessment = asyncHandler(async (req, res) => {
+  // Find ALL in-progress assessments for this user (should be 0 or 1, but handle edge case)
+  const existing = await Assessment.find({
+    user: req.user._id,
+    status: "in-progress",
+  }).sort({ createdAt: -1 });
+
+  let assessment;
+
+  if (existing.length > 0) {
+    // Keep the newest one
+    assessment = existing[0];
+
+    // Clean up any extras (leftover from race conditions)
+    if (existing.length > 1) {
+      const extraIds = existing.slice(1).map((a) => a._id);
+      await Assessment.deleteMany({ _id: { $in: extraIds } });
+    }
+  } else {
+    // No in-progress — create fresh
+    assessment = await Assessment.create({
+      user: req.user._id,
+      answers: {},
+    });
+  }
+
+  const totalQuestions = await Question.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      assessment,
+      progress: {
+        answered: assessment.answers.size,
+        total: totalQuestions,
+        percent: Math.round((assessment.answers.size / totalQuestions) * 100),
+      },
+    },
+  });
+});
+
+/**
+ * @desc    Get the user's current in-progress assessment
+ * @route   GET /api/assessments/current
+ * @access  Private
+ */
+const getCurrent = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findOne({
+    user: req.user._id,
+    status: "in-progress",
+  });
+
+  const totalQuestions = await Question.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    data: {
+      assessment, // may be null — that's fine
+      progress: {
+        answered: assessment ? assessment.answers.size : 0,
+        total: totalQuestions,
+        percent: assessment
+          ? Math.round((assessment.answers.size / totalQuestions) * 100)
+          : 0,
+      },
+    },
+  });
+});
+
+/**
+ * @desc    Save or update a single answer (auto-save)
+ * @route   PATCH /api/assessments/:id/answer
+ * @access  Private
+ *
+ * Body: { questionId, value?, values? }
+ */
+const saveAnswer = asyncHandler(async (req, res) => {
+  const { questionId, value, values } = req.body;
+
+  if (!questionId) {
+    throw new ApiError(400, "questionId is required");
+  }
+
+  // Find the assessment and verify ownership
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+  if (assessment.status === "submitted") {
+    throw new ApiError(400, "This assessment has already been submitted");
+  }
+
+  // Verify the question exists and the answer matches its type
+  const question = await Question.findById(questionId);
+  if (!question) {
+    throw new ApiError(404, "Question not found");
+  }
+
+  const answerPayload = { answeredAt: new Date() };
+
+  if (question.type === "multi") {
+    if (!Array.isArray(values)) {
+      throw new ApiError(400, "Multi-select questions require `values` (array)");
+    }
+    answerPayload.values = values;
+  } else {
+    // likert or frequency
+    if (value === undefined || value === null || value === "") {
+      throw new ApiError(400, "This question type requires `value`");
+    }
+    answerPayload.value = String(value);
+  }
+
+  // Save the answer
+  assessment.answers.set(questionId, answerPayload);
+  await assessment.save();
+
+  const totalQuestions = await Question.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    message: "Answer saved",
+    data: {
+      answered: assessment.answers.size,
+      total: totalQuestions,
+      percent: Math.round((assessment.answers.size / totalQuestions) * 100),
+    },
+  });
+});
+
+/**
+ * @desc    Submit the assessment — scoring happens here (Task 6)
+ * @route   POST /api/assessments/:id/submit
+ * @access  Private
+ */
+
+const submitAssessment = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+  if (assessment.status === "submitted") {
+    throw new ApiError(400, "This assessment has already been submitted");
+  }
+
+  const questions = await Question.find().lean();
+
+  if (assessment.answers.size < questions.length) {
+    throw new ApiError(
+      400,
+      `You have answered ${assessment.answers.size} of ${questions.length} questions. Please answer all questions before submitting.`
+    );
+  }
+
+  const { categoryScores, overallScore, level } = calculateScores(
+    assessment.answers,
+    questions
+  );
+
+  // 🆕 Generate a unique, human-readable certificate ID
+  const year = new Date().getFullYear();
+  let certificateId;
+  let isUnique = false;
+  let attempts = 0;
+  while (!isUnique && attempts < 5) {
+    const candidate = `CA-${year}-${nanoid(6)}`;
+    const existing = await Assessment.findOne({ certificateId: candidate });
+    if (!existing) {
+      certificateId = candidate;
+      isUnique = true;
+    }
+    attempts++;
+  }
+  if (!certificateId) {
+    throw new ApiError(500, "Could not generate unique certificate ID");
+  }
+
+  assessment.status = "submitted";
+  assessment.submittedAt = new Date();
+  assessment.categoryScores = categoryScores;
+  assessment.overallScore = overallScore;
+  assessment.level = level;
+  assessment.certificateId = certificateId; // 🆕
+
+  await assessment.save();
+
+  req.user.hasCompletedAssessment = true;
+  await req.user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Assessment submitted 🎉",
+    data: { assessment },
+  });
+});
+
+
+/**
+ * @desc    Get a specific assessment by ID (with results)
+ * @route   GET /api/assessments/:id
+ * @access  Private
+ */
+const getAssessmentById = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+
+  res.status(200).json({
+    success: true,
+    data: { assessment },
+  });
+});
+
+
+/**
+ * @desc    List all of the user's assessments (newest first)
+ * @route   GET /api/assessments
+ * @access  Private
+ */
+
+const listMyAssessments = asyncHandler(async (req, res) => {
+  // Fetch raw docs first (we need answer count without sending the full map)
+  const docs = await Assessment.find({ user: req.user._id })
+    .sort({ createdAt: -1 })
+    .lean(); // plain JS objects = easier to transform
+
+  // Transform: replace heavy `answers` map with just its size
+  const assessments = docs.map((a) => {
+    const answerCount = a.answers ? Object.keys(a.answers).length : 0;
+    delete a.answers; // remove the big field
+    return {
+      ...a,
+      answerCount,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      count: assessments.length,
+      assessments,
+    },
+  });
+});
+
+/**
+ * @desc    Delete a single answer (user cleared it)
+ * @route   DELETE /api/assessments/:id/answer/:questionId
+ * @access  Private
+ */
+const deleteAnswer = asyncHandler(async (req, res) => {
+  const { id, questionId } = req.params;
+
+  const assessment = await Assessment.findById(id);
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+  if (assessment.status === "submitted") {
+    throw new ApiError(400, "This assessment has already been submitted");
+  }
+
+  // Remove the answer from the Map
+  assessment.answers.delete(questionId);
+  await assessment.save();
+
+  const totalQuestions = await Question.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    message: "Answer cleared",
+    data: {
+      answered: assessment.answers.size,
+      total: totalQuestions,
+      percent: Math.round((assessment.answers.size / totalQuestions) * 100),
+    },
+  });
+});
+
+/**
+ * @desc    Download a PDF certificate for a submitted assessment
+ * @route   GET /api/assessments/:id/certificate
+ * @access  Private
+ */
+const downloadCertificate = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+  if (assessment.status !== "submitted") {
+    throw new ApiError(400, "Certificate only available for submitted assessments");
+  }
+
+  const pdfBuffer = await generateCertificate(req.user, assessment);
+
+  const filename = `CareAble_Certificate_${assessment.certificateId || "unknown"}.pdf`;
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Length", pdfBuffer.length);
+  res.send(pdfBuffer);
+});
+
+
+module.exports = {
+  startAssessment,
+  getCurrent,
+  saveAnswer,
+  deleteAnswer,
+  submitAssessment,
+  getAssessmentById,
+  listMyAssessments,
+  downloadCertificate,
+};
