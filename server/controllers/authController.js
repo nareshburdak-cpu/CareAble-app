@@ -99,4 +99,99 @@ const getMe = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { register, login, getMe }; 
+/**
+ * @desc    Update current user's profile (name only for now)
+ * @route   PATCH /api/auth/me
+ * @access  Private
+ */
+const updateProfile = asyncHandler(async (req, res) => {
+  const { name } = req.body;
+
+  if (!name || !name.trim()) {
+    throw new ApiError(400, "Name is required");
+  }
+  if (name.trim().length < 2 || name.trim().length > 50) {
+    throw new ApiError(400, "Name must be 2–50 characters");
+  }
+
+  req.user.name = name.trim();
+  await req.user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Profile updated 🎉",
+    data: { user: req.user },
+  });
+});
+
+/**
+ * @desc    Change current user's password
+ * @route   PATCH /api/auth/password
+ * @access  Private
+ *
+ * Requires current password for security.
+ */
+const changePassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    throw new ApiError(400, "Current and new passwords are required");
+  }
+  if (newPassword.length < 6) {
+    throw new ApiError(400, "New password must be at least 6 characters");
+  }
+  if (currentPassword === newPassword) {
+    throw new ApiError(400, "New password must be different from current password");
+  }
+
+  // Fetch user WITH password to verify current
+  const user = await User.findById(req.user._id).select("+password");
+  const isMatch = await user.matchPassword(currentPassword);
+  if (!isMatch) {
+    throw new ApiError(401, "Current password is incorrect");
+  }
+
+  user.password = newPassword;
+  await user.save(); // pre-save hook auto-hashes
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated 🔐",
+  });
+});
+
+/**
+ * @desc    Delete current user's account (and all their assessments)
+ * @route   DELETE /api/auth/me
+ * @access  Private
+ *
+ * Requires password confirmation.
+ */
+  const deleteAccount = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    throw new ApiError(400, "Password is required to delete your account");
+  }
+
+  const user = await User.findById(req.user._id).select("+password");
+  const isMatch = await user.matchPassword(password);
+  if (!isMatch) {
+    throw new ApiError(401, "Password is incorrect");
+  }
+
+  // Cascade delete: remove all of this user's assessments
+  const Assessment = require("../models/Assessment");
+  await Assessment.deleteMany({ user: req.user._id });
+
+  // Delete the user
+  await User.findByIdAndDelete(req.user._id);
+
+  res.status(200).json({
+    success: true,
+    message: "Account deleted. Sorry to see you go 👋",
+  });
+});
+
+
+module.exports = { register, login, getMe, updateProfile, changePassword, deleteAccount }; 

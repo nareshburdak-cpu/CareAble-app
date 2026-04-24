@@ -1,20 +1,19 @@
-/**
- * Auth Routes
- * -----------
- *   POST /api/auth/register
- *   POST /api/auth/login
- */
-
 const express = require("express");
 const { body, validationResult } = require("express-validator");
 
-const { register, login, getMe } = require("../controllers/authController");
+const {
+  register,
+  login,
+  getMe,
+  updateProfile,
+  changePassword,
+  deleteAccount,
+} = require("../controllers/authController");
 const { protect } = require("../middleware/authMiddleware");
 const ApiError = require("../utils/ApiError");
 
 const router = express.Router();
 
-// ---- Helper: runs validators and forwards errors to error handler ----
 const validate = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -24,7 +23,7 @@ const validate = (req, res, next) => {
   next();
 };
 
-// ---- POST /api/auth/register ----
+// ---- Public ----
 router.post(
   "/register",
   [
@@ -32,13 +31,11 @@ router.post(
       .trim()
       .notEmpty().withMessage("Name is required")
       .isLength({ min: 2, max: 50 }).withMessage("Name must be 2–50 characters"),
-
     body("email")
       .trim()
       .notEmpty().withMessage("Email is required")
       .isEmail().withMessage("Please provide a valid email")
       .normalizeEmail(),
-
     body("password")
       .notEmpty().withMessage("Password is required")
       .isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
@@ -47,7 +44,6 @@ router.post(
   register
 );
 
-// ---- POST /api/auth/login ----
 router.post(
   "/login",
   [
@@ -56,15 +52,16 @@ router.post(
       .notEmpty().withMessage("Email is required")
       .isEmail().withMessage("Please provide a valid email")
       .normalizeEmail(),
-
-    body("password")
-      .notEmpty().withMessage("Password is required"),
+    body("password").notEmpty().withMessage("Password is required"),
   ],
   validate,
   login
 );
 
-// ---- GET /api/auth/me  (protected) ----
+// ---- Protected ----
 router.get("/me", protect, getMe);
+router.patch("/me", protect, updateProfile);
+router.patch("/password", protect, changePassword);
+router.delete("/me", protect, deleteAccount);
 
 module.exports = router;

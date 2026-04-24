@@ -35,7 +35,30 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(cors());
+
+
+// ---- CORS ----
+// In dev: allow anything (Vite proxy handles it anyway)
+// In prod: only allow the deployed frontend URL
+const allowedOrigins = [
+  "http://localhost:5173",              // Vite dev server
+  "http://localhost:5174",              // fallback if 5173 is taken
+  process.env.CLIENT_URL,               // Production frontend URL
+].filter(Boolean);                      // remove undefined values
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like Thunder Client, mobile apps)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+    credentials: true,
+  })
+);
 
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));

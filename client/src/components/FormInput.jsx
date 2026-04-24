@@ -34,11 +34,13 @@ function FormInput({
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        
         className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 transition ${
           error
             ? "border-red-400 focus:ring-red-200"
             : "border-gray-200 focus:border-indigo-400 focus:ring-indigo-100"
-        }`}
+        } disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed`}
+
         {...rest}
       />
       {error && (

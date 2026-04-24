@@ -32,6 +32,7 @@ import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Assessment from "./pages/Assessment";
 import Results from "./pages/Results";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -80,6 +81,12 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/profile"
+            element={<ProtectedRoute><Profile /></ProtectedRoute>}
+          />
+
           <Route
             path="/assessment"
             element={

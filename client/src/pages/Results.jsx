@@ -1,8 +1,15 @@
 /**
- * Results Page — Temporary version
- * --------------------------------
- * Shows basic submission confirmation + scores.
- * Will be replaced with the full heatmap + certificate in Task 7.
+ * Results Page
+ * ------------
+ * Shows the user's capability report after submitting an assessment.
+ *
+ * Components:
+ *   - Hero header with submission date
+ *   - Overall score + level badge
+ *   - Capability heatmap (radar chart)
+ *   - Strength / growth area insights
+ *   - Per-category score cards
+ *   - Certificate download button
  */
 
 import { useEffect, useState } from "react";
@@ -11,36 +18,57 @@ import toast from "react-hot-toast";
 
 import api from "../api/axios";
 import LoadingSpinner from "../components/LoadingSpinner";
+import CapabilityHeatmap from "../components/CapabilityHeatmap";
+import CategoryScoreCard from "../components/CategoryScoreCard";
+import ResultsSummary from "../components/ResultsSummary";
 
-// Level → emoji + color
+// Level metadata
 const LEVEL_META = {
-  Emerging:   { emoji: "🌱", color: "text-teal-600",    bg: "bg-teal-50" },
-  Developing: { emoji: "🌿", color: "text-green-600",   bg: "bg-green-50" },
-  Confident:  { emoji: "🌳", color: "text-indigo-600",  bg: "bg-indigo-50" },
-  Advanced:   { emoji: "🏆", color: "text-purple-600",  bg: "bg-purple-50" },
+  Emerging:   { emoji: "🌱", color: "text-teal-700",   bg: "bg-teal-50",   badge: "bg-teal-100 text-teal-800" },
+  Developing: { emoji: "🌿", color: "text-green-700",  bg: "bg-green-50",  badge: "bg-green-100 text-green-800" },
+  Confident:  { emoji: "🌳", color: "text-indigo-700", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-800" },
+  Advanced:   { emoji: "🏆", color: "text-purple-700", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-800" },
 };
 
 function Results() {
   const { id } = useParams();
   const [assessment, setAssessment] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get assessment AND category metadata in parallel
+        const [assessmentRes, questionsRes] = await Promise.all([
+          api.get(`/assessments/${id}`),
+          api.get("/questions"),
+        ]);
+        setAssessment(assessmentRes.data.data.assessment);
+        setCategories(questionsRes.data.data.categories);
+      } catch (err) {
+        toast.error(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
   const handleDownloadCertificate = async () => {
     setDownloading(true);
     try {
       const response = await api.get(
         `/assessments/${assessment._id}/certificate`,
-        { responseType: "blob" }          // Important: tell axios to expect a file
+        { responseType: "blob" }
       );
 
-      // Create a temporary URL for the blob and click an invisible link
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `CareAble_Certificate_${assessment.level}.pdf`;
+      link.download = `CareAble_Certificate_${assessment.certificateId || assessment.level}.pdf`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -53,20 +81,6 @@ function Results() {
       setDownloading(false);
     }
   };
-
-  useEffect(() => {
-    const fetch = async () => {
-      try {
-        const res = await api.get(`/assessments/${id}`);
-        setAssessment(res.data.data.assessment);
-      } catch (err) {
-        toast.error(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [id]);
 
   if (loading) return <LoadingSpinner message="Loading your results..." />;
 
@@ -86,83 +100,134 @@ function Results() {
     );
   }
 
+  if (assessment.status !== "submitted") {
+    return (
+      <section className="flex-1 flex items-center justify-center p-4 py-16">
+        <div className="text-center max-w-md">
+          <p className="text-gray-700 mb-4">
+            This assessment hasn't been submitted yet.
+          </p>
+          <Link
+            to="/assessment"
+            className="inline-block px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
+          >
+            Continue assessment
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   const meta = LEVEL_META[assessment.level] || LEVEL_META.Emerging;
+  const submittedDate = new Date(assessment.submittedAt).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
     <section className="flex-1 p-4 md:p-8 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Hero card */}
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-10 text-center mb-6">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-100 rounded-full mb-4">
-            <span className="text-4xl">🎉</span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Your Caregiving Capability Report
-          </h1>
-          <p className="text-gray-500">
-            Submitted on{" "}
-            {new Date(assessment.submittedAt).toLocaleDateString("en-AU", {
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
-          </p>
-        </div>
-
-        {/* Overall score + level */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-10 mb-6">
-          <div className="grid md:grid-cols-2 gap-6 items-center">
-            {/* Score */}
-            <div className="text-center md:text-left">
-              <p className="text-sm text-gray-500 uppercase tracking-wide font-medium mb-1">
-                Overall Score
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-2xl shadow-xl p-6 md:p-10 text-white mb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <p className="text-indigo-200 text-sm mb-1">
+                Submitted {submittedDate}
               </p>
-              <p className="text-6xl md:text-7xl font-bold text-gray-900">
-                {assessment.overallScore}
-                <span className="text-3xl text-gray-400">/100</span>
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                Your Caregiving Capability Report
+              </h1>
+              <p className="text-indigo-100 max-w-xl">
+                Here's how your informal caregiving skills align with the
+                Australian Skills Classification.
               </p>
             </div>
 
-            {/* Level badge */}
-            <div className={`${meta.bg} rounded-xl p-6 text-center`}>
-              <div className="text-5xl mb-2">{meta.emoji}</div>
+            <Link
+              to="/dashboard"
+              className="text-sm px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition whitespace-nowrap backdrop-blur"
+            >
+              ← Dashboard
+            </Link>
+          </div>
+        </div>
+
+        {/* Score + Level */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-6">
+          <div className="grid md:grid-cols-2 gap-6 items-center">
+            <div className="text-center md:text-left">
+              <p className="text-sm text-gray-500 uppercase tracking-wide font-medium mb-2">
+                Overall Capability Score
+              </p>
+              <div className="flex items-baseline justify-center md:justify-start gap-2">
+                <span className="text-6xl md:text-7xl font-bold text-gray-900">
+                  {assessment.overallScore}
+                </span>
+                <span className="text-2xl text-gray-400">/ 100</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Based on {Object.keys(assessment.categoryScores || {}).length} capability areas
+              </p>
+            </div>
+
+            <div className={`${meta.bg} rounded-xl p-6 text-center border-2 border-white shadow-inner`}>
+              <div className="text-6xl mb-2">{meta.emoji}</div>
               <p className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">
                 Your Level
               </p>
-              <p className={`text-3xl font-bold ${meta.color}`}>
+              <p className={`text-2xl md:text-3xl font-bold ${meta.color}`}>
                 {assessment.level}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Category breakdown (simple for now — full heatmap in Task 7) */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-10 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
-            Capability Breakdown
+        {/* Capability Heatmap */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-6">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
+              Capability Heatmap
+            </h2>
+            <p className="text-sm text-gray-500">
+              Your strengths across {categories.length} capability areas. Hover for details.
+            </p>
+          </div>
+
+          <CapabilityHeatmap
+            categoryScores={assessment.categoryScores || {}}
+            categoryMeta={categories}
+          />
+        </div>
+
+        {/* Strengths & Growth Areas */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Insights
           </h2>
-          <div className="space-y-4">
-            {Object.entries(assessment.categoryScores || {}).map(([key, score]) => (
-              <div key={key}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700 capitalize">
-                    {key.replace(/-/g, " ")}
-                  </span>
-                  <span className="font-semibold text-gray-900">{score}/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="h-full bg-indigo-500 rounded-full transition-all duration-700"
-                    style={{ width: `${score}%` }}
-                  />
-                </div>
-              </div>
+          <ResultsSummary
+            categoryScores={assessment.categoryScores || {}}
+            categoryMeta={categories}
+          />
+        </div>
+
+        {/* Individual category cards */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Detailed Breakdown
+          </h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            {categories.map((cat) => (
+              <CategoryScoreCard
+                key={cat.key}
+                category={cat}
+                score={assessment.categoryScores?.[cat.key] || 0}
+              />
             ))}
           </div>
         </div>
 
-        {/* Coming soon placeholder */}
-{/* Certificate CTA */}
+        {/* Certificate CTA */}
         <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 md:p-10 text-white text-center">
           <span className="text-4xl mb-2 inline-block">🏅</span>
           <h3 className="text-2xl font-bold mb-2">Your Digital Certificate</h3>
@@ -194,6 +259,14 @@ function Results() {
           </button>
         </div>
 
+        <div className="text-center mt-6 pt-4">
+          <Link
+            to="/dashboard"
+            className="text-sm text-gray-500 hover:text-indigo-600 transition"
+          >
+            ← Back to dashboard
+          </Link>
+        </div>
       </div>
     </section>
   );

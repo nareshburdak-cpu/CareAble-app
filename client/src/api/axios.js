@@ -3,16 +3,18 @@
  * --------------
  * Pre-configured HTTP client for all API calls.
  *
- *   - baseURL: "/api" (Vite proxy forwards to backend)
- *   - Auto-attaches JWT token from localStorage
- *   - Normalizes error messages
- *   - Handles 401 globally: clears auth & redirects to /login
+ * Base URL:
+ *   - Dev:   "/api"  (Vite proxy forwards to backend)
+ *   - Prod:  VITE_API_URL  (e.g., https://careable-api.onrender.com/api)
  */
 
 import axios from "axios";
 
+// In production, we use the env var. In dev, fall back to "/api" (proxy).
+const baseURL = import.meta.env.VITE_API_URL || "/api";
+
 const api = axios.create({
-  baseURL: "/api",
+  baseURL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -40,23 +42,16 @@ api.interceptors.response.use(
       error.message ||
       "Something went wrong. Please try again.";
 
-    // Global 401: token expired or invalid.
-    //
-    // We only auto-logout for requests OTHER THAN login/register — otherwise
-    // a wrong-password attempt would cause a full redirect loop.
     const isAuthEndpoint =
       error.config?.url?.includes("/auth/login") ||
       error.config?.url?.includes("/auth/register");
 
     if (status === 401 && !isAuthEndpoint) {
-      // Clear stale auth
       localStorage.removeItem("token");
       localStorage.removeItem("user");
 
-      // Only redirect if we're not already on a public page
       const publicPaths = ["/", "/login", "/register"];
       if (!publicPaths.includes(window.location.pathname)) {
-        // Using window.location here (not useNavigate) because we're outside React.
         window.location.href = "/login";
       }
     }
