@@ -40,20 +40,34 @@ app.use(cookieParser());
 // ---- CORS ----
 // In dev: allow anything (Vite proxy handles it anyway)
 // In prod: only allow the deployed frontend URL
+// ---- CORS ----
 const allowedOrigins = [
-  "http://localhost:5173",              // Vite dev server
-  "http://localhost:5174",              // fallback if 5173 is taken
-  process.env.CLIENT_URL,               // Production frontend URL
-].filter(Boolean);                      // remove undefined values
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.CLIENT_URL,
+].filter(Boolean);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like Thunder Client, mobile apps)
+      // Allow requests with no origin (Thunder Client, mobile apps, server-to-server)
       if (!origin) return callback(null, true);
+
+      // Exact matches from allowedOrigins
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      // Any Vercel preview/prod URL for this project
+      if (/^https:\/\/careable.*\.vercel\.app$/.test(origin)) {
+        return callback(null, true);
+      }
+
+      // Your custom domain (with or without www)
+      if (/^https:\/\/(www\.)?careable\.site$/.test(origin)) {
+        return callback(null, true);
+      }
+
       return callback(new Error(`CORS: origin ${origin} not allowed`));
     },
     credentials: true,
