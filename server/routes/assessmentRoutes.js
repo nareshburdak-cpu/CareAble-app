@@ -20,6 +20,7 @@ const {
   getAssessmentById,
   listMyAssessments,
   downloadCertificate,
+  deleteAssessment,
 } = require("../controllers/assessmentController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -32,6 +33,7 @@ router.get("/", listMyAssessments);
 router.get("/current", getCurrent);
 router.post("/start", startAssessment);
 router.get("/:id", getAssessmentById);
+router.delete("/:id", deleteAssessment);
 router.get("/:id/certificate", downloadCertificate);
 router.patch("/:id/answer", saveAnswer);
 router.delete("/:id/answer/:questionId", deleteAnswer);

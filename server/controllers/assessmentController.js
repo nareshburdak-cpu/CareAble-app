@@ -29,30 +29,62 @@ const nanoid = customAlphabet(ID_ALPHABET, 10);
  * Guards against race conditions by cleaning up any duplicate
  * in-progress assessments before returning the latest.
  */
+/**
+ * @desc    Start a new assessment (or return existing in-progress one)
+ * @route   POST /api/assessments/start
+ * @access  Private
+ *
+ * Atomic upsert: prevents race conditions even if multiple requests arrive at once.
+ * The unique index on (user, status:"in-progress") guarantees only ONE in-progress.
+ */
 const startAssessment = asyncHandler(async (req, res) => {
-  // Find ALL in-progress assessments for this user (should be 0 or 1, but handle edge case)
-  const existing = await Assessment.find({
-    user: req.user._id,
-    status: "in-progress",
-  }).sort({ createdAt: -1 });
-
   let assessment;
 
-  if (existing.length > 0) {
-    // Keep the newest one
-    assessment = existing[0];
-
-    // Clean up any extras (leftover from race conditions)
-    if (existing.length > 1) {
-      const extraIds = existing.slice(1).map((a) => a._id);
-      await Assessment.deleteMany({ _id: { $in: extraIds } });
+  try {
+    // Try to find OR create atomically.
+    // findOneAndUpdate with upsert is a single atomic Mongo operation.
+    assessment = await Assessment.findOneAndUpdate(
+      { user: req.user._id, status: "in-progress" },
+      {
+        $setOnInsert: {
+          user: req.user._id,
+          status: "in-progress",
+          answers: {},
+        },
+      },
+      {
+        new: true,         // return the doc after the operation
+        upsert: true,      // create it if it doesn't exist
+        setDefaultsOnInsert: true,
+      }
+    );
+  } catch (err) {
+    // If the partial unique index trips a duplicate-key error
+    // (another request just created one a few ms before us),
+    // simply re-fetch the existing one.
+    if (err.code === 11000) {
+      assessment = await Assessment.findOne({
+        user: req.user._id,
+        status: "in-progress",
+      });
+      if (!assessment) {
+        throw new ApiError(500, "Could not start assessment. Please try again.");
+      }
+    } else {
+      throw err;
     }
-  } else {
-    // No in-progress — create fresh
-    assessment = await Assessment.create({
-      user: req.user._id,
-      answers: {},
-    });
+  }
+
+  // Defensive cleanup: in case old duplicates still exist from before the index
+  const allInProgress = await Assessment.find({
+    user: req.user._id,
+    status: "in-progress",
+  }).sort({ updatedAt: -1 });
+
+  if (allInProgress.length > 1) {
+    const extraIds = allInProgress.slice(1).map((a) => a._id);
+    await Assessment.deleteMany({ _id: { $in: extraIds } });
+    assessment = allInProgress[0]; // make sure we return the newest
   }
 
   const totalQuestions = await Question.countDocuments();
@@ -69,6 +101,7 @@ const startAssessment = asyncHandler(async (req, res) => {
     },
   });
 });
+
 
 /**
  * @desc    Get the user's current in-progress assessment
@@ -348,6 +381,38 @@ const downloadCertificate = asyncHandler(async (req, res) => {
   res.send(pdfBuffer);
 });
 
+/**
+ * @desc    Delete an in-progress assessment
+ * @route   DELETE /api/assessments/:id
+ * @access  Private
+ *
+ * Only allows deletion of in-progress assessments — submitted ones are permanent records.
+ */
+const deleteAssessment = asyncHandler(async (req, res) => {
+  const assessment = await Assessment.findById(req.params.id);
+
+  if (!assessment) {
+    throw new ApiError(404, "Assessment not found");
+  }
+  if (assessment.user.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not your assessment");
+  }
+  if (assessment.status === "submitted") {
+    throw new ApiError(
+      400,
+      "Submitted assessments cannot be deleted. They're a permanent record of your skills."
+    );
+  }
+
+  await Assessment.findByIdAndDelete(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    message: "Assessment discarded. You can start fresh anytime.",
+  });
+});
+
+
 
 module.exports = {
   startAssessment,
@@ -358,4 +423,5 @@ module.exports = {
   getAssessmentById,
   listMyAssessments,
   downloadCertificate,
+  deleteAssessment,
 };

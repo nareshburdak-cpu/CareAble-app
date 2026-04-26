@@ -1,61 +1,460 @@
 /**
  * Home — Landing page
  * -------------------
- * Smart CTAs: different buttons depending on auth state.
+ * Beautiful marketing landing for CareAble.
+ *
+ * Sections:
+ *   1. Hero (headline + CTA + visual sample card)
+ *   2. Trust stats strip
+ *   3. Features grid
+ *   4. How It Works
+ *   5. CTA section
+ *
+ * Hero adapts to auth state:
+ *   - Logged out: "Your caregiving is a skill" + Discover/I have account CTAs
+ *   - Logged in: "Welcome back, [Name]" + Continue/Dashboard CTAs
  */
 
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import BRAND, { TRUST_STATS, FEATURES, STEPS } from "../constants/brand";
 
 function Home() {
   const { isAuthenticated, user } = useAuth();
 
   return (
-    <section className="flex-1 flex items-center justify-center bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-4 py-16">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 max-w-xl w-full text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-6">
-          <span className="text-3xl">🫶</span>
+    <div className="flex-1 bg-gradient-to-b from-stone-50 via-white to-stone-50">
+      <Hero isAuthenticated={isAuthenticated} user={user} />
+      <TrustStrip />
+      <Features />
+      <HowItWorks />
+      <FinalCTA isAuthenticated={isAuthenticated} />
+    </div>
+  );
+}
+
+// =============================================================================
+// HERO — adapts to auth state
+// =============================================================================
+function Hero({ isAuthenticated, user }) {
+  const firstName = user?.name?.split(" ")[0];
+
+  return (
+    <section className="relative overflow-hidden pt-12 md:pt-20 pb-16 md:pb-24">
+      {/* Decorative organic blobs */}
+      <div
+        className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-40 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(74,124,111,0.18), transparent 70%)" }}
+      />
+      <div
+        className="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(224,122,95,0.18), transparent 70%)" }}
+      />
+
+      <div className="relative max-w-6xl mx-auto px-4">
+        <div className="text-center max-w-3xl mx-auto">
+          {/* Eyebrow badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-800 uppercase tracking-wide">
+              {isAuthenticated
+                ? "Welcome back to CareAble"
+                : `In partnership with ${BRAND.partnersLine}`}
+            </span>
+          </div>
+
+          {/* Headline — adapts to auth state */}
+          {isAuthenticated ? (
+            <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold text-stone-900 leading-[1.05] mb-6 tracking-tight">
+              Hi, {firstName}.<br />
+              <span className="italic text-emerald-700 relative inline-block">
+                Ready to continue?
+                <svg
+                  className="absolute -bottom-2 left-0 w-full h-3"
+                  viewBox="0 0 200 12"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M2 8 Q 50 2, 100 7 T 198 6"
+                    stroke="#E07A5F"
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+          ) : (
+            <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold text-stone-900 leading-[1.05] mb-6 tracking-tight">
+              Your caregiving<br />
+              <span className="italic text-emerald-700 relative inline-block">
+                is a skill.
+                <svg
+                  className="absolute -bottom-2 left-0 w-full h-3"
+                  viewBox="0 0 200 12"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M2 8 Q 50 2, 100 7 T 198 6"
+                    stroke="#E07A5F"
+                    strokeWidth="2.5"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+          )}
+
+          {/* Subtext — adapts */}
+          <p className="text-lg md:text-xl text-stone-600 leading-relaxed mb-10 max-w-2xl mx-auto">
+            {isAuthenticated
+              ? "Pick up where you left off. View your latest report, take a fresh assessment, or download your certificate."
+              : "CareAble helps unpaid carers — family, friends, and neighbours — recognise and validate the extraordinary skills they've built. Get a personalised capability report and a professional digital certificate."}
+          </p>
+
+          {/* CTAs — adapt */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="group inline-flex items-center gap-2 px-8 py-3.5 bg-emerald-700 text-white font-medium rounded-full hover:bg-emerald-800 transition shadow-lg hover:shadow-xl"
+                >
+                  Go to Dashboard
+                  <svg
+                    className="w-4 h-4 group-hover:translate-x-0.5 transition"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Link>
+                <Link
+                  to="/assessment"
+                  className="px-8 py-3.5 text-stone-700 font-medium hover:text-emerald-700 transition"
+                >
+                  Take an assessment →
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/register"
+                  className="group inline-flex items-center gap-2 px-8 py-3.5 bg-emerald-700 text-white font-medium rounded-full hover:bg-emerald-800 transition shadow-lg hover:shadow-xl"
+                >
+                  Discover your skills
+                  <svg
+                    className="w-4 h-4 group-hover:translate-x-0.5 transition"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Link>
+                <Link
+                  to="/login"
+                  className="px-8 py-3.5 text-stone-700 font-medium hover:text-emerald-700 transition"
+                >
+                  I have an account
+                </Link>
+              </>
+            )}
+          </div>
+
+          <p className="text-xs text-stone-500">
+            {isAuthenticated
+              ? "Continue your journey — your progress is saved automatically."
+              : "✓ Free · ✓ Takes 10–15 minutes · ✓ Instant results"}
+          </p>
         </div>
 
-        <h1 className="text-3xl md:text-5xl font-bold text-gray-900 mb-3">
-          {isAuthenticated ? `Welcome back, ${user.name.split(" ")[0]}!` : "CareAble"}
-        </h1>
+        {/* Hero visual sample card */}
+        <SampleCard />
+      </div>
+    </section>
+  );
+}
 
-        <p className="text-lg md:text-xl text-indigo-600 font-medium mb-6">
-          Supporting hidden caregiving workers
+// =============================================================================
+// HERO SAMPLE CARD
+// =============================================================================
+function SampleCard() {
+  const skills = [
+    { name: "Personal Care", val: 78, color: "bg-rose-200/70" },
+    { name: "Health Support", val: 85, color: "bg-emerald-200/70" },
+    { name: "Emotional Care", val: 92, color: "bg-violet-200/70" },
+    { name: "Household", val: 71, color: "bg-amber-200/70" },
+    { name: "Advocacy", val: 67, color: "bg-blue-200/70" },
+    { name: "Self-care", val: 80, color: "bg-teal-200/70" },
+  ];
+
+  return (
+    <div className="mt-16 max-w-2xl mx-auto">
+      <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl shadow-emerald-900/10 p-6 md:p-8">
+        <div className="flex items-center gap-3 mb-5 pb-5 border-b border-stone-100">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center text-white font-semibold">
+            SM
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-stone-900">Sarah's Capability Report</p>
+            <p className="text-xs text-stone-500">Sample — what you'll receive</p>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full">
+            ✓ Certified
+          </span>
+        </div>
+
+        <p className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-3">
+          Top capability areas
         </p>
 
-        <p className="text-gray-600 leading-relaxed mb-8">
-          A platform for unpaid carers to self-assess their caregiving skills,
-          align with the Australian Skills Classification, and receive a digital
-          certificate recognising their valuable contribution.
-        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {skills.map((s) => (
+            <div
+              key={s.name}
+              className={`${s.color} rounded-xl px-3 py-3 text-center`}
+            >
+              <div className="text-2xl font-bold text-stone-800">{s.val}</div>
+              <div className="text-[11px] text-stone-700 mt-0.5 leading-tight">
+                {s.name}
+              </div>
+            </div>
+          ))}
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {isAuthenticated ? (
+        <div className="mt-5 pt-5 border-t border-stone-100 flex items-center gap-2 text-xs text-stone-500">
+          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          Aligned with the Australian Skills Classification
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// TRUST STRIP
+// =============================================================================
+function TrustStrip() {
+  return (
+    <section className="border-y border-stone-200 bg-stone-50/60 py-10">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4 text-center">
+          {TRUST_STATS.map((stat) => (
+            <div key={stat.label}>
+              <div className="font-serif text-4xl md:text-5xl font-bold text-emerald-700 mb-1">
+                {stat.number}
+                {stat.suffix && (
+                  <span className="text-2xl text-stone-500 ml-1">{stat.suffix}</span>
+                )}
+              </div>
+              <p className="text-sm text-stone-600">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// FEATURES
+// =============================================================================
+function Features() {
+  return (
+    <section className="py-20 md:py-28">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-14 max-w-2xl mx-auto">
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 font-medium mb-3">
+            What we offer
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-stone-900 mb-4 leading-tight">
+            Built for carers,<br />by people who care.
+          </h2>
+          <p className="text-stone-600 leading-relaxed">
+            Every feature designed with hidden carers in mind — clear, kind, and
+            grounded in real research.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {FEATURES.map((f) => (
+            <div
+              key={f.title}
+              className="group bg-white border border-stone-200 rounded-2xl p-6 md:p-8 hover:border-emerald-300 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+            >
+              <div className="w-12 h-12 bg-emerald-50 group-hover:bg-emerald-100 rounded-xl flex items-center justify-center mb-5 transition">
+                <FeatureIcon name={f.icon} />
+              </div>
+              <h3 className="font-serif text-xl font-bold text-stone-900 mb-2">
+                {f.title}
+              </h3>
+              <p className="text-stone-600 leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// Inline feature icons
+function FeatureIcon({ name }) {
+  const props = {
+    className: "w-6 h-6 text-emerald-700",
+    fill: "none",
+    stroke: "currentColor",
+    viewBox: "0 0 24 24",
+    strokeWidth: 1.5,
+  };
+
+  switch (name) {
+    case "compass":
+      return (
+        <svg {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 9.5l-1.5 4.5-4.5 1.5 1.5-4.5 4.5-1.5z" />
+        </svg>
+      );
+    case "certificate":
+      return (
+        <svg {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M3 6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6zM7 20l3-3M17 20l-3-3" />
+        </svg>
+      );
+    case "chart":
+      return (
+        <svg {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg {...props}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+// =============================================================================
+// HOW IT WORKS
+// =============================================================================
+function HowItWorks() {
+  return (
+    <section className="py-20 md:py-28 bg-stone-50/60 border-y border-stone-200">
+      <div className="max-w-6xl mx-auto px-4">
+        <div className="text-center mb-14 max-w-2xl mx-auto">
+          <p className="text-xs uppercase tracking-[0.2em] text-emerald-700 font-medium mb-3">
+            How it works
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-stone-900 mb-4 leading-tight">
+            From invisible to{" "}
+            <span className="italic text-rose-500">invaluable</span>
+            <br />
+            in four simple steps.
+          </h2>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {STEPS.map((s) => (
+            <div
+              key={s.n}
+              className="bg-white border border-stone-200 rounded-2xl p-6 md:p-8 flex gap-6"
+            >
+              <div className="font-serif text-5xl md:text-6xl font-bold text-emerald-100 leading-none flex-shrink-0">
+                {s.n}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-serif text-xl font-bold text-stone-900 mb-2">
+                  {s.title}
+                </h3>
+                <p className="text-stone-600 leading-relaxed">{s.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// =============================================================================
+// FINAL CTA — adapts to auth state
+// =============================================================================
+function FinalCTA({ isAuthenticated }) {
+  return (
+    <section className="py-20 md:py-28 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-emerald-800 to-stone-900 pointer-events-none" />
+      <div
+        className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(224,122,95,0.4), transparent 70%)" }}
+      />
+
+      <div className="relative max-w-3xl mx-auto px-4 text-center text-white">
+        {isAuthenticated ? (
+          <>
+            <h2 className="font-serif text-3xl md:text-5xl font-bold mb-6 leading-tight">
+              Continue your journey<br />
+              <span className="italic text-emerald-200">toward recognition.</span>
+            </h2>
+            <p className="text-lg text-emerald-100/90 mb-10 max-w-xl mx-auto">
+              Take a fresh assessment, or revisit your existing capability report
+              and certificate.
+            </p>
+
             <Link
               to="/dashboard"
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-lg hover:shadow-xl"
+              className="group inline-flex items-center gap-2 px-8 py-4 bg-rose-400 hover:bg-rose-500 text-white font-medium rounded-full transition shadow-2xl"
             >
-              Go to Dashboard →
+              Open Dashboard
+              <svg
+                className="w-4 h-4 group-hover:translate-x-0.5 transition"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
             </Link>
-          ) : (
-            <>
-              <Link
-                to="/register"
-                className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-lg hover:shadow-xl"
+          </>
+        ) : (
+          <>
+            <h2 className="font-serif text-3xl md:text-5xl font-bold mb-6 leading-tight">
+              Ready to discover<br />
+              <span className="italic text-emerald-200">who you really are?</span>
+            </h2>
+            <p className="text-lg text-emerald-100/90 mb-10 max-w-xl mx-auto">
+              Join carers across Australia turning their caregiving experience
+              into recognised, professional capability.
+            </p>
+
+            <Link
+              to="/register"
+              className="group inline-flex items-center gap-2 px-8 py-4 bg-rose-400 hover:bg-rose-500 text-white font-medium rounded-full transition shadow-2xl"
+            >
+              Start free assessment
+              <svg
+                className="w-4 h-4 group-hover:translate-x-0.5 transition"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                Get Started
-              </Link>
-              <Link
-                to="/login"
-                className="px-6 py-3 border-2 border-gray-200 text-gray-700 font-medium rounded-lg hover:border-indigo-300 hover:text-indigo-600 transition"
-              >
-                Log in
-              </Link>
-            </>
-          )}
-        </div>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </Link>
+
+            <p className="text-xs text-emerald-200/70 mt-6">
+              No credit card · Takes 10–15 minutes · Instant results
+            </p>
+          </>
+        )}
       </div>
     </section>
   );

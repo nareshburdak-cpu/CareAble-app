@@ -92,4 +92,17 @@ assessmentSchema.methods.getProgress = function (totalQuestions) {
   return this.answers.size / totalQuestions;
 };
 
+// ---- Partial unique index ----
+// Enforces: each user can have at most ONE in-progress assessment.
+// Submitted assessments are unrestricted (a user can have many).
+assessmentSchema.index(
+  { user: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "in-progress" },
+    name: "unique_user_in_progress",
+  }
+);
+
+
 module.exports = mongoose.model("Assessment", assessmentSchema);

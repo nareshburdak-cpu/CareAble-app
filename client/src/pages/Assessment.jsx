@@ -1,11 +1,14 @@
 /**
  * Assessment Page
  * ---------------
- * Main self-assessment questionnaire — now with live answer saving.
+ * Main self-assessment questionnaire — with live answer saving.
+ *
+ * Note: Uses a useRef "hasStarted" guard to prevent React StrictMode
+ * from double-firing the start API call in development.
  */
 
-import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; 
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import api from "../api/axios";
@@ -20,9 +23,17 @@ function Assessment() {
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [submitting, setSubmitting] = useState(false); 
+  const [submitting, setSubmitting] = useState(false);
+
+  // StrictMode double-mount guard — prevents the load() function
+  // from firing twice in dev mode (which would create duplicate assessments).
+  const hasStarted = useRef(false);
 
   useEffect(() => {
+    // StrictMode double-mount guard
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+
     const load = async () => {
       try {
         const [questionsRes, startRes] = await Promise.all([
@@ -65,6 +76,7 @@ function Assessment() {
       return next;
     });
   };
+
   // Submit the assessment
   const handleSubmit = async () => {
     if (!assessmentId) return;
@@ -111,33 +123,12 @@ function Assessment() {
   return (
     <section className="flex-1 p-4 md:p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto">
-        {/* Sticky header with progress */}
-        <div className="sticky top-16 z-40 bg-gray-50 pb-4 mb-4 -mx-4 px-4 md:-mx-8 md:px-8 pt-4">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                  Self-Assessment
-                </h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  Expand each section to answer. Your progress saves automatically.
-                </p>
-              </div>
-              <Link
-                to="/dashboard"
-                className="text-sm text-gray-600 hover:text-indigo-600 transition self-start sm:self-center"
-              >
-                ← Back to dashboard
-              </Link>
-            </div>
 
-            <ProgressBar
-              value={answeredCount}
-              max={totalQuestions}
-              color="bg-indigo-600"
-            />
-          </div>
-        </div>
+        {/* Smart header: full version at top, compact when scrolled */}
+        <AssessmentHeader
+          answeredCount={answeredCount}
+          totalQuestions={totalQuestions}
+        />
 
         {/* Category accordion sections */}
         <div className="space-y-3">
@@ -154,7 +145,6 @@ function Assessment() {
           ))}
         </div>
 
-        {/* Submit placeholder */}
         {/* Submit section */}
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:p-8">
           {answeredCount === totalQuestions ? (
@@ -207,10 +197,110 @@ function Assessment() {
               </p>
             </div>
           )}
-        </div>        
+        </div>
       </div>
     </section>
   );
 }
+
+// ---- Smart header that swaps full → compact on scroll ----
+function AssessmentHeader({ answeredCount, totalQuestions }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Switch to compact mode after scrolling 120px
+      setScrolled(window.scrollY > 120);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // run once on mount
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const percent = totalQuestions > 0
+    ? Math.round((answeredCount / totalQuestions) * 100)
+    : 0;
+
+  return (
+    <>
+      {/*
+        Full header — collapses via max-height (not h-0) so the browser
+        has a concrete start/end value to tween between. overflow:hidden
+        stays on permanently so collapsing content clips cleanly.
+        The opacity transition is slightly shorter so the content fades
+        out before the container fully collapses, avoiding a "squish" look.
+      */}
+      <div
+        style={{
+          maxHeight: scrolled ? "0px" : "200px",
+          opacity: scrolled ? 0 : 1,
+          overflow: "hidden",
+          transition: "max-height 400ms ease, opacity 280ms ease",
+          marginBottom: scrolled ? "0" : "1rem",
+        }}
+      >
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                Self-Assessment
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Expand each section to answer. Your progress saves automatically.
+              </p>
+            </div>
+            <Link
+              to="/dashboard"
+              className="text-sm text-gray-600 hover:text-indigo-600 transition self-start sm:self-center whitespace-nowrap"
+            >
+              ← Back to dashboard
+            </Link>
+          </div>
+          <ProgressBar
+            value={answeredCount}
+            max={totalQuestions}
+            color="bg-indigo-600"
+          />
+        </div>
+      </div>
+
+      {/*
+        Compact sticky bar — fades in after the full header has mostly
+        collapsed. The 100ms delay on scroll-down prevents both elements
+        from being visually prominent at the same time. On scroll-up the
+        delay is 0ms so it disappears immediately and the full header
+        takes over without overlap.
+      */}
+      <div
+        style={{
+          opacity: scrolled ? 1 : 0,
+          pointerEvents: scrolled ? "auto" : "none",
+          transition: "opacity 300ms ease",
+          transitionDelay: scrolled ? "100ms" : "0ms",
+        }}
+        className="sticky top-16 z-40 -mx-4 px-4 md:-mx-8 md:px-8 mb-4"
+      >
+        <div className="bg-white rounded-xl shadow-md border border-gray-100 px-4 py-2.5 md:py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xs md:text-sm font-medium text-gray-700 whitespace-nowrap">
+              {answeredCount}/{totalQuestions}
+            </span>
+            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <span className="text-xs md:text-sm font-semibold text-indigo-600 whitespace-nowrap">
+              {percent}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 
 export default Assessment;

@@ -5,10 +5,10 @@
  *   - Personalised welcome
  *   - Real-time stats (assessments, latest score, level)
  *   - Smart CTA (Start / Continue / Retake)
- *   - Assessment history list
+ *   - Assessment history list with discard option for in-progress
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -30,36 +30,57 @@ function Dashboard() {
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Track if the initial fetch has happened (avoids loading spinner on refetches)
+  const hasLoadedOnce = useRef(false);
+
+  // Pure async function — no setState side effects, just returns the data
+  const fetchAssessments = useCallback(async ({ silent = false } = {}) => {
+    try {
+      const res = await api.get("/assessments");
+      // Defensive deduplication by _id
+      const unique = Array.from(
+        new Map(res.data.data.assessments.map((a) => [a._id, a])).values()
+      );
+      setAssessments(unique);
+    } catch (err) {
+      if (!silent) toast.error("Could not load your history");
+      console.error(err);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchAssessments = async () => {
-      try {
-        const res = await api.get("/assessments");
-        setAssessments(res.data.data.assessments);
-      } catch (err) {
-        toast.error("Could not load your history");
-        console.error(err);
-      } finally {
+    let cancelled = false;
+
+    const init = async () => {
+      await fetchAssessments();
+      if (!cancelled) {
         setLoading(false);
+        hasLoadedOnce.current = true;
       }
     };
 
-    // Fetch on mount
-    fetchAssessments();
+    init();
 
-    // Re-fetch when the tab regains focus (e.g., user came back from /assessment)
-    const handleFocus = () => fetchAssessments();
+    // Re-fetch when the tab regains focus (silent — no toast on focus failures)
+    const handleFocus = () => {
+      if (hasLoadedOnce.current) {
+        fetchAssessments({ silent: true });
+      }
+    };
     window.addEventListener("focus", handleFocus);
 
-    return () => window.removeEventListener("focus", handleFocus);
-  }, []);
-
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchAssessments]);
 
   if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
 
   // ---- Computed stats ----
   const submitted = assessments.filter((a) => a.status === "submitted");
   const inProgress = assessments.find((a) => a.status === "in-progress");
-  const latest = submitted[0]; // newest first (backend sorts by createdAt desc)
+  const latest = submitted[0]; // newest first
 
   // CTA logic
   let ctaLabel = "Start Assessment";
@@ -125,7 +146,6 @@ function Dashboard() {
             {inProgress
               ? `You've answered ${inProgress.answerCount ?? 0} of 30 questions so far. Pick up right where you left off.`
               : "Discover your caregiving strengths across 6 skill areas. The assessment takes about 10–15 minutes and saves automatically as you go."}
-
           </p>
           <Link
             to={ctaLink}
@@ -171,7 +191,11 @@ function Dashboard() {
           ) : (
             <ul className="divide-y divide-gray-100">
               {assessments.map((a) => (
-                <AssessmentRow key={a._id} assessment={a} />
+                <AssessmentRow
+                  key={a._id}
+                  assessment={a}
+                  onDelete={() => fetchAssessments({ silent: true })}
+                />
               ))}
             </ul>
           )}
@@ -200,57 +224,90 @@ function StatCard({ label, value, suffix, color }) {
   );
 }
 
-// ---- Single assessment row ----
-function AssessmentRow({ assessment }) {
+// ---- Single assessment row with discard option ----
+function AssessmentRow({ assessment, onDelete }) {
   const isSubmitted = assessment.status === "submitted";
   const levelMeta = isSubmitted && LEVEL_META[assessment.level];
 
   const dateSource = assessment.submittedAt || assessment.updatedAt;
 
+  const handleDiscard = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmed = window.confirm(
+      "Discard this in-progress assessment? Your answers will be lost. (You can always start a new one.)"
+    );
+    if (!confirmed) return;
+
+    try {
+      await api.delete(`/assessments/${assessment._id}`);
+      toast.success("Assessment discarded.");
+      onDelete?.();
+    } catch (err) {
+      toast.error(err.message || "Could not discard");
+    }
+  };
+
   return (
     <li>
-      <Link
-        to={isSubmitted ? `/results/${assessment._id}` : "/assessment"}
-        className="block px-2 -mx-2 rounded-lg hover:bg-gray-50 transition"
-      >
-        <div className="flex items-center justify-between py-4 gap-4">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="text-2xl flex-shrink-0">
-              {isSubmitted ? levelMeta?.emoji : "⏳"}
-            </div>
-            <div className="min-w-0">
-              <p className="text-gray-900 font-medium">
-                {isSubmitted ? "Submitted" : "In progress"} · {shortDate(dateSource)}
-              </p>
-              {isSubmitted ? (
-                <p className="text-sm text-gray-500">
-                  Score:{" "}
-                  <span className="font-semibold text-gray-700">
-                    {assessment.overallScore}/100
-                  </span>
-                  <span className="mx-1.5 text-gray-300">·</span>
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${levelMeta?.badge}`}
-                  >
-                    {assessment.level}
-                  </span>
+      <div className="flex items-center gap-2 group">
+        <Link
+          to={isSubmitted ? `/results/${assessment._id}` : "/assessment"}
+          className="block flex-1 px-2 -mx-2 rounded-lg hover:bg-gray-50 transition min-w-0"
+        >
+          <div className="flex items-center justify-between py-4 gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="text-2xl flex-shrink-0">
+                {isSubmitted ? levelMeta?.emoji : "⏳"}
+              </div>
+              <div className="min-w-0">
+                <p className="text-gray-900 font-medium">
+                  {isSubmitted ? "Submitted" : "In progress"} · {shortDate(dateSource)}
                 </p>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  {assessment.answerCount ?? 0} of 30 answered · Updated {relativeTime(dateSource)}
-                </p>
-              )}
+                {isSubmitted ? (
+                  <p className="text-sm text-gray-500">
+                    Score:{" "}
+                    <span className="font-semibold text-gray-700">
+                      {assessment.overallScore}/100
+                    </span>
+                    <span className="mx-1.5 text-gray-300">·</span>
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${levelMeta?.badge}`}
+                    >
+                      {assessment.level}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    {assessment.answerCount ?? 0} of 30 answered · Updated {relativeTime(dateSource)}
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="text-sm text-gray-400 flex-shrink-0">
-            {isSubmitted ? "View →" : "Continue →"}
+            <div className="text-sm text-gray-400 flex-shrink-0">
+              {isSubmitted ? "View →" : "Continue →"}
+            </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+
+        {/* Discard button — only for in-progress assessments */}
+        {!isSubmitted && (
+          <button
+            onClick={handleDiscard}
+            title="Discard this assessment"
+            aria-label="Discard in-progress assessment"
+            className="opacity-50 hover:opacity-100 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+            </svg>
+          </button>
+        )}
+      </div>
     </li>
   );
 }
-
 
 export default Dashboard;
