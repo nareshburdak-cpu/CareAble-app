@@ -32,8 +32,6 @@ const assessmentSchema = new mongoose.Schema(
     // Answers: Map of questionId → answer payload
     //   Likert/Frequency:  { value: "4" }
     //   Multi-select:      { values: ["bathing", "dressing"] }
-    //
-    // We use Map instead of an object so Mongoose can properly track changes.
     answers: {
       type: Map,
       of: new mongoose.Schema(
@@ -54,37 +52,31 @@ const assessmentSchema = new mongoose.Schema(
       default: {},
     },
 
+    // No `default: null` — let it be undefined until submission
     overallScore: {
       type: Number,
-      default: null,
     },
 
-    // Friendly "level" based on overall score (filled on submit)
+    // No `default: null` — let it be undefined until submission
     level: {
       type: String,
-      enum: ["Emerging", "Developing", "Confident", "Advanced", null],
-      default: null,
+      enum: ["Emerging", "Developing", "Confident", "Advanced"],
     },
 
+    // No `default`, no `index: true` — just type + sparse unique
     certificateId: {
       type: String,
-      default: null,
       unique: true,
-      sparse: true,   // allows multiple null values (while still enforcing uniqueness when set)
-      index: true,
+      sparse: true,
     },
 
+    // No `default: null` — let it be undefined until submission
     submittedAt: {
       type: Date,
-      default: null,
     },
-
   },
   { timestamps: true }
 );
-
-// Compound index: find user's in-progress assessment fast
-assessmentSchema.index({ user: 1, status: 1 });
 
 // Helper: returns the progress as a ratio (0 to 1)
 assessmentSchema.methods.getProgress = function (totalQuestions) {
@@ -94,7 +86,7 @@ assessmentSchema.methods.getProgress = function (totalQuestions) {
 
 // ---- Partial unique index ----
 // Enforces: each user can have at most ONE in-progress assessment.
-// Submitted assessments are unrestricted (a user can have many).
+// Submitted assessments are unrestricted.
 assessmentSchema.index(
   { user: 1, status: 1 },
   {
@@ -103,6 +95,5 @@ assessmentSchema.index(
     name: "unique_user_in_progress",
   }
 );
-
 
 module.exports = mongoose.model("Assessment", assessmentSchema);

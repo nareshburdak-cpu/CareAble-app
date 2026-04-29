@@ -26,65 +26,54 @@ const nanoid = customAlphabet(ID_ALPHABET, 10);
  * @route   POST /api/assessments/start
  * @access  Private
  *
- * Guards against race conditions by cleaning up any duplicate
- * in-progress assessments before returning the latest.
- */
-/**
- * @desc    Start a new assessment (or return existing in-progress one)
- * @route   POST /api/assessments/start
- * @access  Private
+ * Strategy:
+ * 1. Look for existing in-progress assessment → return it
+ * 2. If found and there are duplicates → keep newest, delete the rest
+ * 3. If none found → create one (handles race condition with try/catch)
  *
- * Atomic upsert: prevents race conditions even if multiple requests arrive at once.
- * The unique index on (user, status:"in-progress") guarantees only ONE in-progress.
+ * Defense in depth: frontend ref guard + this logic + DB partial unique index
  */
 const startAssessment = asyncHandler(async (req, res) => {
-  let assessment;
-
-  try {
-    // Try to find OR create atomically.
-    // findOneAndUpdate with upsert is a single atomic Mongo operation.
-    assessment = await Assessment.findOneAndUpdate(
-      { user: req.user._id, status: "in-progress" },
-      {
-        $setOnInsert: {
-          user: req.user._id,
-          status: "in-progress",
-          answers: {},
-        },
-      },
-      {
-        new: true,         // return the doc after the operation
-        upsert: true,      // create it if it doesn't exist
-        setDefaultsOnInsert: true,
-      }
-    );
-  } catch (err) {
-    // If the partial unique index trips a duplicate-key error
-    // (another request just created one a few ms before us),
-    // simply re-fetch the existing one.
-    if (err.code === 11000) {
-      assessment = await Assessment.findOne({
-        user: req.user._id,
-        status: "in-progress",
-      });
-      if (!assessment) {
-        throw new ApiError(500, "Could not start assessment. Please try again.");
-      }
-    } else {
-      throw err;
-    }
-  }
-
-  // Defensive cleanup: in case old duplicates still exist from before the index
+  // STEP 1: Find ALL in-progress assessments for this user
   const allInProgress = await Assessment.find({
     user: req.user._id,
     status: "in-progress",
   }).sort({ updatedAt: -1 });
 
-  if (allInProgress.length > 1) {
-    const extraIds = allInProgress.slice(1).map((a) => a._id);
-    await Assessment.deleteMany({ _id: { $in: extraIds } });
-    assessment = allInProgress[0]; // make sure we return the newest
+  let assessment = null;
+
+  // STEP 2: If duplicates exist, keep the newest and delete the rest
+  if (allInProgress.length > 0) {
+    assessment = allInProgress[0];
+    if (allInProgress.length > 1) {
+      const extraIds = allInProgress.slice(1).map((a) => a._id);
+      await Assessment.deleteMany({ _id: { $in: extraIds } });
+    }
+  }
+
+  // STEP 3: No existing in-progress → create one
+  if (!assessment) {
+    try {
+      assessment = await Assessment.create({
+        user: req.user._id,
+        status: "in-progress",
+        answers: new Map(),
+      });
+    } catch (err) {
+      // Race condition fallback: re-fetch if duplicate key
+      if (err.code === 11000) {
+        assessment = await Assessment.findOne({
+          user: req.user._id,
+          status: "in-progress",
+        });
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  if (!assessment) {
+    throw new ApiError(500, "Could not start assessment. Please try again in a moment.");
   }
 
   const totalQuestions = await Question.countDocuments();
@@ -96,7 +85,10 @@ const startAssessment = asyncHandler(async (req, res) => {
       progress: {
         answered: assessment.answers.size,
         total: totalQuestions,
-        percent: Math.round((assessment.answers.size / totalQuestions) * 100),
+        percent:
+          totalQuestions > 0
+            ? Math.round((assessment.answers.size / totalQuestions) * 100)
+            : 0,
       },
     },
   });
