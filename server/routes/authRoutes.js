@@ -8,7 +8,12 @@ const {
   updateProfile,
   changePassword,
   deleteAccount,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
+  resendVerification,
 } = require("../controllers/authController");
+
 const { protect } = require("../middleware/authMiddleware");
 const ApiError = require("../utils/ApiError");
 
@@ -57,11 +62,15 @@ router.post(
   validate,
   login
 );
-
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+router.post("/verify-email", verifyEmail);
 // ---- Protected ----
 router.get("/me", protect, getMe);
 router.patch("/me", protect, updateProfile);
 router.patch("/password", protect, changePassword);
 router.delete("/me", protect, deleteAccount);
+router.post("/resend-verification", protect, resendVerification);
+
 
 module.exports = router;

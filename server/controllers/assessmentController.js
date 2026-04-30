@@ -204,6 +204,10 @@ const submitAssessment = asyncHandler(async (req, res) => {
   if (assessment.status === "submitted") {
     throw new ApiError(400, "This assessment has already been submitted");
   }
+  if (!req.user.emailVerified) {
+      throw new ApiError(403,"Please verify your email before submitting. Check your inbox or request a new verification link.");
+    }
+
 
   const questions = await Question.find().lean();
 

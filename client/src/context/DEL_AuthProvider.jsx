@@ -99,6 +99,15 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get("/auth/me");
+      setUser(res.data.data.user);
+    } catch (err) {
+      console.error("Refresh user failed:", err);
+    }
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -106,6 +115,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    refreshUser,
   };
 
   return (

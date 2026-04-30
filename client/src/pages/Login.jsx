@@ -91,6 +91,15 @@ function Login() {
             placeholder="Enter your password"
             autoComplete="current-password"
           />
+          {/* NEW: Forgot password link */}
+          <div className="text-right -mt-2 mb-2">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <label className="flex items-center gap-2 mb-6 text-sm text-gray-600 cursor-pointer select-none">
             <input

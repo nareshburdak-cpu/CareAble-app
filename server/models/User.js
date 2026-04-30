@@ -14,6 +14,7 @@
 
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const userSchema = new mongoose.Schema(
   {
@@ -44,6 +45,21 @@ const userSchema = new mongoose.Schema(
       select: false, // ❗ Never return password in query results by default
     },
 
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    emailVerifyToken: {
+      type: String,
+      select: false,    // hide from default queries
+    },
+
+    emailVerifyExpires: {
+      type: Date,
+      select: false,
+    },
+
     role: {
       type: String,
       enum: ["user", "admin"],
@@ -60,6 +76,17 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Add inside userSchema, near the other fields:
+    passwordResetToken: {
+      type: String,
+      select: false,    // never returned in queries by default
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
+
   },
   {
     timestamps: true, // Adds createdAt & updatedAt automatically
@@ -90,6 +117,39 @@ userSchema.methods.toJSON = function () {
   delete obj.password;
   delete obj.__v;
   return obj;
+};
+
+
+// Generate a password reset token + return the unhashed version (for the email link)
+userSchema.methods.createPasswordResetToken = function () {
+  // Generate random unhashed token (this goes in the email)
+  const resetToken = crypto.randomBytes(32).toString("hex");
+
+  // Save the HASHED version (defense if DB is breached)
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  // Expires in 30 minutes
+  this.passwordResetExpires = Date.now() + 30 * 60 * 1000;
+
+  return resetToken; // unhashed — used in email link only
+};
+
+// Generate an email verification token + return the unhashed version (for email link)
+userSchema.methods.createEmailVerifyToken = function () {
+  const verifyToken = crypto.randomBytes(32).toString("hex");
+
+  this.emailVerifyToken = crypto
+    .createHash("sha256")
+    .update(verifyToken)
+    .digest("hex");
+
+  // Token valid for 7 days (less aggressive than password reset)
+  this.emailVerifyExpires = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+  return verifyToken;
 };
 
 module.exports = mongoose.model("User", userSchema);

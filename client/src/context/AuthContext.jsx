@@ -1,42 +1,38 @@
+/* eslint-disable react-refresh/only-export-components */
 /**
  * AuthContext
  * -----------
- * Provides global authentication state to the entire app.
+ * Global authentication state.
  *
  * Features:
- *   - bootstrap on mount: check localStorage + validate with /auth/me
- *   - login / register / logout helpers
- *   - cross-tab sync: if user logs out in another tab, this tab catches up
+ *   - Bootstrap on mount: validate saved token with /auth/me
+ *   - login / register / logout / refreshUser helpers
+ *   - Cross-tab sync: logout in one tab logs out all tabs
  *
- * Note: The `useAuth` hook lives in src/hooks/useAuth.js
- * for better Fast Refresh support.
+ * Note: useAuth hook is in src/hooks/useAuth.js (separate for Fast Refresh).
  */
 
 import { createContext, useEffect, useState } from "react";
 import api from "../api/axios";
 
-// Exported so useAuth.js can import it
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ---- On mount: verify saved token with the server ----
+  // ---- Bootstrap: validate token on app load ----
   useEffect(() => {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("token");
-
       if (!token) {
         setLoading(false);
         return;
       }
-
       try {
         const res = await api.get("/auth/me");
         setUser(res.data.data.user);
       } catch {
-        // Invalid or expired token — clean up
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setUser(null);
@@ -44,19 +40,16 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     };
-
     bootstrapAuth();
   }, []);
 
-  // ---- Cross-tab sync: react when localStorage changes in another tab ----
+  // ---- Cross-tab sync ----
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "token") {
         if (!e.newValue) {
-          // Token was removed (logout in another tab) → log out here too
           setUser(null);
         } else if (e.newValue !== e.oldValue) {
-          // Token changed → re-validate
           api
             .get("/auth/me")
             .then((res) => setUser(res.data.data.user))
@@ -68,40 +61,43 @@ export function AuthProvider({ children }) {
         }
       }
     };
-
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  // ---- Login ----
+  // ---- Auth helpers ----
   const login = async (email, password) => {
     const res = await api.post("/auth/login", { email, password });
     const { token, user } = res.data.data;
-
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
-
     return user;
   };
 
-  // ---- Register ----
   const register = async (name, email, password) => {
     const res = await api.post("/auth/register", { name, email, password });
     const { token, user } = res.data.data;
-
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
-
     return user;
   };
 
-  // ---- Logout ----
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
+  };
+
+  // Refresh user data without re-login (used by VerifyEmail page)
+  const refreshUser = async () => {
+    try {
+      const res = await api.get("/auth/me");
+      setUser(res.data.data.user);
+    } catch (err) {
+      console.error("Refresh user failed:", err);
+    }
   };
 
   const value = {
@@ -111,6 +107,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    refreshUser,   // ← exposed so any component can call it
   };
 
   return (

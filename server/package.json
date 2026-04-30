@@ -26,7 +26,8 @@
     "mongoose": "^9.5.0",
     "morgan": "^1.10.1",
     "nanoid": "^3.3.11",
-    "pdfkit": "^0.18.0"
+    "pdfkit": "^0.18.0",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

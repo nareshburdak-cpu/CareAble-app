@@ -78,24 +78,28 @@ function Assessment() {
   };
 
   // Submit the assessment
-  const handleSubmit = async () => {
-    if (!assessmentId) return;
-    if (answeredCount < totalQuestions) return;
+const handleSubmit = async () => {
+  if (!assessmentId) return;
+  if (answeredCount < totalQuestions) return;
 
-    setSubmitting(true);
-    try {
-      const res = await api.post(`/assessments/${assessmentId}/submit`);
-      toast.success("Assessment submitted! 🎉");
+  setSubmitting(true);
+  try {
+    const res = await api.post(`/assessments/${assessmentId}/submit`);
+    toast.success("Assessment submitted! 🎉");
 
-      // Small delay for toast to show, then navigate to results
-      setTimeout(() => {
-        navigate(`/results/${res.data.data.assessment._id}`);
-      }, 500);
-    } catch (err) {
+    setTimeout(() => {
+      navigate(`/results/${res.data.data.assessment._id}`);
+    }, 500);
+  } catch (err) {
+    // Special handling for unverified email
+    if (err.message?.toLowerCase().includes("verify")) {
+      toast.error("Please verify your email first to submit your assessment.");
+    } else {
       toast.error(err.message);
-      setSubmitting(false);
     }
-  };
+    setSubmitting(false);
+  }
+};
 
   if (loading) {
     return <LoadingSpinner message="Loading your assessment..." />;

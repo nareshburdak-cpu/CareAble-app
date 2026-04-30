@@ -37,6 +37,9 @@ import About from "./pages/About";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Contact from "./pages/Contact";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 
 function App() {
   return (
@@ -94,6 +97,26 @@ function App() {
             <Contact />
             }
           />
+          <Route 
+            path="/forgot-password" 
+            element={
+            <ForgotPassword />
+            }
+             />
+          <Route 
+            path="/reset-password" 
+            element={
+            <ResetPassword />
+            }
+             />
+
+          <Route
+            path="/verify-email"
+            element={
+           <VerifyEmail />  
+            }
+          />
+
 
           <Route
             path="/register"
