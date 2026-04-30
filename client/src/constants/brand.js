@@ -13,15 +13,21 @@ export const BRAND = {
     "Self-assess your caregiving skills, aligned with the Australian Skills Classification.",
   longDescription:
     "CareAble helps unpaid carers — family members, friends, and neighbours — recognise and celebrate their caregiving skills. Get a personalised capability report and a professional digital certificate.",
+  
+    // Version (manually bump this on releases)
+  version: "0.8.0",   // Phase 8 = v0.8
 
+  // Contact email (used on Contact page)
+  supportEmail: "hello@careable.site",
+  
   // Partners
   university: "La Trobe University",
   centre: "ACAMI",
-  partnersLine: "La Trobe University × TEAM NEXA",
+  partnersLine: "La Trobe University × Team NEXA",
 
   // Legal / footer
   copyrightYear: new Date().getFullYear(),
-  copyrightLine: `© ${new Date().getFullYear()} La Trobe University × ACAMI`,
+  copyrightLine: `© ${new Date().getFullYear()} La Trobe University × Team NEXA`,
 
   // URLs
   domain: "careable.site",

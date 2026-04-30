@@ -33,6 +33,10 @@ import NotFound from "./pages/NotFound";
 import Assessment from "./pages/Assessment";
 import Results from "./pages/Results";
 import Profile from "./pages/Profile";
+import About from "./pages/About";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
+import Contact from "./pages/Contact";
 
 function App() {
   return (
@@ -63,6 +67,34 @@ function App() {
               </PublicRoute>
             }
           />
+          <Route 
+            path="/about" 
+            element={
+            <About />
+            }
+          />
+
+          <Route 
+            path="/privacy" 
+            element={
+            <Privacy />
+            }
+          />
+
+          <Route 
+            path="/terms" 
+            element={
+            <Terms />
+            }
+          />
+
+          <Route 
+            path="/contact" 
+            element={
+            <Contact />
+            }
+          />
+
           <Route
             path="/register"
             element={

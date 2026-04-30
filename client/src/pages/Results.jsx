@@ -14,7 +14,7 @@
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import toast from "react-hot-toast";
+import toast from "../utils/toast";
 
 import api from "../api/axios";
 import LoadingSpinner from "../components/LoadingSpinner";
