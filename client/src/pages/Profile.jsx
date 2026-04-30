@@ -5,8 +5,8 @@
  *   - Name (editable)
  *   - Email (read-only)
  *   - Member since + stats
- *   - Change password
- *   - Delete account (danger zone)
+ *   - Change password (now with OTP confirmation)
+ *   - Delete account (now with OTP confirmation)
  */
 
 import { useEffect, useState } from "react";
@@ -16,12 +16,12 @@ import toast from "../utils/toast";
 import api from "../api/axios";
 import { useAuth } from "../hooks/useAuth";
 import FormInput from "../components/FormInput";
+import OtpModal from "../components/OtpModal";
 
 function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  // Stats
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -118,9 +118,9 @@ function StatBox({ label, value }) {
   );
 }
 
-// ---- Edit name ----
+// ---- Edit name (no OTP — non-destructive) ----
 function EditNameCard() {
-  const { user } = useAuth(); // we'll refresh the user by re-fetching /auth/me
+  const { user } = useAuth();
   const [name, setName] = useState(user?.name || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -137,11 +137,8 @@ function EditNameCard() {
     setIsSubmitting(true);
     try {
       const res = await api.patch("/auth/me", { name: name.trim() });
-      // Update localStorage + user in AuthContext
       const updatedUser = res.data.data.user;
       localStorage.setItem("user", JSON.stringify(updatedUser));
-      // Trigger a full page reload so AuthContext picks up the new user
-      // (cleaner alternative: expose a setUser in context; doing the simple thing here)
       toast.success("Profile updated 🎉");
       setTimeout(() => window.location.reload(), 600);
     } catch (err) {
@@ -191,7 +188,7 @@ function EditNameCard() {
   );
 }
 
-// ---- Change password ----
+// ---- Change password (NOW with OTP) ----
 function ChangePasswordCard() {
   const [formData, setFormData] = useState({
     currentPassword: "",
@@ -200,6 +197,7 @@ function ChangePasswordCard() {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -219,152 +217,194 @@ function ChangePasswordCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  // Step 1: Validate form, then open OTP modal (which sends the email)
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
+    setShowOtp(true);
+  };
 
+  // Step 2: After OTP verified, perform the actual password change
+  const handleOtpVerified = async (otpToken) => {
     setIsSubmitting(true);
     try {
       await api.patch("/auth/password", {
         currentPassword: formData.currentPassword,
         newPassword: formData.newPassword,
+        otpToken,
       });
       toast.success("Password updated 🔐");
       setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setShowOtp(false);
     } catch (err) {
       toast.error(err.message);
       if (err.message.toLowerCase().includes("current password")) {
         setErrors({ currentPassword: err.message });
       }
+      setShowOtp(false);   // close modal so user can retry
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
-      <form onSubmit={handleSubmit}>
-        <FormInput
-          label="Current password"
-          name="currentPassword"
-          type="password"
-          value={formData.currentPassword}
-          onChange={handleChange}
-          error={errors.currentPassword}
-          autoComplete="current-password"
+    <>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
+        <form onSubmit={handleSubmit}>
+          <FormInput
+            label="Current password"
+            name="currentPassword"
+            type="password"
+            value={formData.currentPassword}
+            onChange={handleChange}
+            error={errors.currentPassword}
+            autoComplete="current-password"
+          />
+          <FormInput
+            label="New password"
+            name="newPassword"
+            type="password"
+            value={formData.newPassword}
+            onChange={handleChange}
+            error={errors.newPassword}
+            autoComplete="new-password"
+          />
+          <FormInput
+            label="Confirm new password"
+            name="confirmPassword"
+            type="password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            error={errors.confirmPassword}
+            autoComplete="new-password"
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition"
+          >
+            {isSubmitting ? "Updating..." : "Update Password"}
+          </button>
+        </form>
+      </div>
+
+      {/* OTP modal — shown when user submits valid form */}
+      {showOtp && (
+        <OtpModal
+          action="change-password"
+          title="Confirm password change"
+          onVerified={handleOtpVerified}
+          onClose={() => setShowOtp(false)}
         />
-        <FormInput
-          label="New password"
-          name="newPassword"
-          type="password"
-          value={formData.newPassword}
-          onChange={handleChange}
-          error={errors.newPassword}
-          autoComplete="new-password"
-        />
-        <FormInput
-          label="Confirm new password"
-          name="confirmPassword"
-          type="password"
-          value={formData.confirmPassword}
-          onChange={handleChange}
-          error={errors.confirmPassword}
-          autoComplete="new-password"
-        />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition"
-        >
-          {isSubmitting ? "Updating..." : "Update Password"}
-        </button>
-      </form>
-    </div>
+      )}
+    </>
   );
 }
 
-// ---- Delete account (danger zone) ----
+// ---- Delete account (NOW with OTP) ----
 function DeleteAccountCard({ onDeleted }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showOtp, setShowOtp] = useState(false);
 
-  const handleDelete = async (e) => {
+  // Step 1: Validate password locally, then open OTP modal
+  const handleDelete = (e) => {
     e.preventDefault();
     setError("");
     if (!password) {
       setError("Please enter your password to confirm");
       return;
     }
+    setShowOtp(true);
+  };
 
+  // Step 2: After OTP verified, perform the actual deletion
+  const handleOtpVerified = async (otpToken) => {
     setIsSubmitting(true);
     try {
-      await api.delete("/auth/me", { data: { password } });
+      await api.delete("/auth/me", {
+        data: { password, otpToken },
+      });
       toast.success("Your account has been deleted.");
       onDeleted();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
+      setShowOtp(false);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border-2 border-red-100 p-6 md:p-8">
-      <h2 className="text-lg font-semibold text-red-600 mb-1">Danger Zone</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Deleting your account removes all your data permanently, including assessments and certificates. This cannot be undone.
-      </p>
+    <>
+      <div className="bg-white rounded-2xl shadow-sm border-2 border-red-100 p-6 md:p-8">
+        <h2 className="text-lg font-semibold text-red-600 mb-1">Danger Zone</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Deleting your account removes all your data permanently, including assessments and certificates. This cannot be undone.
+        </p>
 
-      {!showConfirm ? (
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="px-6 py-2.5 bg-white text-red-600 font-medium rounded-lg border-2 border-red-200 hover:bg-red-50 transition"
-        >
-          Delete My Account
-        </button>
-      ) : (
-        <form onSubmit={handleDelete} className="bg-red-50 rounded-lg p-4">
-          <p className="text-sm text-red-800 font-medium mb-3">
-            ⚠️ This is permanent. Enter your password to confirm.
-          </p>
-          <FormInput
-            label="Password"
-            name="password"
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError("");
-            }}
-            error={error}
-            autoComplete="current-password"
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-300 transition"
-            >
-              {isSubmitting ? "Deleting..." : "Yes, delete my account"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowConfirm(false);
-                setPassword("");
+        {!showConfirm ? (
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="px-6 py-2.5 bg-white text-red-600 font-medium rounded-lg border-2 border-red-200 hover:bg-red-50 transition"
+          >
+            Delete My Account
+          </button>
+        ) : (
+          <form onSubmit={handleDelete} className="bg-red-50 rounded-lg p-4">
+            <p className="text-sm text-red-800 font-medium mb-3">
+              ⚠️ This is permanent. Enter your password to confirm.
+            </p>
+            <FormInput
+              label="Password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
                 setError("");
               }}
-              className="px-6 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+              error={error}
+              autoComplete="current-password"
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-300 transition"
+              >
+                {isSubmitting ? "Deleting..." : "Continue"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirm(false);
+                  setPassword("");
+                  setError("");
+                }}
+                className="px-6 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
+      {/* OTP modal — shown after password confirmed */}
+      {showOtp && (
+        <OtpModal
+          action="delete-account"
+          title="Confirm account deletion"
+          onVerified={handleOtpVerified}
+          onClose={() => setShowOtp(false)}
+        />
       )}
-    </div>
+    </>
   );
 }
 

@@ -12,6 +12,8 @@ const {
   resetPassword,
   verifyEmail,
   resendVerification,
+  requestOtp,
+  verifyOtp,
 } = require("../controllers/authController");
 
 const { protect } = require("../middleware/authMiddleware");
@@ -71,6 +73,8 @@ router.patch("/me", protect, updateProfile);
 router.patch("/password", protect, changePassword);
 router.delete("/me", protect, deleteAccount);
 router.post("/resend-verification", protect, resendVerification);
+router.post("/request-otp", protect, requestOtp);
+router.post("/verify-otp", protect, verifyOtp);
 
 
 module.exports = router;

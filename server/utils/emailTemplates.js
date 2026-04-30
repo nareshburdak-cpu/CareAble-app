@@ -234,8 +234,68 @@ function verifyEmailTemplate({ name, verifyUrl }) {
   };
 }
 
+// =============================================================================
+// OTP CODE EMAIL
+// =============================================================================
+function otpEmail({ name, otp, action }) {
+  const firstName = name?.split(" ")[0] || "there";
+
+  // Friendly action labels
+  const ACTION_LABELS = {
+    "change-password": "change your password",
+    "delete-account": "delete your account",
+  };
+  const actionLabel = ACTION_LABELS[action] || "confirm this action";
+
+  const content = `
+    <h2 style="margin: 0 0 16px 0; color: #1c1917; font-size: 26px; font-weight: 700; letter-spacing: -0.02em;">
+      Your security code 🔐
+    </h2>
+
+    <p style="margin: 0 0 24px 0; color: #44403c; font-size: 16px; line-height: 1.6;">
+      Hi ${firstName}, you requested to <strong>${actionLabel}</strong>. Enter this code to confirm:
+    </p>
+
+    <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 24px auto;">
+      <tr>
+        <td style="background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%); border: 2px solid #c4b5fd; border-radius: 14px; padding: 24px 40px; text-align: center;">
+          <div style="font-family: 'Courier New', Consolas, monospace; font-size: 38px; font-weight: 700; color: #4f46e5; letter-spacing: 8px;">
+            ${otp}
+          </div>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 8px 0; color: #78716c; font-size: 14px; line-height: 1.6; text-align: center;">
+      This code expires in <strong>10 minutes</strong>.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 32px 0;">
+
+    <table cellpadding="0" cellspacing="0" border="0" style="background-color: #fef3c7; border-radius: 12px; padding: 16px;">
+      <tr>
+        <td>
+          <p style="margin: 0 0 6px 0; color: #92400e; font-size: 14px; font-weight: 600;">
+            🛡️ Didn't request this?
+          </p>
+          <p style="margin: 0; color: #78350f; font-size: 13px; line-height: 1.6;">
+            If you didn't ask to ${actionLabel}, someone may be trying to access your account.
+            Please log in and change your password immediately.
+          </p>
+        </td>
+      </tr>
+    </table>
+  `;
+
+  return {
+    subject: `Your ${BRAND.name} security code: ${otp}`,
+    html: emailWrapper(content),
+  };
+}
+
 module.exports = {
   welcomeEmail,
   passwordResetEmail,
   verifyEmailTemplate,
+  otpEmail,
 };

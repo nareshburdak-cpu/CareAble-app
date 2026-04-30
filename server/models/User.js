@@ -87,6 +87,25 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    // One-time password for sensitive actions
+    otpHash: {
+      type: String,
+      select: false,
+    },
+    otpAction: {
+      type: String,        // "change-password" | "delete-account" | etc.
+      select: false,
+    },
+    otpExpires: {
+      type: Date,
+      select: false,
+    },
+    otpAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
+
   },
   {
     timestamps: true, // Adds createdAt & updatedAt automatically
@@ -151,5 +170,19 @@ userSchema.methods.createEmailVerifyToken = function () {
 
   return verifyToken;
 };
+
+// Generate a 6-digit OTP, save hashed version, return unhashed for the email
+userSchema.methods.createOtp = function (action) {
+  // 6-digit zero-padded code
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  this.otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+  this.otpAction = action;
+  this.otpExpires = Date.now() + 10 * 60 * 1000;  // 10 minutes
+  this.otpAttempts = 0;
+
+  return otp;  // unhashed — for the email
+};
+
 
 module.exports = mongoose.model("User", userSchema);

@@ -2,31 +2,66 @@
  * Auth Controller
  * ---------------
  * Handles user authentication endpoints:
- *   - register  (POST /api/auth/register)
- *   - login     (POST /api/auth/login)
- *   - getMe     (GET  /api/auth/me)      ← coming in Task 5
+ *   - register, login, getMe, updateProfile
+ *   - changePassword, deleteAccount (OTP-protected)
+ *   - forgotPassword, resetPassword
+ *   - verifyEmail, resendVerification
+ *   - requestOtp, verifyOtp
  */
 
 const User = require("../models/User");
+const Assessment = require("../models/Assessment");
+const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const generateToken = require("../utils/generateToken");
-const crypto = require("crypto");
 const { sendEmail } = require("../utils/sendEmail");
-const { welcomeEmail, passwordResetEmail, verifyEmailTemplate, } = require("../utils/emailTemplates");
+const {
+  welcomeEmail,
+  passwordResetEmail,
+  verifyEmailTemplate,
+  otpEmail,
+} = require("../utils/emailTemplates");
 
+// =============================================================================
+// OTP CHALLENGE HELPERS
+// =============================================================================
+
+// Sign a short-lived "OTP challenge" token after successful OTP verification
+function signOtpChallenge(userId, action) {
+  return jwt.sign(
+    { userId: userId.toString(), action, type: "otp-challenge" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
+}
+
+// Verify a challenge token — used by sensitive endpoints
+function verifyOtpChallenge(token, expectedUserId, expectedAction) {
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (payload.type !== "otp-challenge") return null;
+    if (payload.userId !== expectedUserId.toString()) return null;
+    if (payload.action !== expectedAction) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
+// REGISTRATION & AUTH
+// =============================================================================
 
 /**
  * @desc    Register a new user
  * @route   POST /api/auth/register
  * @access  Public
  */
-
-
 const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
-
-  // ... existing validation ...
 
   const user = await User.create({ name, email, password });
 
@@ -40,7 +75,7 @@ const register = asyncHandler(async (req, res) => {
   const clientUrl = process.env.CLIENT_URL || "https://careable.site";
   const verifyUrl = `${clientUrl}/verify-email?token=${verifyToken}`;
 
-  // Send welcome email
+  // Send welcome email (fire-and-forget)
   const welcomeContent = welcomeEmail({ name: user.name });
   sendEmail({
     to: user.email,
@@ -48,11 +83,8 @@ const register = asyncHandler(async (req, res) => {
     html: welcomeContent.html,
   }).catch((err) => console.error("Welcome email failed:", err.message));
 
-  // Send verification email (separate from welcome — different purposes)
-  const verifyContent = verifyEmailTemplate({
-    name: user.name,
-    verifyUrl,
-  });
+  // Send verification email (fire-and-forget)
+  const verifyContent = verifyEmailTemplate({ name: user.name, verifyUrl });
   sendEmail({
     to: user.email,
     subject: verifyContent.subject,
@@ -73,54 +105,41 @@ const register = asyncHandler(async (req, res) => {
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // 1. Basic presence check
   if (!email || !password) {
     throw new ApiError(400, "Please provide email and password");
   }
 
-  // 2. Find user — MUST explicitly include password since it's select: false
   const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
 
-  // 3. Vague error for security (don't reveal which part is wrong)
   if (!user) {
     throw new ApiError(401, "Invalid email or password");
   }
 
-  // 4. Compare passwords using our model method
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
     throw new ApiError(401, "Invalid email or password");
   }
 
-  // 5. Generate token
   const token = generateToken(user._id);
 
-  // 6. Send response (toJSON strips password)
   res.status(200).json({
     success: true,
     message: "Logged in successfully 👋",
-    data: {
-      user,
-      token,
-    },
+    data: { user, token },
   });
 });
 
 /**
  * @desc    Get current logged-in user's profile
  * @route   GET /api/auth/me
- * @access  Private (requires valid JWT)
+ * @access  Private
  */
 const getMe = asyncHandler(async (req, res) => {
-  // req.user is set by the `protect` middleware
   res.status(200).json({
     success: true,
-    data: {
-      user: req.user,
-    },
+    data: { user: req.user },
   });
 });
-
 
 /**
  * @desc    Update current user's profile (name only for now)
@@ -147,82 +166,113 @@ const updateProfile = asyncHandler(async (req, res) => {
   });
 });
 
+// =============================================================================
+// SENSITIVE ACTIONS (OTP-PROTECTED)
+// =============================================================================
+
 /**
- * @desc    Change current user's password
+ * @desc    Change current user's password (OTP-protected)
  * @route   PATCH /api/auth/password
  * @access  Private
  *
- * Requires current password for security.
+ * Body: { currentPassword, newPassword, otpToken }
  */
 const changePassword = asyncHandler(async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword, otpToken } = req.body;
 
   if (!currentPassword || !newPassword) {
     throw new ApiError(400, "Current and new passwords are required");
   }
-  if (newPassword.length < 6) {
-    throw new ApiError(400, "New password must be at least 6 characters");
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "New password must be at least 8 characters");
   }
   if (currentPassword === newPassword) {
     throw new ApiError(400, "New password must be different from current password");
   }
 
-  // Fetch user WITH password to verify current
+  // 🛡️ Require OTP challenge
+  if (!otpToken) {
+    throw new ApiError(403, "Security code required. Please verify your identity first.");
+  }
+  const challenge = verifyOtpChallenge(otpToken, req.user._id, "change-password");
+  if (!challenge) {
+    throw new ApiError(403, "Security check failed. Please verify again.");
+  }
+
+  // Verify current password
   const user = await User.findById(req.user._id).select("+password");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
   const isMatch = await user.matchPassword(currentPassword);
   if (!isMatch) {
     throw new ApiError(401, "Current password is incorrect");
   }
 
+  // Save new password (pre-save hook re-hashes)
   user.password = newPassword;
-  await user.save(); // pre-save hook auto-hashes
+  await user.save();
 
   res.status(200).json({
     success: true,
-    message: "Password updated 🔐",
+    message: "Password changed successfully",
   });
 });
 
 /**
- * @desc    Delete current user's account (and all their assessments)
+ * @desc    Delete account (OTP-protected; cascades to assessments)
  * @route   DELETE /api/auth/me
  * @access  Private
  *
- * Requires password confirmation.
+ * Body: { password, otpToken }
  */
-  const deleteAccount = asyncHandler(async (req, res) => {
-  const { password } = req.body;
+const deleteAccount = asyncHandler(async (req, res) => {
+  const { password, otpToken } = req.body;
 
   if (!password) {
-    throw new ApiError(400, "Password is required to delete your account");
+    throw new ApiError(400, "Password confirmation required");
+  }
+
+  // 🛡️ Require OTP challenge
+  if (!otpToken) {
+    throw new ApiError(403, "Security code required. Please verify your identity first.");
+  }
+  const challenge = verifyOtpChallenge(otpToken, req.user._id, "delete-account");
+  if (!challenge) {
+    throw new ApiError(403, "Security check failed. Please verify again.");
   }
 
   const user = await User.findById(req.user._id).select("+password");
-  const isMatch = await user.matchPassword(password);
-  if (!isMatch) {
-    throw new ApiError(401, "Password is incorrect");
+  if (!user) {
+    throw new ApiError(404, "User not found");
   }
 
-  // Cascade delete: remove all of this user's assessments
-  const Assessment = require("../models/Assessment");
-  await Assessment.deleteMany({ user: req.user._id });
+  const isMatch = await user.matchPassword(password);
+  if (!isMatch) {
+    throw new ApiError(400, "Incorrect password");
+  }
 
-  // Delete the user
-  await User.findByIdAndDelete(req.user._id);
+  // Cascade delete user's assessments first, then the user
+  await Assessment.deleteMany({ user: req.user._id });
+  await user.deleteOne();
 
   res.status(200).json({
     success: true,
-    message: "Account deleted. Sorry to see you go 👋",
+    message: "Account deleted. We're sorry to see you go.",
   });
 });
+
+// =============================================================================
+// PASSWORD RESET (FORGOT PASSWORD)
+// =============================================================================
 
 /**
  * @desc    Request a password reset link
  * @route   POST /api/auth/forgot-password
  * @access  Public
  *
- * Always returns success — even if email doesn't exist.
- * Prevents user enumeration attacks.
+ * Always returns success — prevents email enumeration.
  */
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -233,47 +283,35 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ email: email.toLowerCase().trim() });
 
-  // Always return same response — don't reveal if email exists
   const successResponse = {
     success: true,
-    message:
-      "If an account with that email exists, we've sent a password reset link.",
+    message: "If an account with that email exists, we've sent a password reset link.",
   };
 
   if (!user) {
     return res.status(200).json(successResponse);
   }
 
-  // Generate token, save hashed version, get unhashed for email
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
 
-  // Build reset URL — uses CLIENT_URL env var (fallback to careable.site)
   const clientUrl = process.env.CLIENT_URL || "https://careable.site";
   const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`;
 
-  // Send email — fire and forget pattern with error handling
   try {
-    const emailContent = passwordResetEmail({
-      name: user.name,
-      resetUrl,
-    });
+    const emailContent = passwordResetEmail({ name: user.name, resetUrl });
     await sendEmail({
       to: user.email,
       subject: emailContent.subject,
       html: emailContent.html,
     });
   } catch (err) {
-    // If email fails, clear the reset token so user can try again
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
 
     console.error("Password reset email failed:", err.message);
-    throw new ApiError(
-      500,
-      "Could not send reset email. Please try again later."
-    );
+    throw new ApiError(500, "Could not send reset email. Please try again later.");
   }
 
   return res.status(200).json(successResponse);
@@ -292,18 +330,12 @@ const resetPassword = asyncHandler(async (req, res) => {
   if (!token || !newPassword) {
     throw new ApiError(400, "Token and new password are required");
   }
-
   if (newPassword.length < 8) {
     throw new ApiError(400, "Password must be at least 8 characters");
   }
 
-  // Hash the incoming token to compare with what's in DB
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
-  // Find user with matching token AND not expired
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
@@ -313,24 +345,24 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Reset link is invalid or has expired");
   }
 
-  // Update password (User model's pre-save hook will re-hash it)
   user.password = newPassword;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
   await user.save();
 
-  // Auto-login: issue a fresh JWT
+  // Auto-login: issue fresh JWT
   const newToken = generateToken(user._id);
 
   res.status(200).json({
     success: true,
     message: "Password reset successfully. You're now logged in.",
-    data: {
-      user,
-      token: newToken,
-    },
+    data: { user, token: newToken },
   });
 });
+
+// =============================================================================
+// EMAIL VERIFICATION
+// =============================================================================
 
 /**
  * @desc    Verify email using token from email link
@@ -344,11 +376,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Verification token is required");
   }
 
-  // Hash the incoming token to match what's in DB
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await User.findOne({
     emailVerifyToken: hashedToken,
@@ -356,13 +384,10 @@ const verifyEmail = asyncHandler(async (req, res) => {
   }).select("+emailVerifyToken +emailVerifyExpires");
 
   if (!user) {
-    throw new ApiError(
-      400,
-      "Verification link is invalid or has expired. Request a new one."
-    );
+    throw new ApiError(400, "Verification link is invalid or has expired. Request a new one.");
   }
 
-  // Already verified — idempotent (clicking link twice is fine)
+  // Idempotent — clicking link twice is fine
   if (user.emailVerified) {
     return res.status(200).json({
       success: true,
@@ -386,16 +411,15 @@ const verifyEmail = asyncHandler(async (req, res) => {
 /**
  * @desc    Resend verification email
  * @route   POST /api/auth/resend-verification
- * @access  Private (must be logged in)
+ * @access  Private
  */
 const resendVerification = asyncHandler(async (req, res) => {
-  const user = req.user;   // attached by `protect` middleware
+  const user = req.user;
 
   if (user.emailVerified) {
     throw new ApiError(400, "Your email is already verified.");
   }
 
-  // Generate a fresh token (overwrites old one)
   const verifyToken = user.createEmailVerifyToken();
   await user.save({ validateBeforeSave: false });
 
@@ -403,10 +427,7 @@ const resendVerification = asyncHandler(async (req, res) => {
   const verifyUrl = `${clientUrl}/verify-email?token=${verifyToken}`;
 
   try {
-    const emailContent = verifyEmailTemplate({
-      name: user.name,
-      verifyUrl,
-    });
+    const emailContent = verifyEmailTemplate({ name: user.name, verifyUrl });
     await sendEmail({
       to: user.email,
       subject: emailContent.subject,
@@ -423,15 +444,133 @@ const resendVerification = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { 
+// =============================================================================
+// OTP REQUEST / VERIFY
+// =============================================================================
+
+/**
+ * @desc    Request an OTP for a sensitive action
+ * @route   POST /api/auth/request-otp
+ * @access  Private
+ *
+ * Body: { action: "change-password" | "delete-account" }
+ */
+const requestOtp = asyncHandler(async (req, res) => {
+  const { action } = req.body;
+
+  const VALID_ACTIONS = ["change-password", "delete-account"];
+  if (!action || !VALID_ACTIONS.includes(action)) {
+    throw new ApiError(400, "Invalid action");
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) throw new ApiError(404, "User not found");
+
+  const otp = user.createOtp(action);
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    const emailContent = otpEmail({ name: user.name, otp, action });
+    await sendEmail({
+      to: user.email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+    });
+  } catch (err) {
+    console.error("OTP email failed:", err.message);
+    throw new ApiError(500, "Could not send security code. Please try again.");
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Security code sent. Check your email.",
+  });
+});
+
+/**
+ * @desc    Verify OTP, return short-lived challenge token
+ * @route   POST /api/auth/verify-otp
+ * @access  Private
+ *
+ * Body: { action, otp }
+ * Returns: { otpToken } (5-min JWT scoped to action)
+ */
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { action, otp } = req.body;
+
+  if (!action || !otp) {
+    throw new ApiError(400, "Action and code are required");
+  }
+
+  const user = await User.findById(req.user._id).select(
+    "+otpHash +otpAction +otpExpires +otpAttempts"
+  );
+  if (!user) throw new ApiError(404, "User not found");
+
+  if (!user.otpHash || !user.otpExpires) {
+    throw new ApiError(400, "No active code. Request a new one.");
+  }
+
+  if (user.otpAction !== action) {
+    throw new ApiError(400, "Code is for a different action.");
+  }
+
+  if (user.otpExpires < Date.now()) {
+    user.otpHash = undefined;
+    user.otpAction = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(400, "Code has expired. Request a new one.");
+  }
+
+  if (user.otpAttempts >= 5) {
+    user.otpHash = undefined;
+    user.otpAction = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(429, "Too many attempts. Request a new code.");
+  }
+
+  const otpHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
+  if (otpHash !== user.otpHash) {
+    user.otpAttempts += 1;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(400, "Incorrect code.");
+  }
+
+  // ✅ Success — clear OTP, issue challenge token
+  user.otpHash = undefined;
+  user.otpAction = undefined;
+  user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  await user.save({ validateBeforeSave: false });
+
+  const otpToken = signOtpChallenge(user._id, action);
+
+  res.status(200).json({
+    success: true,
+    message: "Code verified.",
+    data: { otpToken },
+  });
+});
+
+// =============================================================================
+// EXPORTS
+// =============================================================================
+
+module.exports = {
   register,
   login,
-  getMe, 
-  updateProfile, 
-  changePassword, 
-  deleteAccount, 
-  forgotPassword, 
+  getMe,
+  updateProfile,
+  changePassword,
+  deleteAccount,
+  forgotPassword,
   resetPassword,
   verifyEmail,
   resendVerification,
-}; 
+  requestOtp,
+  verifyOtp,
+};
