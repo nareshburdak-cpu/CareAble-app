@@ -64,6 +64,25 @@ const questionSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+
+    // Whether the question is archived (soft-deleted).
+  // Archived questions don't appear in new assessments but
+  // remain in the DB for historical/audit purposes.
+  isArchived: {
+    type: Boolean,
+    default: false,
+    index: true,
+  },
+
+  // Track who last modified this question (for audit trail)
+  lastEditedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+
+  lastEditedAt: {
+    type: Date,
+  },
   },
   { timestamps: true }
 );

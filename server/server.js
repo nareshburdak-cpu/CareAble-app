@@ -83,7 +83,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/assessments", assessmentRoutes);
-
+app.use("/api/admin", require("./routes/adminRoutes"));
 
 // Root route
 app.get("/", (req, res) => {

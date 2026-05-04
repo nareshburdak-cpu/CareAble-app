@@ -64,6 +64,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user",
+      index: true,
     },
 
     // CareAble-specific fields (we'll use later)
@@ -104,6 +105,18 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       select: false,
+    },
+
+    // Whether the account is active (false = soft-deleted/deactivated)
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+
+    // Track when user was last active (we'll update on login)
+    lastLoginAt: {
+      type: Date,
     },
 
   },

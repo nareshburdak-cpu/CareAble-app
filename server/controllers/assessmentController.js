@@ -122,7 +122,7 @@ const startAssessment = asyncHandler(async (req, res) => {
 
   // STEP 4: Generate randomized order if not already set
   if (assessment.categoryOrder.length === 0) {
-    const allQuestions = await Question.find().lean();
+    const allQuestions = await Question.find({ isArchived: { $ne: true } }).lean();
 
     const byCategory = {};
     for (const q of allQuestions) {

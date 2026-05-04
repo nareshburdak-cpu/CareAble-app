@@ -27,7 +27,7 @@ const getQuestions = asyncHandler(async (req, res) => {
   const { assessmentId } = req.query;
 
   // 1. Fetch all questions, default sorted (used as fallback)
-  const questions = await Question.find()
+  const questions = await Question.find({ isArchived: { $ne: true } })
     .sort({ category: 1, order: 1 })
     .lean();
 

@@ -40,6 +40,12 @@ import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import AdminRoute from "./components/AdminRoute";
+import AdminLayout from "./components/AdminLayout";
+import Analytics from "./pages/admin/Analytics";
+import Users from "./pages/admin/Users";
+import Questions from "./pages/admin/Questions";
+import Audit from "./pages/admin/Audit";
 
 function App() {
   return (
@@ -127,6 +133,8 @@ function App() {
             }
           />
 
+
+
           {/* Protected (must be logged in) */}
           <Route
             path="/dashboard"
@@ -162,6 +170,16 @@ function App() {
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Route>
+
+        <Route element={<AdminRoute />}>
+          <Route path="/admin-x7k9p" element={<AdminLayout />}>
+            <Route index element={<Analytics />} />
+            <Route path="users" element={<Users />} />
+            <Route path="questions" element={<Questions />} />
+            <Route path="audit" element={<Audit />} />
+          </Route>
+        </Route>
+
       </Routes>
     </BrowserRouter>
   );

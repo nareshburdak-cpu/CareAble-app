@@ -126,10 +126,18 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid email or password");
   }
 
+  // Block deactivated accounts
+  if (user.isActive === false) {
+    throw new ApiError(403, "This account has been deactivated. Please contact support.");
+  }
+
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
     throw new ApiError(401, "Invalid email or password");
   }
+
+  user.lastLoginAt = new Date();
+  await user.save({ validateBeforeSave: false });
 
   const token = generateToken(user._id);
 
