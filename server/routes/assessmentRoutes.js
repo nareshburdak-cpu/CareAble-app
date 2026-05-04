@@ -21,6 +21,7 @@ const {
   listMyAssessments,
   downloadCertificate,
   deleteAssessment,
+  getCooldownStatus,
 } = require("../controllers/assessmentController");
 const { protect } = require("../middleware/authMiddleware");
 
@@ -28,7 +29,7 @@ const router = express.Router();
 
 // All assessment routes require authentication
 router.use(protect);
-
+router.get("/cooldown-status", protect, getCooldownStatus);
 router.get("/", listMyAssessments);
 router.get("/current", getCurrent);
 router.post("/start", startAssessment);

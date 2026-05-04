@@ -6,11 +6,12 @@
  * Base URL:
  *   - Dev:   "/api"  (Vite proxy forwards to backend)
  *   - Prod:  VITE_API_URL  (e.g., https://careable-api.onrender.com/api)
+ *
+ * Errors are normalized to include `message`, `status`, and `extra` fields.
  */
 
 import axios from "axios";
 
-// In production, we use the env var. In dev, fall back to "/api" (proxy).
 const baseURL = import.meta.env.VITE_API_URL || "/api";
 
 const api = axios.create({
@@ -37,8 +38,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const data = error.response?.data;
     const message =
-      error.response?.data?.message ||
+      data?.message ||
       error.message ||
       "Something went wrong. Please try again.";
 
@@ -56,7 +58,13 @@ api.interceptors.response.use(
       }
     }
 
-    return Promise.reject(new Error(message));
+    // Build a normalized error that carries the extra metadata + status
+    // so callers can read err.extra.cooldown, err.status, etc.
+    const normalized = new Error(message);
+    normalized.status = status;
+    normalized.extra = data?.extra || null;
+
+    return Promise.reject(normalized);
   }
 );
 

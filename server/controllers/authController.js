@@ -18,6 +18,7 @@ const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
 const generateToken = require("../utils/generateToken");
 const { sendEmail } = require("../utils/sendEmail");
+const { checkEmailRateLimit, logEmailSent } = require("../utils/emailRateLimit");
 const {
   welcomeEmail,
   passwordResetEmail,
@@ -75,21 +76,31 @@ const register = asyncHandler(async (req, res) => {
   const clientUrl = process.env.CLIENT_URL || "https://careable.site";
   const verifyUrl = `${clientUrl}/verify-email?token=${verifyToken}`;
 
-  // Send welcome email (fire-and-forget)
-  const welcomeContent = welcomeEmail({ name: user.name });
-  sendEmail({
-    to: user.email,
-    subject: welcomeContent.subject,
-    html: welcomeContent.html,
-  }).catch((err) => console.error("Welcome email failed:", err.message));
+  // Send welcome email
+  try {
+    const welcomeContent = welcomeEmail({ name: user.name });
+    await sendEmail({
+      to: user.email,
+      subject: welcomeContent.subject,
+      html: welcomeContent.html,
+    });
+    await logEmailSent(user._id, "welcome");
+  } catch (err) {
+    console.error("Welcome email failed:", err.message);
+  }
 
-  // Send verification email (fire-and-forget)
-  const verifyContent = verifyEmailTemplate({ name: user.name, verifyUrl });
-  sendEmail({
-    to: user.email,
-    subject: verifyContent.subject,
-    html: verifyContent.html,
-  }).catch((err) => console.error("Verify email failed:", err.message));
+  // Send verification email
+  try {
+    const verifyContent = verifyEmailTemplate({ name: user.name, verifyUrl });
+    await sendEmail({
+      to: user.email,
+      subject: verifyContent.subject,
+      html: verifyContent.html,
+    });
+    await logEmailSent(user._id, "verify-email");
+  } catch (err) {
+    console.error("Verify email failed:", err.message);
+  }
 
   res.status(201).json({
     success: true,
@@ -291,6 +302,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(200).json(successResponse);
   }
+  // Rate-limit check
+  await checkEmailRateLimit(user._id, "password-reset");
 
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
@@ -305,6 +318,7 @@ const forgotPassword = asyncHandler(async (req, res) => {
       subject: emailContent.subject,
       html: emailContent.html,
     });
+    await logEmailSent(user._id, "password-reset");
   } catch (err) {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
@@ -419,7 +433,7 @@ const resendVerification = asyncHandler(async (req, res) => {
   if (user.emailVerified) {
     throw new ApiError(400, "Your email is already verified.");
   }
-
+  await checkEmailRateLimit(user._id, "verify-email");
   const verifyToken = user.createEmailVerifyToken();
   await user.save({ validateBeforeSave: false });
 
@@ -433,6 +447,7 @@ const resendVerification = asyncHandler(async (req, res) => {
       subject: emailContent.subject,
       html: emailContent.html,
     });
+    await logEmailSent(user._id, "verify-email");
   } catch (err) {
     console.error("Resend verification failed:", err.message);
     throw new ApiError(500, "Could not send verification email. Try again later.");
@@ -466,6 +481,7 @@ const requestOtp = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
   if (!user) throw new ApiError(404, "User not found");
 
+  await checkEmailRateLimit(user._id, "otp");
   const otp = user.createOtp(action);
   await user.save({ validateBeforeSave: false });
 
@@ -476,6 +492,7 @@ const requestOtp = asyncHandler(async (req, res) => {
       subject: emailContent.subject,
       html: emailContent.html,
     });
+    await logEmailSent(user._id, "otp");
   } catch (err) {
     console.error("OTP email failed:", err.message);
     throw new ApiError(500, "Could not send security code. Please try again.");

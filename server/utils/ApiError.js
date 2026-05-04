@@ -11,12 +11,11 @@
  */
 
 class ApiError extends Error {
-  constructor(statusCode, message) {
+  constructor(statusCode, message, extra = null) {
     super(message);
     this.statusCode = statusCode;
-    this.isOperational = true; // Trusted, expected error
-
-    // Captures stack trace for debugging (removes constructor from trace)
+    this.extra = extra;   // ← optional metadata (e.g., cooldown info)
+    this.name = "ApiError";
     Error.captureStackTrace(this, this.constructor);
   }
 }

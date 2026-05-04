@@ -52,6 +52,29 @@ const assessmentSchema = new mongoose.Schema(
       default: {},
     },
 
+    // Locked-in question order for this assessment.
+    // Set when the assessment is created — ensures the user sees
+    // the same shuffled order on resume.
+    //
+    // Format:
+    //   {
+    //     categoryKey1: ["questionId1", "questionId2", ...],
+    //     categoryKey2: [...],
+    //     ...
+    //   }
+    //
+    // Plus: `categoryOrder` is the shuffled list of category keys.
+    questionOrder: {
+      type: Map,
+      of: [String],   // Map<categoryKey, [questionId, ...]>
+      default: {},
+    },
+
+    categoryOrder: {
+      type: [String],   // ordered list of category keys
+      default: [],
+    },
+
     // No `default: null` — let it be undefined until submission
     overallScore: {
       type: Number,
@@ -74,6 +97,18 @@ const assessmentSchema = new mongoose.Schema(
     submittedAt: {
       type: Date,
     },
+
+    completionTimeMs: {
+      type: Number,
+    },
+    avgSecPerQuestion: {
+      type: Number,
+    },
+    rushed: {
+      type: Boolean,
+      default: false,
+    },
+
   },
   { timestamps: true }
 );

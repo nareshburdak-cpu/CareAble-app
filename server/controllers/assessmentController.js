@@ -15,7 +15,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const { calculateScores } = require("../utils/scoring");
 const generateCertificate = require("../utils/generateCertificate");
 const { customAlphabet } = require("nanoid");
-
+const { shuffle } = require("../utils/shuffle");
 // Readable alphabet: no confusing chars (no 0/O, 1/I/l, etc.)
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nanoid = customAlphabet(ID_ALPHABET, 10);
@@ -33,7 +33,52 @@ const nanoid = customAlphabet(ID_ALPHABET, 10);
  *
  * Defense in depth: frontend ref guard + this logic + DB partial unique index
  */
+const COOLDOWN_DAYS = 7;
+
 const startAssessment = asyncHandler(async (req, res) => {
+  // 🚧 STEP 0: Check cooldown — but only if user has no in-progress assessment.
+  // Otherwise resuming would be wrongly blocked.
+  const hasInProgress = await Assessment.exists({
+    user: req.user._id,
+    status: "in-progress",
+  });
+
+  if (!hasInProgress) {
+    const cooldownMs = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+    const cooldownStart = new Date(Date.now() - cooldownMs);
+
+    const recentSubmission = await Assessment.findOne({
+      user: req.user._id,
+      status: "submitted",
+      submittedAt: { $gte: cooldownStart },
+    })
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    if (recentSubmission) {
+      const submittedAt = new Date(recentSubmission.submittedAt);
+      const nextAvailable = new Date(submittedAt.getTime() + cooldownMs);
+      const daysRemaining = Math.ceil(
+        (nextAvailable - Date.now()) / (24 * 60 * 60 * 1000)
+      );
+
+      // Throw a structured 429 with cooldown metadata
+      throw new ApiError(
+        429,
+        `Please wait ${daysRemaining} more day(s) before retaking. This helps keep results meaningful.`,
+        {
+          cooldown: {
+            active: true,
+            cooldownDays: COOLDOWN_DAYS,
+            lastSubmittedAt: submittedAt.toISOString(),
+            nextAvailableAt: nextAvailable.toISOString(),
+            daysRemaining,
+          },
+        }
+      );
+    }
+  }
+
   // STEP 1: Find ALL in-progress assessments for this user
   const allInProgress = await Assessment.find({
     user: req.user._id,
@@ -42,7 +87,7 @@ const startAssessment = asyncHandler(async (req, res) => {
 
   let assessment = null;
 
-  // STEP 2: If duplicates exist, keep the newest and delete the rest
+  // STEP 2: If duplicates exist, keep the newest, delete the rest
   if (allInProgress.length > 0) {
     assessment = allInProgress[0];
     if (allInProgress.length > 1) {
@@ -60,7 +105,6 @@ const startAssessment = asyncHandler(async (req, res) => {
         answers: new Map(),
       });
     } catch (err) {
-      // Race condition fallback: re-fetch if duplicate key
       if (err.code === 11000) {
         assessment = await Assessment.findOne({
           user: req.user._id,
@@ -76,6 +120,30 @@ const startAssessment = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Could not start assessment. Please try again in a moment.");
   }
 
+  // STEP 4: Generate randomized order if not already set
+  if (assessment.categoryOrder.length === 0) {
+    const allQuestions = await Question.find().lean();
+
+    const byCategory = {};
+    for (const q of allQuestions) {
+      if (!byCategory[q.category]) byCategory[q.category] = [];
+      byCategory[q.category].push(q);
+    }
+
+    const categoryKeys = Object.keys(byCategory);
+    const shuffledCategoryOrder = shuffle(categoryKeys);
+
+    const questionOrderMap = {};
+    for (const cat of shuffledCategoryOrder) {
+      const shuffledQs = shuffle(byCategory[cat]);
+      questionOrderMap[cat] = shuffledQs.map((q) => q._id.toString());
+    }
+
+    assessment.categoryOrder = shuffledCategoryOrder;
+    assessment.questionOrder = questionOrderMap;
+    await assessment.save();
+  }
+
   const totalQuestions = await Question.countDocuments();
 
   res.status(200).json({
@@ -85,16 +153,13 @@ const startAssessment = asyncHandler(async (req, res) => {
       progress: {
         answered: assessment.answers.size,
         total: totalQuestions,
-        percent:
-          totalQuestions > 0
-            ? Math.round((assessment.answers.size / totalQuestions) * 100)
-            : 0,
+        percent: totalQuestions > 0
+          ? Math.round((assessment.answers.size / totalQuestions) * 100)
+          : 0,
       },
     },
   });
 });
-
-
 /**
  * @desc    Get the user's current in-progress assessment
  * @route   GET /api/assessments/current
@@ -246,7 +311,26 @@ const submitAssessment = asyncHandler(async (req, res) => {
   assessment.categoryScores = categoryScores;
   assessment.overallScore = overallScore;
   assessment.level = level;
-  assessment.certificateId = certificateId; // 🆕
+  assessment.certificateId = certificateId;
+
+  //  Compute completion time + flag rushed submissions
+  const answersArray = Array.from(assessment.answers.values());
+  if (answersArray.length >= 2) {
+    // Get earliest and latest answer timestamps
+    const timestamps = answersArray
+      .map((a) => a.answeredAt?.getTime())
+      .filter(Boolean)
+      .sort((a, b) => a - b);
+
+    if (timestamps.length >= 2) {
+      const totalMs = timestamps[timestamps.length - 1] - timestamps[0];
+      const avgSecPerQuestion = totalMs / 1000 / answersArray.length;
+
+      assessment.completionTimeMs = totalMs;
+      assessment.avgSecPerQuestion = Math.round(avgSecPerQuestion);
+      assessment.rushed = avgSecPerQuestion < 3;   // <3 sec = rushed
+    }
+  }
 
   await assessment.save();
 
@@ -408,7 +492,73 @@ const deleteAssessment = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Check if user is in retake cooldown
+ * @route   GET /api/assessments/cooldown-status
+ * @access  Private
+ */
+const getCooldownStatus = asyncHandler(async (req, res) => {
+  const cooldownMs = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  const cooldownStart = new Date(Date.now() - cooldownMs);
 
+  const hasInProgress = await Assessment.exists({
+    user: req.user._id,
+    status: "in-progress",
+  });
+
+  // If user has in-progress, they should focus on that, not cooldown
+  if (hasInProgress) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        cooldown: {
+          active: false,
+          cooldownDays: COOLDOWN_DAYS,
+          hasInProgress: true,
+        },
+      },
+    });
+  }
+
+  const recentSubmission = await Assessment.findOne({
+    user: req.user._id,
+    status: "submitted",
+    submittedAt: { $gte: cooldownStart },
+  })
+    .sort({ submittedAt: -1 })
+    .lean();
+
+  if (!recentSubmission) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        cooldown: {
+          active: false,
+          cooldownDays: COOLDOWN_DAYS,
+        },
+      },
+    });
+  }
+
+  const submittedAt = new Date(recentSubmission.submittedAt);
+  const nextAvailable = new Date(submittedAt.getTime() + cooldownMs);
+  const daysRemaining = Math.ceil(
+    (nextAvailable - Date.now()) / (24 * 60 * 60 * 1000)
+  );
+
+  res.status(200).json({
+    success: true,
+    data: {
+      cooldown: {
+        active: true,
+        cooldownDays: COOLDOWN_DAYS,
+        lastSubmittedAt: submittedAt.toISOString(),
+        nextAvailableAt: nextAvailable.toISOString(),
+        daysRemaining,
+      },
+    },
+  });
+});
 
 module.exports = {
   startAssessment,
@@ -420,4 +570,5 @@ module.exports = {
   listMyAssessments,
   downloadCertificate,
   deleteAssessment,
+  getCooldownStatus,
 };

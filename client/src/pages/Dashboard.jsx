@@ -4,7 +4,8 @@
  * Shows:
  *   - Personalised welcome
  *   - Real-time stats (assessments, latest score, level)
- *   - Smart CTA (Start / Continue / Retake)
+ *   - Smart CTA (Start / Continue / Retake / Cooldown)
+ *   - Cooldown banner when user must wait between retakes
  *   - Assessment history list with discard option for in-progress
  */
 
@@ -16,6 +17,7 @@ import api from "../api/axios";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { relativeTime, shortDate } from "../utils/formatDate";
+import CooldownBanner from "../components/CooldownBanner";
 
 // Level metadata
 const LEVEL_META = {
@@ -28,6 +30,7 @@ const LEVEL_META = {
 function Dashboard() {
   const { user } = useAuth();
   const [assessments, setAssessments] = useState([]);
+  const [cooldown, setCooldown] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Track if the initial fetch has happened (avoids loading spinner on refetches)
@@ -48,11 +51,22 @@ function Dashboard() {
     }
   }, []);
 
+  // Fetch cooldown status (non-blocking — silent on error)
+  const fetchCooldown = useCallback(async () => {
+    try {
+      const res = await api.get("/assessments/cooldown-status");
+      setCooldown(res.data.data.cooldown);
+    } catch (err) {
+      console.error("Cooldown status fetch failed:", err);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
-      await fetchAssessments();
+      // Run both in parallel for faster initial paint
+      await Promise.all([fetchAssessments(), fetchCooldown()]);
       if (!cancelled) {
         setLoading(false);
         hasLoadedOnce.current = true;
@@ -65,6 +79,7 @@ function Dashboard() {
     const handleFocus = () => {
       if (hasLoadedOnce.current) {
         fetchAssessments({ silent: true });
+        fetchCooldown();
       }
     };
     window.addEventListener("focus", handleFocus);
@@ -73,7 +88,7 @@ function Dashboard() {
       cancelled = true;
       window.removeEventListener("focus", handleFocus);
     };
-  }, [fetchAssessments]);
+  }, [fetchAssessments, fetchCooldown]);
 
   if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
 
@@ -82,14 +97,12 @@ function Dashboard() {
   const inProgress = assessments.find((a) => a.status === "in-progress");
   const latest = submitted[0]; // newest first
 
-  // CTA logic
+  // CTA logic: in-progress always wins; otherwise check cooldown
+  const isLocked = cooldown?.active && !inProgress;
+
   let ctaLabel = "Start Assessment";
-  let ctaLink = "/assessment";
-  if (inProgress) {
-    ctaLabel = "Continue Assessment";
-  } else if (latest) {
-    ctaLabel = "Retake Assessment";
-  }
+  if (inProgress) ctaLabel = "Continue Assessment";
+  else if (latest) ctaLabel = "Retake Assessment";
 
   return (
     <section className="flex-1 p-4 md:p-8">
@@ -103,6 +116,9 @@ function Dashboard() {
             Here's your caregiving journey at a glance.
           </p>
         </div>
+
+        {/* Cooldown banner — only shown when active AND no in-progress to resume */}
+        {isLocked && <CooldownBanner cooldown={cooldown} />}
 
         {/* Stat cards */}
         <div className="grid md:grid-cols-3 gap-4">
@@ -138,6 +154,8 @@ function Dashboard() {
           <h2 className="text-2xl md:text-3xl font-bold mb-2">
             {inProgress
               ? "Your assessment is waiting"
+              : isLocked
+              ? "Take a moment to reflect"
               : latest
               ? "Keep your skills up to date"
               : "Ready to begin?"}
@@ -145,17 +163,33 @@ function Dashboard() {
           <p className="text-indigo-100 mb-6 max-w-2xl">
             {inProgress
               ? `You've answered ${inProgress.answerCount ?? 0} of 30 questions so far. Pick up right where you left off.`
+              : isLocked
+              ? `You've recently completed an assessment. We'll unlock retakes in ${cooldown.daysRemaining} day${cooldown.daysRemaining === 1 ? "" : "s"} so your results stay meaningful.`
               : "Discover your caregiving strengths across 6 skill areas. The assessment takes about 10–15 minutes and saves automatically as you go."}
           </p>
-          <Link
-            to={ctaLink}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition shadow-lg hover:shadow-xl"
-          >
-            {ctaLabel}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-          </Link>
+
+          {isLocked ? (
+            <button
+              disabled
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white/30 text-white/70 font-semibold rounded-lg cursor-not-allowed backdrop-blur-sm"
+              title={`Available in ${cooldown.daysRemaining} day(s)`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Locked · {cooldown.daysRemaining}d
+            </button>
+          ) : (
+            <Link
+              to="/assessment"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition shadow-lg hover:shadow-xl"
+            >
+              {ctaLabel}
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+          )}
 
           {latest && (
             <Link
