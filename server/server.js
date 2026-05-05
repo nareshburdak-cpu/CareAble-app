@@ -23,6 +23,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const authRoutes = require("./routes/authRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const assessmentRoutes = require("./routes/assessmentRoutes");
+const verifyRoutes = require("./routes/verifyRoutes");
 
 // Middleware imports
 const notFound = require("./middleware/notFound");
@@ -84,6 +85,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/questions", questionRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/admin", require("./routes/adminRoutes"));
+app.use("/api/verify", verifyRoutes);
 
 // Root route
 app.get("/", (req, res) => {

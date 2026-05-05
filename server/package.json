@@ -27,6 +27,7 @@
     "morgan": "^1.10.1",
     "nanoid": "^3.3.11",
     "pdfkit": "^0.18.0",
+    "qrcode": "^1.5.4",
     "resend": "^6.12.2"
   },
   "devDependencies": {

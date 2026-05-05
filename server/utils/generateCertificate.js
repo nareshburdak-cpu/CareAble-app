@@ -5,12 +5,13 @@
  *   - Double-gold ornate border
  *   - Corner flourishes
  *   - Classical serif typography (Times-Roman)
- *   - Official seal
+ *   - Verification QR code (Phase 14)
  *   - Signature lines
  *   - Fits on a single landscape A4 page
  */
 
 const PDFDocument = require("pdfkit");
+const QRCode = require("qrcode"); // QR: Phase 14 — verification QR
 const CATEGORIES = require("./categories");
 
 // ---- Color palette ----
@@ -33,7 +34,47 @@ const LEVEL_HONORIFIC = {
   Advanced: "Advanced Carer",
 };
 
-function generateCertificate(user, assessment) {
+/**
+ * QR: Phase 14 — Build the verification URL the QR encodes.
+ * Falls back to careable.site if CLIENT_URL is missing (e.g., misconfigured Render env).
+ */
+function buildVerifyUrl(certificateId) {
+  const base = (process.env.CLIENT_URL || "https://careable.site").replace(/\/$/, "");
+  return `${base}/verify/${encodeURIComponent(certificateId)}`;
+}
+
+/**
+ * QR: Phase 14 — Generate a PNG buffer for the QR code.
+ * Tuned for print legibility:
+ *   - errorCorrectionLevel 'M' (15% redundancy — good balance for paper scans)
+ *   - margin 1 (compact white-space border)
+ *   - dark color matches seal burgundy for visual cohesion
+ */
+async function generateQrBuffer(verifyUrl) {
+  return QRCode.toBuffer(verifyUrl, {
+    errorCorrectionLevel: "M",
+    type: "png",
+    margin: 1,
+    width: 300, // Render large; we scale down when drawing — keeps it crisp
+    color: {
+      dark: "#8B2E2E",  // matches C.seal
+      light: "#FDFBF4", // matches C.parchment so it blends with background
+    },
+  });
+}
+
+async function generateCertificate(user, assessment) {
+  // QR: Phase 14 — generate the QR buffer FIRST (async), then build the PDF synchronously.
+  // We do this outside the Promise wrapper so any QR error is caught cleanly.
+  const verifyUrl = buildVerifyUrl(assessment.certificateId || "CA-UNKNOWN");
+  let qrBuffer = null;
+  try {
+    qrBuffer = await generateQrBuffer(verifyUrl);
+  } catch (err) {
+    // If QR generation fails, continue without it rather than failing the whole certificate.
+    console.error("⚠️ QR code generation failed; certificate will be issued without QR:", err.message);
+  }
+
   return new Promise((resolve, reject) => {
     try {
       // ---- A4 Landscape dimensions in points ----
@@ -268,7 +309,7 @@ function generateCertificate(user, assessment) {
         );
 
       // ========================================
-      // BOTTOM — Seal + Date + Cert ID + Signature
+      // BOTTOM — QR + Date + Cert ID + Signature
       // ========================================
       const bottomY = H - 120;
 
@@ -300,59 +341,69 @@ function generateCertificate(user, assessment) {
           { width: 160, align: "center" }
         );
 
-      // ---- CENTER: Official Seal ----
-      const sealCX = W / 2;
-      const sealCY = bottomY + 15;
-      const sealR = 38;
+      // ---- CENTER: Verification QR Block ----
+      // QR: Phase 14 — Replaced decorative seal with a clean, scannable QR block.
+      // Larger QR scans more reliably from both screen and printed paper.
+      const qrCX = W / 2;
+      const qrTopY = bottomY - 18;
+      const qrSize = 70;
 
-      // Outer ring
-      doc
-        .circle(sealCX, sealCY, sealR)
-        .lineWidth(1.5)
-        .stroke(C.seal);
-
-      // Inner ring
-      doc
-        .circle(sealCX, sealCY, sealR - 6)
-        .lineWidth(0.5)
-        .stroke(C.seal);
-
-      // Seal text (curved would need more work; use stacked lines instead)
-      doc
-        .fontSize(7)
-        .fillColor(C.seal)
-        .font("Times-Bold")
-        .text("OFFICIAL", sealCX - 30, sealCY - 18, {
-          width: 60,
-          align: "center",
-          characterSpacing: 1.5,
+      if (qrBuffer) {
+        // The QR itself
+        doc.image(qrBuffer, qrCX - qrSize / 2, qrTopY, {
+          width: qrSize,
+          height: qrSize,
         });
 
-      doc
-        .fontSize(14)
-        .fillColor(C.seal)
-        .font("Times-Bold")
-        .text("❦", sealCX - 30, sealCY - 8, { width: 60, align: "center" });
+        // Caption line 1 — call to action
+        doc
+          .fontSize(8)
+          .fillColor(C.inkSoft)
+          .font("Times-Italic")
+          .text("Scan to verify this credential", qrCX - 90, qrTopY + qrSize + 6, {
+            width: 180,
+            align: "center",
+            characterSpacing: 0.5,
+          });
 
-      doc
-        .fontSize(7)
-        .fillColor(C.seal)
-        .font("Times-Bold")
-        .text("CAREABLE", sealCX - 30, sealCY + 8, {
-          width: 60,
-          align: "center",
-          characterSpacing: 1.5,
-        });
+        // Caption line 2 — issuer (subtle prestige)
+        doc
+          .fontSize(7)
+          .fillColor(C.seal)
+          .font("Times-Bold")
+          .text("CareAble", qrCX - 90, qrTopY + qrSize + 19, {
+            width: 180,
+            align: "center",
+            characterSpacing: 2,
+          });
+      } else {
+        // Fallback if QR generation failed: render a simple "Verified" badge
+        // so the certificate still looks intentional.
+        const badgeY = bottomY + 5;
+        doc
+          .circle(qrCX, badgeY + 20, 28)
+          .lineWidth(1.5)
+          .stroke(C.seal);
 
-      doc
-        .fontSize(5)
-        .fillColor(C.seal)
-        .font("Times-Roman")
-        .text("✦ CERTIFIED ✦", sealCX - 30, sealCY + 18, {
-          width: 60,
-          align: "center",
-          characterSpacing: 1,
-        });
+        doc
+          .fontSize(9)
+          .fillColor(C.seal)
+          .font("Times-Bold")
+          .text("CareAble", qrCX - 40, badgeY + 12, {
+            width: 80,
+            align: "center",
+            characterSpacing: 1,
+          });
+
+        doc
+          .fontSize(7)
+          .fillColor(C.seal)
+          .font("Times-Italic")
+          .text("Certified", qrCX - 40, badgeY + 24, {
+            width: 80,
+            align: "center",
+          });
+      }
 
       // ---- RIGHT: Certificate ID ----
       const rightX = W - 90 - 160;
@@ -401,7 +452,7 @@ function generateCertificate(user, assessment) {
   });
 }
 
-// ---- Helper: format date like "the 23rd day of April, 2026" ----
+// ---- Helper: format date like "23 April 2026" ----
 function formatDate(date) {
   if (!date) return "";
   const d = new Date(date);
