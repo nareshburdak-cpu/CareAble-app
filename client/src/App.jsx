@@ -2,10 +2,11 @@
  * App — Root component
  * --------------------
  * Route structure:
- *   <Layout> wraps all pages with Navbar + Footer.
+ *   <Layout> wraps all main pages with Navbar + Footer.
  *
  *   Public routes (anyone):
- *     /             → Home
+ *     /                       → Home
+ *     /verify/:certificateId  → VerifyCertificate (Phase 14: QR landing page)
  *
  *   Public-only routes (logged OUT only):
  *     /login        → Login
@@ -13,6 +14,9 @@
  *
  *   Protected routes (logged IN only):
  *     /dashboard    → Dashboard
+ *
+ *   Admin routes (role-gated, own layout):
+ *     /admin-x7k9p  → Admin panel
  *
  *   Catch-all:
  *     *             → NotFound
@@ -40,6 +44,7 @@ import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import VerifyCertificate from "./pages/VerifyCertificate"; // Phase 14: public QR landing page
 import AdminRoute from "./components/AdminRoute";
 import AdminLayout from "./components/AdminLayout";
 import Analytics from "./pages/admin/Analytics";
@@ -66,6 +71,9 @@ function App() {
         <Route element={<Layout />}>
           {/* Public */}
           <Route path="/" element={<Home />} />
+
+          {/* Phase 14: Public certificate verification page (QR landing) — no auth required */}
+          <Route path="/verify/:certificateId" element={<VerifyCertificate />} />
 
           {/* Public-only (redirect away if logged in) */}
           <Route
