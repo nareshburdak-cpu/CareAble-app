@@ -1,3 +1,5 @@
+// client/src/components/admin/QuestionFormModal.jsx
+
 /**
  * QuestionFormModal
  * -----------------
@@ -22,37 +24,45 @@ function QuestionFormModal({ question, onClose, onSaved }) {
   const isNew = !question?._id;
 
   const [formData, setFormData] = useState({
-    category: question?.category || "personal-care",
+    category: question?.category || "",
     type: question?.type || "likert",
     text: question?.text || "",
-    helpText: question?.helpText || "",
+    helper: question?.helper || "",
     options: question?.options || [],
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [categoryOptions, setCategoryOptions] = useState([]);
+  const [categoryOptions, setCategoryOptions] = useState([]); // [{ key, label, icon }]
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState(false);
 
-  // Fetch the available categories from the backend (use existing /questions endpoint)
+  // Fetch categories from /admin/categories — full metadata, only active ones.
   useEffect(() => {
     const loadCategories = async () => {
+      setCategoriesLoading(true);
+      setCategoriesError(false);
       try {
-        const res = await api.get("/admin/questions");
-        const cats = Object.keys(res.data.data.byCategory || {});
+        const res = await api.get("/admin/categories");
+        const cats = (res.data.data.categories || [])
+          .filter((c) => !c.isArchived)
+          .map((c) => ({ key: c.key, label: c.label, icon: c.icon }));
         setCategoryOptions(cats);
+
+        // If creating a new question and no category selected yet, default
+        // to the first active category. (Edit mode keeps the existing one.)
+        if (isNew && cats.length > 0) {
+          setFormData((prev) =>
+            prev.category ? prev : { ...prev, category: cats[0].key }
+          );
+        }
       } catch {
-        // fallback to defaults
-        setCategoryOptions([
-          "personal-care",
-          "health-support",
-          "emotional-care",
-          "household",
-          "advocacy",
-          "self-care",
-        ]);
+        setCategoriesError(true);
+      } finally {
+        setCategoriesLoading(false);
       }
     };
     loadCategories();
-  }, []);
+  }, [isNew]);
 
   // Close on ESC
   useEffect(() => {
@@ -95,6 +105,10 @@ function QuestionFormModal({ question, onClose, onSaved }) {
 
     if (!formData.text.trim()) {
         toast.error("Question text is required");
+        return;
+    }
+    if (!formData.category) {
+        toast.error("Please select a category");
         return;
     }
 
@@ -162,17 +176,35 @@ function QuestionFormModal({ question, onClose, onSaved }) {
               <select
                 value={formData.category}
                 onChange={(e) => handleChange("category", e.target.value)}
-                disabled={!isNew}
+                disabled={!isNew || categoriesLoading || categoriesError}
                 className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-stone-50"
               >
-                {categoryOptions.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat.replace(/-/g, " ")}
+                {categoriesLoading && <option value="">Loading categories...</option>}
+                {categoriesError && <option value="">Could not load categories</option>}
+                {!categoriesLoading && !categoriesError && categoryOptions.length === 0 && (
+                  <option value="">No active categories</option>
+                )}
+                {!categoriesLoading && !categoriesError && categoryOptions.map((cat) => (
+                  <option key={cat.key} value={cat.key}>
+                    {cat.icon ? `${cat.icon} ${cat.label}` : cat.label}
                   </option>
                 ))}
+                {/* Edit mode: if the question's category is archived/missing from the
+                    active list, render it as a fallback option so it stays selected */}
+                {!isNew && formData.category && !categoryOptions.find((c) => c.key === formData.category) && (
+                  <option value={formData.category}>{formData.category} (archived)</option>
+                )}
               </select>
               {!isNew && (
                 <p className="text-xs text-stone-500 mt-1">Category cannot be changed after creation.</p>
+              )}
+              {categoriesError && (
+                <p className="text-xs text-red-600 mt-1">Failed to load categories. Refresh the page.</p>
+              )}
+              {!categoriesLoading && !categoriesError && categoryOptions.length === 0 && (
+                <p className="text-xs text-amber-700 mt-1">
+                  No active categories. Create one in the Categories page first.
+                </p>
               )}
             </div>
 
@@ -219,8 +251,8 @@ function QuestionFormModal({ question, onClose, onSaved }) {
               </label>
               <input
                 type="text"
-                value={formData.helpText}
-                onChange={(e) => handleChange("helpText", e.target.value)}
+                value={formData.helper}
+                onChange={(e) => handleChange("helper", e.target.value)}
                 placeholder="e.g., Think about routine medications, not just emergencies"
                 className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />

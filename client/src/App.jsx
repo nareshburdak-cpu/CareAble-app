@@ -50,6 +50,7 @@ import AdminLayout from "./components/AdminLayout";
 import Analytics from "./pages/admin/Analytics";
 import Users from "./pages/admin/Users";
 import Questions from "./pages/admin/Questions";
+import Categories from "./pages/admin/Categories";
 import Audit from "./pages/admin/Audit";
 
 function App() {
@@ -184,6 +185,7 @@ function App() {
             <Route index element={<Analytics />} />
             <Route path="users" element={<Users />} />
             <Route path="questions" element={<Questions />} />
+            <Route path="categories" element={<Categories />} />
             <Route path="audit" element={<Audit />} />
           </Route>
         </Route>

@@ -1,3 +1,5 @@
+// server/controllers/adminController.js
+
 /**
  * Admin Controller
  * ----------------
@@ -8,7 +10,7 @@
 const User = require("../models/User");
 const Assessment = require("../models/Assessment");
 const asyncHandler = require("../utils/asyncHandler");
-const CATEGORIES = require("../utils/categories");
+const categoryCache = require("../utils/categoryCache");
 const ApiError = require("../utils/ApiError");
 const Question = require("../models/Question");
 const { logAdminAction } = require("../utils/audit");
@@ -19,13 +21,12 @@ const AuditLog = require("../models/AuditLog");
  * @route   GET /api/admin/analytics
  * @access  Admin
  */
-  const getAnalytics = asyncHandler(async (req, res) => {
+const getAnalytics = asyncHandler(async (req, res) => {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Run all aggregations in parallel for speed
   const [
     totalUsers,
     verifiedUsers,
@@ -39,32 +40,20 @@ const AuditLog = require("../models/AuditLog");
     levelDistribution,
     avgScoreByCategory,
     recentSubmissions,
+    categoryMap,
   ] = await Promise.all([
-    // 1. Total users
     User.countDocuments({}),
-
-    // 2. Verified users
     User.countDocuments({ emailVerified: true }),
-
-    // 3. Signups today
     User.countDocuments({ createdAt: { $gte: today } }),
-
-    // 4. Signups this week
     User.countDocuments({ createdAt: { $gte: sevenDaysAgo } }),
-
-    // 5. Total assessments (any status)
     Assessment.countDocuments({}),
-
-    // 6. Submitted (completed)
     Assessment.countDocuments({ status: "submitted" }),
 
-    // 7. Average score across all submitted
     Assessment.aggregate([
       { $match: { status: "submitted" } },
       { $group: { _id: null, avg: { $avg: "$overallScore" } } },
     ]),
 
-    // 8. Signups per day for last 30 days
     User.aggregate([
       { $match: { createdAt: { $gte: thirtyDaysAgo } } },
       {
@@ -76,7 +65,6 @@ const AuditLog = require("../models/AuditLog");
       { $sort: { _id: 1 } },
     ]),
 
-    // 9. Submissions per day for last 30 days
     Assessment.aggregate([
       {
         $match: {
@@ -93,18 +81,15 @@ const AuditLog = require("../models/AuditLog");
       { $sort: { _id: 1 } },
     ]),
 
-    // 10. Level distribution
     Assessment.aggregate([
       { $match: { status: "submitted" } },
       { $group: { _id: "$level", count: { $sum: 1 } } },
     ]),
 
-    // 11. Average score per category
     Assessment.aggregate([
       { $match: { status: "submitted" } },
       {
         $project: {
-          // Convert categoryScores Map to array of {key, value}
           scores: { $objectToArray: "$categoryScores" },
         },
       },
@@ -119,39 +104,42 @@ const AuditLog = require("../models/AuditLog");
       { $sort: { avg: -1 } },
     ]),
 
-    // 12. Recent submissions (last 10)
     Assessment.find({ status: "submitted" })
       .sort({ submittedAt: -1 })
       .limit(10)
       .populate("user", "name email")
       .select("overallScore level submittedAt user")
       .lean(),
+
+    categoryCache.getAllCategoriesIncludingArchived().then((cats) =>
+      Object.fromEntries(cats.map((c) => [c.key, c]))
+    ),
   ]);
 
-  // Helper: fill in missing days with 0 for chart continuity
   const fillMissingDays = (data, days = 30) => {
     const result = [];
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
       const key = d.toISOString().split("T")[0];
       const found = data.find((item) => item._id === key);
-      result.push({
-        date: key,
-        count: found ? found.count : 0,
-      });
+      result.push({ date: key, count: found ? found.count : 0 });
     }
     return result;
   };
 
-  // Enrich category data with friendly names
-  const categoryStats = avgScoreByCategory.map((c) => ({
-    key: c._id,
-    title: CATEGORIES[c._id]?.title || c._id,
-    avgScore: Math.round(c.avg),
-    count: c.count,
-  }));
+  const categoryStats = avgScoreByCategory.map((c) => {
+    const meta = categoryMap[c._id];
+    return {
+      key: c._id,
+      label: meta?.label || c._id,
+      icon: meta?.icon || "",
+      color: meta?.color || "indigo",
+      // Keep 2dp precision — scores are now 1–5 floats, not 0–100 integers.
+      avgScore: parseFloat(c.avg.toFixed(2)),
+      count: c.count,
+    };
+  });
 
-  // Build the final response
   res.status(200).json({
     success: true,
     data: {
@@ -166,7 +154,10 @@ const AuditLog = require("../models/AuditLog");
         completionRate: totalAssessments > 0
           ? Math.round((submittedAssessments / totalAssessments) * 100)
           : 0,
-        avgScore: avgScoreResult[0] ? Math.round(avgScoreResult[0].avg) : 0,
+        // 2dp float — scores are now 1–5, not 0–100.
+        avgScore: avgScoreResult[0]
+          ? parseFloat(avgScoreResult[0].avg.toFixed(2))
+          : 0,
       },
       signupsByDay: fillMissingDays(signupsByDay),
       submissionsByDay: fillMissingDays(submissionsByDay),
@@ -185,12 +176,6 @@ const AuditLog = require("../models/AuditLog");
  * @desc    List users (paginated, searchable, filterable)
  * @route   GET /api/admin/users
  * @access  Admin
- *
- * Query params:
- *   - page (default 1)
- *   - limit (default 20, max 100)
- *   - search (matches name OR email)
- *   - filter: "all" | "verified" | "unverified" | "admins" | "deactivated"
  */
 const listUsers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -199,7 +184,6 @@ const listUsers = asyncHandler(async (req, res) => {
   const search = (req.query.search || "").trim();
   const filter = req.query.filter || "all";
 
-  // Build the query
   const query = {};
 
   if (search) {
@@ -213,7 +197,6 @@ const listUsers = asyncHandler(async (req, res) => {
   else if (filter === "admins") query.role = "admin";
   else if (filter === "deactivated") query.isActive = false;
 
-  // For all/verified/unverified/admins → only show active users
   if (filter !== "deactivated") {
     query.isActive = { $ne: false };
   }
@@ -268,68 +251,34 @@ const getUser = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Update user (admin actions)
+ * @desc    Update a user (role, isActive, emailVerified)
  * @route   PATCH /api/admin/users/:id
  * @access  Admin
- *
- * Body (any subset):
- *   - emailVerified: boolean    (force-verify)
- *   - role: "user" | "admin"    (promote/demote)
- *   - isActive: boolean         (activate/deactivate)
  */
 const updateUser = asyncHandler(async (req, res) => {
-  const { emailVerified, role, isActive } = req.body;
+  const { role, isActive, emailVerified } = req.body;
 
   const user = await User.findById(req.params.id);
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
+  if (!user) throw new ApiError(404, "User not found");
 
-  // Self-protection: admins can't demote / deactivate themselves
-  if (user._id.toString() === req.user._id.toString()) {
-    if (role === "user") {
-      throw new ApiError(400, "You cannot demote yourself.");
-    }
-    if (isActive === false) {
-      throw new ApiError(400, "You cannot deactivate your own account.");
-    }
-  }
+  const isSelf = user._id.toString() === req.user._id.toString();
 
-  if (typeof emailVerified === "boolean") {
-    user.emailVerified = emailVerified;
-    if (emailVerified) {
-      user.emailVerifyToken = undefined;
-      user.emailVerifyExpires = undefined;
-    }
-  }
-
-  if (role && ["user", "admin"].includes(role)) {
+  if (typeof role === "string") {
+    if (isSelf) throw new ApiError(400, "You cannot change your own role");
+    if (!["user", "admin"].includes(role))
+      throw new ApiError(400, "Role must be 'user' or 'admin'");
+    const oldRole = user.role;
     user.role = role;
-  }
-
-  if (typeof isActive === "boolean") {
-    user.isActive = isActive;
-  }
-
-  await user.save({ validateBeforeSave: false });
-  // 📝 Audit log
-  const changes = {};
-  if (typeof emailVerified === "boolean") {
-    changes.emailVerified = emailVerified;
-    await logAdminAction(req, emailVerified ? "user.verify" : "user.unverify", {
-      targetType: "user",
-      targetId: user._id,
-      details: { email: user.email },
-    });
-  }
-  if (role && ["user", "admin"].includes(role)) {
     await logAdminAction(req, role === "admin" ? "user.promote" : "user.demote", {
       targetType: "user",
       targetId: user._id,
-      details: { email: user.email, newRole: role },
+      details: { from: oldRole, to: role, email: user.email },
     });
   }
+
   if (typeof isActive === "boolean") {
+    if (isSelf) throw new ApiError(400, "You cannot deactivate your own account");
+    user.isActive = isActive;
     await logAdminAction(req, isActive ? "user.reactivate" : "user.deactivate", {
       targetType: "user",
       targetId: user._id,
@@ -337,7 +286,17 @@ const updateUser = asyncHandler(async (req, res) => {
     });
   }
 
-  // Return clean user (without sensitive fields)
+  if (typeof emailVerified === "boolean") {
+    user.emailVerified = emailVerified;
+    await logAdminAction(req, emailVerified ? "user.verify" : "user.unverify", {
+      targetType: "user",
+      targetId: user._id,
+      details: { email: user.email },
+    });
+  }
+
+  await user.save();
+
   const cleaned = user.toObject();
   delete cleaned.password;
   delete cleaned.passwordResetToken;
@@ -362,7 +321,6 @@ const listQuestions = asyncHandler(async (req, res) => {
     .sort({ category: 1, order: 1 })
     .lean();
 
-  // Group by category for easy display
   const byCategory = {};
   for (const q of questions) {
     if (!byCategory[q.category]) byCategory[q.category] = [];
@@ -387,10 +345,18 @@ const listQuestions = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const createQuestion = asyncHandler(async (req, res) => {
-  const { category, type, text, helpText, options } = req.body;
+  const { category, type, text, helper, options } = req.body;
 
   if (!category || !type || !text) {
     throw new ApiError(400, "Category, type, and text are required");
+  }
+
+  const categoryDoc = await categoryCache.getCategoryByKey(category);
+  if (!categoryDoc) {
+    throw new ApiError(
+      400,
+      `Category '${category}' does not exist or is archived. Use an active category from /api/admin/categories.`
+    );
   }
 
   const VALID_TYPES = ["likert", "frequency", "multi"];
@@ -398,12 +364,10 @@ const createQuestion = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Type must be one of: ${VALID_TYPES.join(", ")}`);
   }
 
-  // Multi-select questions need options
   if (type === "multi" && (!Array.isArray(options) || options.length === 0)) {
     throw new ApiError(400, "Multi-select questions need at least one option");
   }
 
-  // Auto-assign order: append to end of category
   const lastOrder = await Question.findOne({ category })
     .sort({ order: -1 })
     .select("order")
@@ -414,7 +378,7 @@ const createQuestion = asyncHandler(async (req, res) => {
     category,
     type,
     text: text.trim(),
-    helpText: helpText?.trim() || undefined,
+    helper: helper?.trim() || undefined,
     options: type === "multi" ? options : undefined,
     order,
     lastEditedBy: req.user._id,
@@ -444,17 +408,18 @@ const createQuestion = asyncHandler(async (req, res) => {
  * @access  Admin
  */
 const updateQuestion = asyncHandler(async (req, res) => {
-  const { text, helpText, options, isArchived, order } = req.body;
+  const { text, helper, options, isArchived, order } = req.body;
 
   const question = await Question.findById(req.params.id);
-  const originalText = question.text;
-  const originalArchived = question.isArchived;
   if (!question) {
     throw new ApiError(404, "Question not found");
   }
 
+  const originalText = question.text;
+  const originalArchived = question.isArchived;
+
   if (typeof text === "string") question.text = text.trim();
-  if (typeof helpText === "string") question.helpText = helpText.trim() || undefined;
+  if (typeof helper === "string") question.helper = helper.trim() || undefined;
 
   if (Array.isArray(options) && question.type === "multi") {
     question.options = options;
@@ -473,8 +438,6 @@ const updateQuestion = asyncHandler(async (req, res) => {
 
   await question.save();
 
-
-  // 📝 Audit log
   if (typeof isArchived === "boolean" && isArchived !== originalArchived) {
     await logAdminAction(req, isArchived ? "question.archive" : "question.restore", {
       targetType: "question",
@@ -503,8 +466,6 @@ const updateQuestion = asyncHandler(async (req, res) => {
  * @desc    Reorder a question (move up/down within its category)
  * @route   POST /api/admin/questions/:id/reorder
  * @access  Admin
- *
- * Body: { direction: "up" | "down" }
  */
 const reorderQuestion = asyncHandler(async (req, res) => {
   const { direction } = req.body;
@@ -517,7 +478,6 @@ const reorderQuestion = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Question not found");
   }
 
-  // Find the neighbor to swap with
   const neighbor = await Question.findOne({
     category: question.category,
     order: direction === "up" ? { $lt: question.order } : { $gt: question.order },
@@ -531,13 +491,12 @@ const reorderQuestion = asyncHandler(async (req, res) => {
     });
   }
 
-  // Swap orders
   const tempOrder = question.order;
   question.order = neighbor.order;
   neighbor.order = tempOrder;
 
   await Promise.all([question.save(), neighbor.save()]);
-  
+
   await logAdminAction(req, "question.reorder", {
     targetType: "question",
     targetId: question._id,
@@ -550,17 +509,10 @@ const reorderQuestion = asyncHandler(async (req, res) => {
   });
 });
 
-
 /**
  * @desc    Get paginated audit logs
  * @route   GET /api/admin/audit
  * @access  Admin
- *
- * Query params:
- *   - page (default 1)
- *   - limit (default 50, max 200)
- *   - action (optional filter)
- *   - actorId (optional filter)
  */
 const getAuditLogs = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -602,9 +554,9 @@ module.exports = {
   listUsers,
   getUser,
   updateUser,
-  listQuestions,    
-  createQuestion,   
-  updateQuestion,   
-  reorderQuestion, 
-  getAuditLogs, 
+  listQuestions,
+  createQuestion,
+  updateQuestion,
+  reorderQuestion,
+  getAuditLogs,
 };

@@ -28,13 +28,17 @@ const auditLogSchema = new mongoose.Schema(
       required: true,
       index: true,
       // Examples:
-      //   user.verify, user.promote, user.demote, user.deactivate, user.reactivate
-      //   question.create, question.update, question.archive, question.restore, question.reorder
+      //   user.verify, user.unverify, user.promote, user.demote,
+      //     user.deactivate, user.reactivate
+      //   question.create, question.update, question.archive,
+      //     question.restore, question.reorder
+      //   category.create, category.update, category.archive,
+      //     category.restore, category.reorder
     },
 
     targetType: {
       type: String,
-      enum: ["user", "question", "assessment", null],
+      enum: ["user", "question", "category", "assessment", null],
       default: null,
     },
 

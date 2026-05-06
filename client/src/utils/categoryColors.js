@@ -1,3 +1,5 @@
+// client/src/utils/categoryColors.js
+
 /**
  * Category Color Map
  * ------------------
@@ -7,6 +9,10 @@
  * Usage:
  *   const c = categoryColors[category.color];
  *   <div className={c.bg}>...</div>
+ *
+ * To add a colour: add an entry here with all six fields, then reference
+ * the key from server/utils/categories.js (or from a Category document
+ * once admin-managed categories ship in Step 1.4).
  */
 
 export const categoryColors = {
@@ -63,6 +69,78 @@ export const categoryColors = {
     border: "border-green-200",
     ring: "ring-green-500",
     progress: "bg-green-500",
+  },
+  sky: {
+    bg: "bg-sky-50",
+    bgSolid: "bg-sky-600",
+    text: "text-sky-700",
+    textLight: "text-sky-600",
+    border: "border-sky-200",
+    ring: "ring-sky-500",
+    progress: "bg-sky-500",
+  },
+  rose: {
+    bg: "bg-rose-50",
+    bgSolid: "bg-rose-600",
+    text: "text-rose-700",
+    textLight: "text-rose-600",
+    border: "border-rose-200",
+    ring: "ring-rose-500",
+    progress: "bg-rose-500",
+  },
+  red: {
+    bg: "bg-red-50",
+    bgSolid: "bg-red-600",
+    text: "text-red-700",
+    textLight: "text-red-600",
+    border: "border-red-200",
+    ring: "ring-red-500",
+    progress: "bg-red-500",
+  },
+  violet: {
+    bg: "bg-violet-50",
+    bgSolid: "bg-violet-600",
+    text: "text-violet-700",
+    textLight: "text-violet-600",
+    border: "border-violet-200",
+    ring: "ring-violet-500",
+    progress: "bg-violet-500",
+  },
+  fuchsia: {
+    bg: "bg-fuchsia-50",
+    bgSolid: "bg-fuchsia-600",
+    text: "text-fuchsia-700",
+    textLight: "text-fuchsia-600",
+    border: "border-fuchsia-200",
+    ring: "ring-fuchsia-500",
+    progress: "bg-fuchsia-500",
+  },
+  blue: {
+    bg: "bg-blue-50",
+    bgSolid: "bg-blue-600",
+    text: "text-blue-700",
+    textLight: "text-blue-600",
+    border: "border-blue-200",
+    ring: "ring-blue-500",
+    progress: "bg-blue-500",
+  },
+  orange: {
+    bg: "bg-orange-50",
+    bgSolid: "bg-orange-600",
+    text: "text-orange-700",
+    textLight: "text-orange-600",
+    border: "border-orange-200",
+    ring: "ring-orange-500",
+    progress: "bg-orange-500",
+  },
+  emerald: {
+    bg: "bg-emerald-50",
+    bgSolid: "bg-emerald-600",
+    text: "text-emerald-700",
+    textLight: "text-emerald-600",
+    border: "border-emerald-200",
+    ring: "ring-emerald-500",
+    progress: "bg-emerald-500",
   },
 };
 

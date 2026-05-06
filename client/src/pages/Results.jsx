@@ -1,15 +1,14 @@
+// client/src/pages/Results.jsx
+
 /**
  * Results Page
  * ------------
  * Shows the user's capability report after submitting an assessment.
  *
- * Components:
- *   - Hero header with submission date
- *   - Overall score + level badge
- *   - Capability heatmap (radar chart)
- *   - Strength / growth area insights
- *   - Per-category score cards
- *   - Certificate download button
+ * Phase 12-A scoring:
+ *   - Scores are 1–5 per-domain means
+ *   - Overall score is mean of domain means (1–5)
+ *   - Levels: Support | Growth | Strength
  */
 
 import { useEffect, useState } from "react";
@@ -22,12 +21,11 @@ import CapabilityHeatmap from "../components/CapabilityHeatmap";
 import CategoryScoreCard from "../components/CategoryScoreCard";
 import ResultsSummary from "../components/ResultsSummary";
 
-// Level metadata
+// Brief-aligned 3-tier level metadata
 const LEVEL_META = {
-  Emerging:   { emoji: "🌱", color: "text-teal-700",   bg: "bg-teal-50",   badge: "bg-teal-100 text-teal-800" },
-  Developing: { emoji: "🌿", color: "text-green-700",  bg: "bg-green-50",  badge: "bg-green-100 text-green-800" },
-  Confident:  { emoji: "🌳", color: "text-indigo-700", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-800" },
-  Advanced:   { emoji: "🏆", color: "text-purple-700", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-800" },
+  Support:  { emoji: "🌱", color: "text-amber-700",   bg: "bg-amber-50",   badge: "bg-amber-100 text-amber-800",   description: "Additional support and resources can help strengthen these capabilities." },
+  Growth:   { emoji: "🌿", color: "text-indigo-700",  bg: "bg-indigo-50",  badge: "bg-indigo-100 text-indigo-800", description: "You're developing strong caregiving capabilities with room to grow further." },
+  Strength: { emoji: "🏆", color: "text-emerald-700", bg: "bg-emerald-50", badge: "bg-emerald-100 text-emerald-800", description: "You demonstrate strong, well-developed caregiving capabilities." },
 };
 
 function Results() {
@@ -40,7 +38,6 @@ function Results() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get assessment AND category metadata in parallel
         const [assessmentRes, questionsRes] = await Promise.all([
           api.get(`/assessments/${id}`),
           api.get("/questions"),
@@ -74,7 +71,7 @@ function Results() {
       link.remove();
       window.URL.revokeObjectURL(url);
 
-      toast.success("Certificate downloaded! 🏅");
+      toast.success("Certificate downloaded!");
     } catch (err) {
       toast.error(err.message || "Could not download certificate");
     } finally {
@@ -118,12 +115,18 @@ function Results() {
     );
   }
 
-  const meta = LEVEL_META[assessment.level] || LEVEL_META.Emerging;
+  const meta = LEVEL_META[assessment.level] || LEVEL_META.Growth;
   const submittedDate = new Date(assessment.submittedAt).toLocaleDateString("en-AU", {
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+
+  // Top capability areas: domains scoring >= 4.0 (Strength tier)
+  // Used as a preview here — also shown on certificate in Task 3.
+  const topAreas = categories
+    .filter((cat) => (assessment.categoryScores?.[cat.key] || 0) >= 4.0)
+    .sort((a, b) => (assessment.categoryScores?.[b.key] || 0) - (assessment.categoryScores?.[a.key] || 0));
 
   return (
     <section className="flex-1 p-4 md:p-8 bg-gray-50">
@@ -162,12 +165,14 @@ function Results() {
               </p>
               <div className="flex items-baseline justify-center md:justify-start gap-2">
                 <span className="text-6xl md:text-7xl font-bold text-gray-900">
-                  {assessment.overallScore}
+                  {assessment.overallScore != null
+                    ? assessment.overallScore.toFixed(2)
+                    : "—"}
                 </span>
-                <span className="text-2xl text-gray-400">/ 100</span>
+                <span className="text-2xl text-gray-400">/ 5</span>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                Based on {Object.keys(assessment.categoryScores || {}).length} capability areas
+                Based on {Object.values(assessment.categoryScores || {}).filter(v => v != null).length} capability areas
               </p>
             </div>
 
@@ -179,9 +184,38 @@ function Results() {
               <p className={`text-2xl md:text-3xl font-bold ${meta.color}`}>
                 {assessment.level}
               </p>
+              <p className="text-xs text-gray-500 mt-2 max-w-xs mx-auto">
+                {meta.description}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* Top capability areas (Strength tier — score >= 4.0) */}
+        {topAreas.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              Top Capability Areas
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Domains where you scored 4.0 or above — these are your strengths.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {topAreas.map((cat) => (
+                <span
+                  key={cat.key}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-sm font-medium text-emerald-800"
+                >
+                  {cat.icon && <span>{cat.icon}</span>}
+                  {cat.label}
+                  <span className="text-xs text-emerald-600 font-normal">
+                    {(assessment.categoryScores?.[cat.key] || 0).toFixed(2)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Capability Heatmap */}
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 mb-6">
@@ -193,7 +227,6 @@ function Results() {
               Your strengths across {categories.length} capability areas. Hover for details.
             </p>
           </div>
-
           <CapabilityHeatmap
             categoryScores={assessment.categoryScores || {}}
             categoryMeta={categories}
@@ -221,7 +254,7 @@ function Results() {
               <CategoryScoreCard
                 key={cat.key}
                 category={cat}
-                score={assessment.categoryScores?.[cat.key] || 0}
+                score={assessment.categoryScores?.[cat.key] ?? null}
               />
             ))}
           </div>

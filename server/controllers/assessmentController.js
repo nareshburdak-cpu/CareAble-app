@@ -19,6 +19,7 @@ const { shuffle } = require("../utils/shuffle");
 // Readable alphabet: no confusing chars (no 0/O, 1/I/l, etc.)
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nanoid = customAlphabet(ID_ALPHABET, 10);
+const categoryCache = require("../utils/categoryCache");
 
 
 /**
@@ -33,10 +34,17 @@ const nanoid = customAlphabet(ID_ALPHABET, 10);
  *
  * Defense in depth: frontend ref guard + this logic + DB partial unique index
  */
-const COOLDOWN_DAYS = 7;
+const COOLDOWN_DAYS = 1;
+
+async function scoredQuestionCount() {
+  return Question.countDocuments({
+    isArchived: { $ne: true },
+    type: { $ne: "multi" },
+  });
+}
 
 const startAssessment = asyncHandler(async (req, res) => {
-  // 🚧 STEP 0: Check cooldown — but only if user has no in-progress assessment.
+  //  STEP 0: Check cooldown — but only if user has no in-progress assessment.
   // Otherwise resuming would be wrongly blocked.
   const hasInProgress = await Assessment.exists({
     user: req.user._id,
@@ -122,8 +130,13 @@ const startAssessment = asyncHandler(async (req, res) => {
 
   // STEP 4: Generate randomized order if not already set
   if (assessment.categoryOrder.length === 0) {
-    const allQuestions = await Question.find({ isArchived: { $ne: true } }).lean();
+    const activeCategories = await categoryCache.getCategories(); // add this import if not present
+    const activeKeys = activeCategories.map((c) => c.key);
 
+    const allQuestions = await Question.find({
+      isArchived: { $ne: true },
+      category: { $in: activeKeys },
+    }).lean();
     const byCategory = {};
     for (const q of allQuestions) {
       if (!byCategory[q.category]) byCategory[q.category] = [];
@@ -144,7 +157,7 @@ const startAssessment = asyncHandler(async (req, res) => {
     await assessment.save();
   }
 
-  const totalQuestions = await Question.countDocuments();
+  const totalQuestions = await scoredQuestionCount();
 
   res.status(200).json({
     success: true,
@@ -171,7 +184,7 @@ const getCurrent = asyncHandler(async (req, res) => {
     status: "in-progress",
   });
 
-  const totalQuestions = await Question.countDocuments();
+  const totalQuestions = await scoredQuestionCount();
 
   res.status(200).json({
     success: true,
@@ -239,7 +252,7 @@ const saveAnswer = asyncHandler(async (req, res) => {
   assessment.answers.set(questionId, answerPayload);
   await assessment.save();
 
-  const totalQuestions = await Question.countDocuments();
+  const totalQuestions = await scoredQuestionCount();
 
   res.status(200).json({
     success: true,
@@ -274,7 +287,12 @@ const submitAssessment = asyncHandler(async (req, res) => {
     }
 
 
-  const questions = await Question.find().lean();
+  const activeCategories = await categoryCache.getCategories();
+  const activeKeys = activeCategories.map((c) => c.key);
+  const questions = await Question.find({
+    isArchived: { $ne: true },
+    category: { $in: activeKeys },
+  }).lean();
 
   if (assessment.answers.size < questions.length) {
     throw new ApiError(
@@ -421,7 +439,7 @@ const deleteAnswer = asyncHandler(async (req, res) => {
   assessment.answers.delete(questionId);
   await assessment.save();
 
-  const totalQuestions = await Question.countDocuments();
+  const totalQuestions = await scoredQuestionCount();
 
   res.status(200).json({
     success: true,

@@ -1,12 +1,13 @@
+// client/src/components/CapabilityHeatmap.jsx
+
 /**
- * CapabilityHeatmap — Radar chart of category scores
- * --------------------------------------------------
- * Uses Recharts' RadarChart to visualise a user's strengths
- * across the 6 capability categories.
- *
+ * CapabilityHeatmap — Radar chart of per-domain capability scores
+ * ---------------------------------------------------------------
  * Props:
- *   categoryScores  - { "personal-care": 72, "health-management": 85, ... }
- *   categoryMeta    - array of categories from /api/questions (for labels/icons)
+ *   categoryScores  - { "communication-relational-care": 4.20, ... }
+ *   categoryMeta    - array of { key, label, icon } from /api/questions
+ *
+ * Scores are on a 1–5 scale (Phase 12-A brief-aligned scoring).
  */
 
 import {
@@ -20,13 +21,14 @@ import {
 } from "recharts";
 
 function CapabilityHeatmap({ categoryScores, categoryMeta }) {
-  // Shape the data Recharts wants
-  const data = categoryMeta.map((cat) => ({
-    category: cat.label,
-    icon: cat.icon,
-    score: categoryScores[cat.key] || 0,
-    fullMark: 100,
-  }));
+  const data = categoryMeta
+    .filter((cat) => categoryScores[cat.key] != null)
+    .map((cat) => ({
+      category: cat.label,
+      icon: cat.icon,
+      score: categoryScores[cat.key] || 0,
+      fullMark: 5,
+    }));
 
   return (
     <div className="w-full">
@@ -39,10 +41,11 @@ function CapabilityHeatmap({ categoryScores, categoryMeta }) {
           />
           <PolarRadiusAxis
             angle={90}
-            domain={[0, 100]}
+            domain={[1, 5]}
             tick={{ fill: "#9ca3af", fontSize: 11 }}
             axisLine={false}
-            tickCount={6}
+            tickCount={5}
+            tickFormatter={(v) => v.toFixed(0)}
           />
           <Radar
             name="Capability"
@@ -59,10 +62,7 @@ function CapabilityHeatmap({ categoryScores, categoryMeta }) {
   );
 }
 
-// ---- Custom label ticks: show icon + category name ----
 function CustomTick({ x, y, payload, textAnchor }) {
-  const data = payload.value;
-
   return (
     <g transform={`translate(${x},${y})`}>
       <text
@@ -73,13 +73,12 @@ function CustomTick({ x, y, payload, textAnchor }) {
         fontSize="12"
         fontWeight={500}
       >
-        {data}
+        {payload.value}
       </text>
     </g>
   );
 }
 
-// ---- Custom tooltip when hovering ----
 function CustomTooltip({ active, payload }) {
   if (!active || !payload || payload.length === 0) return null;
 
@@ -90,7 +89,7 @@ function CustomTooltip({ active, payload }) {
         {item.icon} {item.category}
       </p>
       <p className="text-xs text-gray-500">
-        Score: <span className="font-semibold text-indigo-600">{item.score}/100</span>
+        Score: <span className="font-semibold text-indigo-600">{item.score.toFixed(2)} / 5</span>
       </p>
     </div>
   );

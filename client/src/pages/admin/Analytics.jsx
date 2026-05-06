@@ -1,8 +1,13 @@
+// client/src/pages/admin/Analytics.jsx
+
 /**
  * Admin Analytics Dashboard
  * --------------------------
  * Shows headline stats, charts, and recent activity.
  * All data fetched from /api/admin/analytics.
+ *
+ * Phase 12-A: scores are now 1–5 floats (not 0–100).
+ * Level labels: Support | Growth | Strength.
  */
 
 import { useEffect, useState } from "react";
@@ -19,18 +24,17 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  Legend,
 } from "recharts";
 import api from "../../api/axios";
 import LoadingSpinner from "../../components/LoadingSpinner";
 import toast from "../../utils/toast";
 
+// Brief-aligned level colours
 const LEVEL_COLORS = {
-  Emerging: "#14b8a6",     // teal
-  Developing: "#22c55e",   // green
-  Confident: "#6366f1",    // indigo
-  Advanced: "#a855f7",     // purple
-  Unknown: "#94a3b8",      // gray
+  Support:  "#f59e0b",  // amber
+  Growth:   "#6366f1",  // indigo
+  Strength: "#10b981",  // emerald
+  Unknown:  "#94a3b8",  // slate
 };
 
 function Analytics() {
@@ -96,8 +100,8 @@ function Analytics() {
         />
         <StatCard
           label="Avg Score"
-          value={headline.avgScore}
-          subtitle="out of 100"
+          value={headline.avgScore ? `${headline.avgScore.toFixed(2)}` : "—"}
+          subtitle="out of 5.00"
           accent="purple"
         />
       </div>
@@ -110,7 +114,7 @@ function Analytics() {
               <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
               <XAxis
                 dataKey="date"
-                tickFormatter={(d) => d.slice(5)}  // MM-DD
+                tickFormatter={(d) => d.slice(5)}
                 tick={{ fontSize: 11, fill: "#78716c" }}
               />
               <YAxis tick={{ fontSize: 11, fill: "#78716c" }} allowDecimals={false} />
@@ -200,14 +204,21 @@ function Analytics() {
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={categoryStats} layout="vertical" margin={{ left: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11, fill: "#78716c" }} />
+                <XAxis
+                  type="number"
+                  domain={[1, 5]}
+                  tickCount={5}
+                  tickFormatter={(v) => v.toFixed(1)}
+                  tick={{ fontSize: 11, fill: "#78716c" }}
+                />
                 <YAxis
                   type="category"
-                  dataKey="title"
+                  dataKey="label"
                   tick={{ fontSize: 11, fill: "#78716c" }}
                   width={120}
                 />
                 <Tooltip
+                  formatter={(value) => [`${value.toFixed(2)} / 5`, "Avg Score"]}
                   contentStyle={{
                     backgroundColor: "white",
                     border: "1px solid #e7e5e4",
@@ -250,7 +261,7 @@ function Analytics() {
                     <div className="text-xs text-stone-500">{s.user?.email || "—"}</div>
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-stone-900">
-                    {s.overallScore}/100
+                    {s.overallScore != null ? `${s.overallScore.toFixed(2)} / 5` : "—"}
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -260,7 +271,7 @@ function Analytics() {
                         color: LEVEL_COLORS[s.level] || LEVEL_COLORS.Unknown,
                       }}
                     >
-                      {s.level}
+                      {s.level || "Unknown"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-stone-500">

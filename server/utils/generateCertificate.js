@@ -1,88 +1,159 @@
+// server/utils/generateCertificate.js
+
 /**
- * Certificate Generator — Premium Edition
- * ---------------------------------------
- * Academic-style PDF certificate with:
- *   - Double-gold ornate border
- *   - Corner flourishes
- *   - Classical serif typography (Times-Roman)
- *   - Verification QR code (Phase 14)
- *   - Signature lines
- *   - Fits on a single landscape A4 page
+ * Certificate Generator — CareAble Brand Edition
+ * ------------------------------------------------
+ * Redesigned for Phase 12-A brief alignment:
+ *   - Brand colours (teal #2BBFAA + blue #2B7FC0) replace gold/navy palette
+ *   - CareAble logo PNG embedded top-left
+ *   - QR code top-right for instant verification
+ *   - Per-domain 1-5 scoring reflected in score line
+ *   - Top capability areas (domains >= 4.0) listed if any exist
+ *   - Brief-aligned level labels: Support | Growth | Strength
+ *   - A4 landscape, clean geometric layout
+ *
+ * Logo dependency:
+ *   server/assets/careable-logo.png  (400x400 PNG, transparent background)
+ *   If missing, certificate renders without logo (graceful fallback).
+ *
+ * QR dependency:
+ *   Encodes CLIENT_URL/verify/<certificateId>.
+ *   Falls back to text-only if QR generation fails.
  */
 
 const PDFDocument = require("pdfkit");
-const QRCode = require("qrcode"); // QR: Phase 14 — verification QR
-const CATEGORIES = require("./categories");
+const QRCode = require("qrcode");
+const path = require("path");
+const fs = require("fs");
+const categoryCache = require("./categoryCache");
 
-// ---- Color palette ----
+// ── Brand colour palette ──────────────────────────────────────────
 const C = {
-  gold: "#B8860B",          // Classic gold
-  goldLight: "#D4A017",
-  navy: "#1E3A5F",          // Deep navy
-  parchment: "#FDFBF4",     // Cream background
-  seal: "#8B2E2E",          // Burgundy seal
-  ink: "#1A1A1A",           // Near-black
-  inkSoft: "#4A4A4A",
-  divider: "#8B7355",       // Warm brown
+  teal:        "#2BBFAA",
+  blue:        "#2B7FC0",
+  tealDark:    "#1E8F7E",
+  blueDark:    "#1A5F8F",
+  ink:         "#1A1A2E",
+  inkSoft:     "#4A4A6A",
+  parchment:   "#FAFCFF",
+  rule:        "#D0EAE8",
+  chipBg:      "#E8F8F6",
+  chipText:    "#1A6B60",
+  white:       "#FFFFFF",
 };
 
-// Level → honorific
-const LEVEL_HONORIFIC = {
-  Emerging: "Emerging Carer",
-  Developing: "Developing Carer",
-  Confident: "Confident Carer",
-  Advanced: "Advanced Carer",
+// ── Level metadata ────────────────────────────────────────────────
+const LEVEL_META = {
+  Strength: {
+    honorific: "Strength in Caregiving Capabilities",
+    descriptor: "demonstrating strong, well-developed caregiving capabilities",
+  },
+  Growth: {
+    honorific: "Growth in Caregiving Capabilities",
+    descriptor: "demonstrating developing caregiving capabilities with positive momentum",
+  },
+  Support: {
+    honorific: "Foundation in Caregiving Capabilities",
+    descriptor: "demonstrating foundational caregiving capabilities",
+  },
 };
 
-/**
- * QR: Phase 14 — Build the verification URL the QR encodes.
- * Falls back to careable.site if CLIENT_URL is missing (e.g., misconfigured Render env).
- */
+// ── Paths ─────────────────────────────────────────────────────────
+const LOGO_PATH = path.join(__dirname, "../assets/careable-logo.png");
+
+// ── Helpers ───────────────────────────────────────────────────────
 function buildVerifyUrl(certificateId) {
   const base = (process.env.CLIENT_URL || "https://careable.site").replace(/\/$/, "");
   return `${base}/verify/${encodeURIComponent(certificateId)}`;
 }
 
-/**
- * QR: Phase 14 — Generate a PNG buffer for the QR code.
- * Tuned for print legibility:
- *   - errorCorrectionLevel 'M' (15% redundancy — good balance for paper scans)
- *   - margin 1 (compact white-space border)
- *   - dark color matches seal burgundy for visual cohesion
- */
 async function generateQrBuffer(verifyUrl) {
   return QRCode.toBuffer(verifyUrl, {
     errorCorrectionLevel: "M",
     type: "png",
     margin: 1,
-    width: 300, // Render large; we scale down when drawing — keeps it crisp
+    width: 300,
     color: {
-      dark: "#8B2E2E",  // matches C.seal
-      light: "#FDFBF4", // matches C.parchment so it blends with background
+      dark: C.blue,
+      light: C.white,
     },
   });
 }
 
+function formatDate(date) {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+// ── Main export ───────────────────────────────────────────────────
 async function generateCertificate(user, assessment) {
-  // QR: Phase 14 — generate the QR buffer FIRST (async), then build the PDF synchronously.
-  // We do this outside the Promise wrapper so any QR error is caught cleanly.
+
+  // ── QR code ──────────────────────────────────────────────────────
   const verifyUrl = buildVerifyUrl(assessment.certificateId || "CA-UNKNOWN");
   let qrBuffer = null;
   try {
     qrBuffer = await generateQrBuffer(verifyUrl);
   } catch (err) {
-    // If QR generation fails, continue without it rather than failing the whole certificate.
-    console.error("⚠️ QR code generation failed; certificate will be issued without QR:", err.message);
+    console.error("[CERT] QR generation failed — continuing without QR:", err.message);
   }
 
+  // ── Logo ──────────────────────────────────────────────────────────
+  const logoExists = fs.existsSync(LOGO_PATH);
+  if (!logoExists) {
+    console.warn("[CERT] Logo not found at", LOGO_PATH, "— continuing without logo");
+  }
+
+  // ── Category label map (FIX 1) ───────────────────────────────────
+  // Fetch all categories from the in-memory cache (no extra DB hit).
+  // Includes archived — so historical certs with archived domains still
+  // resolve their labels correctly.
+  let categoryLabelMap = {}; // { "communication-relational-care": "Communication & Relational Care", ... }
+  try {
+    const allCats = await categoryCache.getAllCategoriesIncludingArchived();
+    for (const cat of allCats) {
+      categoryLabelMap[cat.key] = cat.label;
+    }
+  } catch (err) {
+    // Non-fatal — falls back to key-derived labels below
+    console.warn("[CERT] Could not load category labels from cache:", err.message);
+  }
+
+  // Fallback: format raw key → readable label when cache lookup misses.
+  // e.g. "digital-literacy" → "Digital Literacy"
+  function keyToLabel(key) {
+    return categoryLabelMap[key] || key
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  }
+
+  // ── Top capability areas ─────────────────────────────────────────
+  const scoresObj = assessment.categoryScores instanceof Map
+    ? Object.fromEntries(assessment.categoryScores)
+    : (assessment.categoryScores || {});
+
+  const topAreas = Object.entries(scoresObj)
+    .filter(([, score]) => score != null && score >= 4.0)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5);
+
+  // ── Build PDF ────────────────────────────────────────────────────
   return new Promise((resolve, reject) => {
     try {
-      // ---- A4 Landscape dimensions in points ----
       const doc = new PDFDocument({
         size: "A4",
         layout: "landscape",
-        margin: 0,         // We'll draw borders manually
+        margin: 0,
         autoFirstPage: true,
+        info: {
+          Title: `CareAble Certificate — ${user.name}`,
+          Author: "CareAble",
+          Subject: "Caregiver Capability Certificate",
+        },
       });
 
       const chunks = [];
@@ -90,376 +161,305 @@ async function generateCertificate(user, assessment) {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const W = doc.page.width;   // 842 pt
-      const H = doc.page.height;  // 595 pt
+      const W = doc.page.width;   // 842pt
+      const H = doc.page.height;  // 595pt
 
-      // ========================================
-      // BACKGROUND (parchment)
-      // ========================================
+      // ── BACKGROUND ──────────────────────────────────────────────
       doc.rect(0, 0, W, H).fill(C.parchment);
 
-      // ========================================
-      // ORNATE DOUBLE BORDER
-      // ========================================
-      const outerMargin = 25;
-      const innerMargin = 35;
+      // ── TOP COLOUR BAR ──────────────────────────────────────────
+      const barH = 8;
+      doc.rect(0, 0, W / 2, barH).fill(C.teal);
+      doc.rect(W / 2, 0, W / 2, barH).fill(C.blue);
 
-      // Outer thick gold line
-      doc
-        .rect(outerMargin, outerMargin, W - outerMargin * 2, H - outerMargin * 2)
-        .lineWidth(3)
-        .stroke(C.gold);
+      // ── BOTTOM COLOUR BAR ───────────────────────────────────────
+      doc.rect(0, H - barH, W / 2, barH).fill(C.teal);
+      doc.rect(W / 2, H - barH, W / 2, barH).fill(C.blue);
 
-      // Inner thin gold line
-      doc
-        .rect(innerMargin, innerMargin, W - innerMargin * 2, H - innerMargin * 2)
-        .lineWidth(0.75)
-        .stroke(C.gold);
+      // ── OUTER BORDER ────────────────────────────────────────────
+      const bm = 18;
+      doc.rect(bm, bm, W - bm * 2, H - bm * 2)
+        .lineWidth(1.2)
+        .stroke(C.teal);
 
-      // ========================================
-      // CORNER FLOURISHES (ornamental)
-      // ========================================
-      const drawCornerOrnament = (x, y, rotate) => {
-        doc.save();
-        doc.translate(x, y);
-        doc.rotate(rotate);
+      const bm2 = 24;
+      doc.rect(bm2, bm2, W - bm2 * 2, H - bm2 * 2)
+        .lineWidth(0.4)
+        .stroke(C.rule);
 
-        // Classical fleur-de-lis-inspired ornament using curves
-        doc.lineWidth(1).strokeColor(C.gold).fillColor(C.gold);
+      // ── HEADER ZONE ─────────────────────────────────────────────
+      const headerY = 36;
+      const headerH = 90;
 
-        // Center dot
-        doc.circle(0, 0, 2).fill(C.gold);
+      // ---- Logo ----
+      const logoSize = 68;
+      const logoX = 46;
+      const logoY = headerY;
 
-        // Four radiating flourishes
-        for (let i = 0; i < 4; i++) {
-          doc.save();
-          doc.rotate(i * 90);
-          doc
-            .moveTo(0, 0)
-            .bezierCurveTo(4, -2, 10, -4, 18, 0)
-            .bezierCurveTo(10, 4, 4, 2, 0, 0)
-            .fill(C.gold);
-          doc.restore();
-        }
+      if (logoExists) {
+        doc.image(LOGO_PATH, logoX, logoY, { width: logoSize, height: logoSize });
+      } else {
+        doc.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2).fill(C.teal);
+        doc.fontSize(28).fillColor(C.white).font("Helvetica-Bold")
+          .text("C", logoX, logoY + logoSize / 2 - 16, { width: logoSize, align: "center" });
+      }
 
-        // Outer corner arcs
-        doc.strokeColor(C.gold).lineWidth(1);
-        doc
-          .moveTo(-25, 0)
-          .bezierCurveTo(-22, -22, -22, -22, 0, -25)
-          .stroke();
+      // ---- Brand wordmark ----
+      const wordmarkX = logoX + logoSize + 12;
+      const wordmarkY = logoY + 8;
 
-        doc.restore();
-      };
+      doc.fontSize(26).font("Helvetica-Bold");
+      const careWidth = doc.widthOfString("Care");
 
-      // Four corners
-      const cornerInset = 50;
-      drawCornerOrnament(cornerInset, cornerInset, 0);
-      drawCornerOrnament(W - cornerInset, cornerInset, 90);
-      drawCornerOrnament(W - cornerInset, H - cornerInset, 180);
-      drawCornerOrnament(cornerInset, H - cornerInset, 270);
+      doc.fillColor(C.teal)
+        .text("Care", wordmarkX, wordmarkY, { continued: false, lineBreak: false });
+      doc.fillColor(C.blue)
+        .text("Able", wordmarkX + careWidth, wordmarkY, { lineBreak: false });
 
-      // ========================================
-      // HEADER — Brand
-      // ========================================
-      let y = 65;
-
-      // Heart symbol (decorative)
-      doc
-        .fontSize(16)
-        .fillColor(C.seal)
-        .font("Times-Roman")
-        .text("❦", 0, y, { align: "center", width: W });
-
-      y += 22;
-
-      // CareAble brand wordmark
-      doc
-        .fontSize(30)
-        .fillColor(C.navy)
-        .font("Times-Bold")
-        .text("CareAble", 0, y, { align: "center", width: W, characterSpacing: 4 });
-
-      y += 38;
-
-      // Decorative divider line with center ornament
-      const lineY = y;
-      const lineStart = W / 2 - 80;
-      const lineEnd = W / 2 + 80;
-
-      doc.strokeColor(C.divider).lineWidth(0.5);
-      doc.moveTo(lineStart, lineY).lineTo(W / 2 - 8, lineY).stroke();
-      doc.moveTo(W / 2 + 8, lineY).lineTo(lineEnd, lineY).stroke();
-
-      // Center ornament (diamond)
-      doc
-        .save()
-        .translate(W / 2, lineY)
-        .rotate(45)
-        .rect(-3, -3, 6, 6)
-        .fill(C.gold)
-        .restore();
-
-      // ========================================
-      // TITLE
-      // ========================================
-      y += 18;
-
-      doc
-        .fontSize(11)
+      doc.fontSize(9)
         .fillColor(C.inkSoft)
-        .font("Times-Italic")
-        .text("is proud to present the", 0, y, {
-          align: "center",
-          width: W,
-          characterSpacing: 2,
+        .font("Helvetica")
+        .text("Caregiver Capability Certificate", wordmarkX, wordmarkY + 32, {
+          characterSpacing: 1.5,
         });
 
-      y += 22;
-
-      doc
-        .fontSize(32)
-        .fillColor(C.navy)
-        .font("Times-Bold")
-        .text("Certificate of Capability", 0, y, {
-          align: "center",
-          width: W,
-          characterSpacing: 2,
+      doc.fontSize(7.5)
+        .fillColor(C.inkSoft)
+        .text("La Trobe University · Capstone 2026 · Team NEXA", wordmarkX, wordmarkY + 48, {
+          characterSpacing: 0.5,
         });
 
-      y += 52;
+      // ---- QR Code ----
+      const qrSize = 72;
+      const qrX = W - 46 - qrSize;
+      const qrY = headerY;
 
-      // ========================================
-      // BODY — Name, Level, Body Text
-      // ========================================
-      doc
-        .fontSize(12)
+      if (qrBuffer) {
+        doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6).fill(C.white);
+        doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
+        doc.fontSize(7)
+          .fillColor(C.inkSoft)
+          .font("Helvetica")
+          .text("Scan to verify", qrX - 3, qrY + qrSize + 5, {
+            width: qrSize + 6,
+            align: "center",
+          });
+      } else {
+        doc.fontSize(7).fillColor(C.inkSoft).font("Helvetica")
+          .text(
+            `Verify at careable.site/verify/${assessment.certificateId || ""}`,
+            qrX, qrY + qrSize / 2,
+            { width: qrSize + 6, align: "center" }
+          );
+      }
+
+      // ── DIVIDER RULE 1 ───────────────────────────────────────────
+      const ruleY = headerY + headerH;
+      doc.moveTo(bm2 + 4, ruleY).lineTo(W / 2, ruleY).lineWidth(1).stroke(C.teal);
+      doc.moveTo(W / 2, ruleY).lineTo(W - bm2 - 4, ruleY).lineWidth(1).stroke(C.blue);
+
+      // ── BODY ─────────────────────────────────────────────────────
+      let y = ruleY + 20;
+
+      // "This certifies that"
+      doc.fontSize(10)
         .fillColor(C.inkSoft)
-        .font("Times-Italic")
+        .font("Helvetica")
         .text("This certifies that", 0, y, {
           align: "center",
           width: W,
+          characterSpacing: 1,
         });
 
-      y += 24;
+      y += 20;
 
-      // Name — prominent, italic serif
-      doc
-        .fontSize(34)
-        .fillColor(C.ink)
-        .font("Times-BoldItalic")
+      // Carer name
+      doc.fontSize(34)
+        .fillColor(C.blueDark)
+        .font("Helvetica-Bold")
         .text(user.name, 0, y, { align: "center", width: W });
 
-      y += 48;
+      y += 44;
 
-      // Decorative short line under the name
-      const nameLineStart = W / 2 - 120;
-      const nameLineEnd = W / 2 + 120;
-      doc
-        .moveTo(nameLineStart, y - 8)
-        .lineTo(nameLineEnd, y - 8)
-        .lineWidth(0.5)
-        .stroke(C.divider);
+      // Name underline
+      const nameLineLen = 220;
+      const nameCX = W / 2;
+      doc.moveTo(nameCX - nameLineLen / 2, y - 6)
+        .lineTo(nameCX, y - 6).lineWidth(0.8).stroke(C.teal);
+      doc.moveTo(nameCX, y - 6)
+        .lineTo(nameCX + nameLineLen / 2, y - 6).lineWidth(0.8).stroke(C.blue);
 
-      // Body paragraph
-      doc
-        .fontSize(11)
+      // Descriptor lines
+      const levelMeta = LEVEL_META[assessment.level] || LEVEL_META.Growth;
+
+      doc.fontSize(10)
         .fillColor(C.inkSoft)
-        .font("Times-Roman")
+        .font("Helvetica")
         .text(
-          "has successfully completed the CareAble Caregiving Self-Assessment,",
-          0,
-          y,
+          "has successfully completed the CareAble Self-Assessment,",
+          0, y,
           { align: "center", width: W }
         );
 
       y += 16;
 
-      doc.text("demonstrating the capabilities of a", 0, y, {
-        align: "center",
-        width: W,
-      });
+      doc.text(levelMeta.descriptor, 0, y, { align: "center", width: W });
 
-      y += 22;
+      y += 24;
 
       // Level honorific
-      const levelText = LEVEL_HONORIFIC[assessment.level] || "Caregiver";
-      doc
-        .fontSize(22)
-        .fillColor(C.seal)
-        .font("Times-Bold")
-        .text(levelText, 0, y, {
+      doc.fontSize(19)
+        .fillColor(C.tealDark)
+        .font("Helvetica-Bold")
+        .text(levelMeta.honorific, 0, y, {
           align: "center",
           width: W,
-          characterSpacing: 3,
+          characterSpacing: 0.5,
         });
 
-      y += 32;
+      y += 30;
 
-      // Overall score as supporting line
-      doc
-        .fontSize(11)
+      // Overall score
+      const scoreStr = assessment.overallScore != null
+        ? `Overall capability score: ${assessment.overallScore.toFixed(2)} / 5.00`
+        : "Overall capability score: —";
+
+      doc.fontSize(9.5)
         .fillColor(C.inkSoft)
-        .font("Times-Italic")
-        .text(
-          `with an overall capability score of ${assessment.overallScore} out of 100`,
-          0,
-          y,
-          { align: "center", width: W }
-        );
-
-      // ========================================
-      // BOTTOM — QR + Date + Cert ID + Signature
-      // ========================================
-      const bottomY = H - 120;
-
-      // ---- LEFT: Date + Signature Line ----
-      const leftX = 90;
-      const signatureY = bottomY + 20;
-
-      // Signature line
-      doc
-        .moveTo(leftX, signatureY)
-        .lineTo(leftX + 160, signatureY)
-        .lineWidth(0.5)
-        .stroke(C.ink);
-
-      doc
-        .fontSize(9)
-        .fillColor(C.inkSoft)
-        .font("Times-Italic")
-        .text("Date of Issue", leftX, signatureY + 6, { width: 160, align: "center" });
-
-      doc
-        .fontSize(11)
-        .fillColor(C.ink)
-        .font("Times-Roman")
-        .text(
-          formatDate(assessment.submittedAt),
-          leftX,
-          signatureY - 18,
-          { width: 160, align: "center" }
-        );
-
-      // ---- CENTER: Verification QR Block ----
-      // QR: Phase 14 — Replaced decorative seal with a clean, scannable QR block.
-      // Larger QR scans more reliably from both screen and printed paper.
-      const qrCX = W / 2;
-      const qrTopY = bottomY - 18;
-      const qrSize = 70;
-
-      if (qrBuffer) {
-        // The QR itself
-        doc.image(qrBuffer, qrCX - qrSize / 2, qrTopY, {
-          width: qrSize,
-          height: qrSize,
+        .font("Helvetica")
+        .text(scoreStr, 0, y, {
+          align: "center",
+          width: W,
+          characterSpacing: 0.5,
         });
 
-        // Caption line 1 — call to action
-        doc
-          .fontSize(8)
+      y += 18;
+
+      // ── TOP CAPABILITY AREAS ─────────────────────────────────────
+      if (topAreas.length > 0) {
+        doc.fontSize(8.5)
           .fillColor(C.inkSoft)
-          .font("Times-Italic")
-          .text("Scan to verify this credential", qrCX - 90, qrTopY + qrSize + 6, {
-            width: 180,
-            align: "center",
-            characterSpacing: 0.5,
-          });
+          .font("Helvetica")
+          .text("Top capability areas:", 0, y, { align: "center", width: W });
 
-        // Caption line 2 — issuer (subtle prestige)
-        doc
-          .fontSize(7)
-          .fillColor(C.seal)
-          .font("Times-Bold")
-          .text("CareAble", qrCX - 90, qrTopY + qrSize + 19, {
-            width: 180,
-            align: "center",
-            characterSpacing: 2,
-          });
-      } else {
-        // Fallback if QR generation failed: render a simple "Verified" badge
-        // so the certificate still looks intentional.
-        const badgeY = bottomY + 5;
-        doc
-          .circle(qrCX, badgeY + 20, 28)
-          .lineWidth(1.5)
-          .stroke(C.seal);
+        y += 14;
 
-        doc
-          .fontSize(9)
-          .fillColor(C.seal)
-          .font("Times-Bold")
-          .text("CareAble", qrCX - 40, badgeY + 12, {
-            width: 80,
-            align: "center",
-            characterSpacing: 1,
-          });
+        const chipPadX = 10;
+        const chipPadY = 4;
+        const chipFontSize = 7.5;
+        const chipGap = 8;
+        const chipH = chipFontSize + chipPadY * 2 + 2;
 
-        doc
-          .fontSize(7)
-          .fillColor(C.seal)
-          .font("Times-Italic")
-          .text("Certified", qrCX - 40, badgeY + 24, {
-            width: 80,
-            align: "center",
-          });
+        // Measure chips using real labels from categoryCache (FIX 1)
+        doc.fontSize(chipFontSize).font("Helvetica-Bold");
+        const chipData = topAreas.map(([key, score]) => {
+          const label = keyToLabel(key);           // ← real label now
+          const scoreLabel = `  ${score.toFixed(2)}`;
+          // Measure label bold + score regular separately for accuracy
+          const labelW = doc.widthOfString(label);
+          doc.font("Helvetica");
+          const scoreW = doc.widthOfString(scoreLabel);
+          doc.font("Helvetica-Bold");
+          return {
+            label,
+            scoreLabel,
+            width: labelW + scoreW + chipPadX * 2,
+          };
+        });
+
+        // Centre the chip row
+        const totalChipW = chipData.reduce((s, c) => s + c.width, 0)
+          + chipGap * (chipData.length - 1);
+
+        // If chips would overflow the safe width, scale gap down gracefully
+        const safeW = W - bm2 * 2 - 16;
+        const effectiveGap = totalChipW > safeW
+          ? Math.max(2, chipGap - Math.ceil((totalChipW - safeW) / chipData.length))
+          : chipGap;
+
+        const adjustedTotalW = chipData.reduce((s, c) => s + c.width, 0)
+          + effectiveGap * (chipData.length - 1);
+        let chipX = (W - adjustedTotalW) / 2;
+
+        for (const chip of chipData) {
+          // Chip background (rounded rect)
+          doc.roundedRect(chipX, y, chip.width, chipH, 4).fill(C.chipBg);
+
+          // Label — bold teal
+          doc.fontSize(chipFontSize)
+            .fillColor(C.chipText)
+            .font("Helvetica-Bold")
+            .text(chip.label, chipX + chipPadX, y + chipPadY + 1, { lineBreak: false });
+
+          // Score — regular, muted
+          const labelW = doc.widthOfString(chip.label);
+          doc.font("Helvetica")
+            .fillColor(C.inkSoft)
+            .text(chip.scoreLabel, chipX + chipPadX + labelW, y + chipPadY + 1, {
+              lineBreak: false,
+            });
+
+          chipX += chip.width + effectiveGap;
+        }
+
+        y += chipH + 8;
       }
 
-      // ---- RIGHT: Certificate ID ----
-      const rightX = W - 90 - 160;
-      doc
-        .moveTo(rightX, signatureY)
-        .lineTo(rightX + 160, signatureY)
-        .lineWidth(0.5)
-        .stroke(C.ink);
+      // ── DIVIDER RULE 2 (FIX 2 — dynamic position) ───────────────
+      // Sits 28pt below last body content, but never above the
+      // footer zone (footer needs ~75pt from bottom).
+      const footerZoneTop = H - 75;
+      const rule2Y = Math.min(y + 28, footerZoneTop);
 
-      doc
-        .fontSize(9)
+      doc.moveTo(bm2 + 4, rule2Y).lineTo(W / 2, rule2Y).lineWidth(0.8).stroke(C.teal);
+      doc.moveTo(W / 2, rule2Y).lineTo(W - bm2 - 4, rule2Y).lineWidth(0.8).stroke(C.blue);
+
+      // ── FOOTER ───────────────────────────────────────────────────
+      const footerY = H - 62;
+
+      // Date of issue — left
+      const leftFootX = 46;
+      doc.fontSize(7.5)
         .fillColor(C.inkSoft)
-        .font("Times-Italic")
-        .text("Certificate ID", rightX, signatureY + 6, { width: 160, align: "center" });
+        .font("Helvetica")
+        .text("DATE OF ISSUE", leftFootX, footerY, { characterSpacing: 1 });
 
-      doc
-        .fontSize(12)
+      doc.fontSize(11)
+        .fillColor(C.ink)
+        .font("Helvetica-Bold")
+        .text(formatDate(assessment.submittedAt), leftFootX, footerY + 11);
+
+      // Certificate ID — right
+      const certIdStr = assessment.certificateId || "CA-UNKNOWN";
+      const rightFootX = W - 46 - 160;
+      doc.fontSize(7.5)
+        .fillColor(C.inkSoft)
+        .font("Helvetica")
+        .text("CERTIFICATE ID", rightFootX, footerY, {
+          width: 160,
+          align: "right",
+          characterSpacing: 1,
+        });
+
+      doc.fontSize(11)
         .fillColor(C.ink)
         .font("Courier-Bold")
-        .text(
-          assessment.certificateId || "CA-UNKNOWN",
-          rightX,
-          signatureY - 18,
-          { width: 160, align: "center" }
-        );
+        .text(certIdStr, rightFootX, footerY + 11, { width: 160, align: "right" });
 
-      // ========================================
-      // FINE PRINT (bottom)
-      // ========================================
-      doc
-        .fontSize(7)
+      // Fine print — centred
+      doc.fontSize(6.5)
         .fillColor(C.inkSoft)
-        .font("Times-Italic")
+        .font("Helvetica")
         .text(
-          "Aligned with the Australian Skills Classification · Care and Support Economy Strategy (2023-2033)",
-          0,
-          H - 42,
-          { align: "center", width: W, characterSpacing: 0.5 }
+          "Aligned with the Australian Skills Classification · Care and Support Economy Strategy (2023–2033)",
+          0, footerY + 28,
+          { align: "center", width: W, characterSpacing: 0.3 }
         );
 
-      // Finalize
       doc.end();
     } catch (err) {
       reject(err);
     }
-  });
-}
-
-// ---- Helper: format date like "23 April 2026" ----
-function formatDate(date) {
-  if (!date) return "";
-  const d = new Date(date);
-  return d.toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
   });
 }
 

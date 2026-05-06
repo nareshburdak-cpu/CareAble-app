@@ -24,12 +24,18 @@ const ACTIONS = {
   "question.archive": { label: "Archived question",        color: "amber" },
   "question.restore": { label: "Restored question",        color: "emerald" },
   "question.reorder": { label: "Reordered question",       color: "stone" },
+  "category.create":  { label: "Created category",         color: "indigo" },
+  "category.update":  { label: "Updated category",         color: "stone" },
+  "category.archive": { label: "Archived category",        color: "amber" },
+  "category.restore": { label: "Restored category",        color: "emerald" },
+  "category.reorder": { label: "Reordered category",       color: "stone" },
 };
 
 const FILTERS = [
   { key: "all",      label: "All" },
   { key: "user",     label: "Users" },
   { key: "question", label: "Questions" },
+  { key: "category", label: "Categories" },
 ];
 
 function Audit() {
@@ -179,8 +185,8 @@ function AuditRow({ log }) {
     .toUpperCase() || "?";
 
   // Build a friendly description from details
-  const detailString = log.details?.email || log.details?.text || "";
-
+// AuditRow in Audit.jsx
+const detailString = log.details?.email || log.details?.name || log.details?.label || log.details?.text || "";
   return (
     <li className="px-6 py-4 hover:bg-stone-50 transition">
       <div className="flex items-start gap-4">

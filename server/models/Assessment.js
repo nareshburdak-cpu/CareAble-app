@@ -1,3 +1,5 @@
+// server/models/Assessment.js
+
 /**
  * Assessment Model
  * ----------------
@@ -9,6 +11,11 @@
  *
  * Answers are stored as a map keyed by questionId (string).
  * Scoring happens on submit — we store categoryScores + overallScore.
+ *
+ * Scoring (Phase 12-A):
+ *   - categoryScores: per-domain mean on 1–5 scale (2dp float)
+ *   - overallScore:   mean of domain scores (2dp float, 1–5)
+ *   - level:          Support | Growth | Strength  (brief-aligned)
  */
 
 const mongoose = require("mongoose");
@@ -36,8 +43,8 @@ const assessmentSchema = new mongoose.Schema(
       type: Map,
       of: new mongoose.Schema(
         {
-          value: { type: String },          // For likert/frequency
-          values: { type: [String] },       // For multi-select
+          value: { type: String },
+          values: { type: [String] },
           answeredAt: { type: Date, default: Date.now },
         },
         { _id: false }
@@ -45,7 +52,8 @@ const assessmentSchema = new mongoose.Schema(
       default: {},
     },
 
-    // Scoring (populated on submit)
+    // Scoring (populated on submit).
+    // Values are floats 1.00–5.00, or null for unscoreable categories.
     categoryScores: {
       type: Map,
       of: Number,
@@ -53,47 +61,40 @@ const assessmentSchema = new mongoose.Schema(
     },
 
     // Locked-in question order for this assessment.
-    // Set when the assessment is created — ensures the user sees
-    // the same shuffled order on resume.
-    //
-    // Format:
-    //   {
-    //     categoryKey1: ["questionId1", "questionId2", ...],
-    //     categoryKey2: [...],
-    //     ...
-    //   }
-    //
-    // Plus: `categoryOrder` is the shuffled list of category keys.
+    // Set on first start — ensures the user sees the same shuffled
+    // order on resume, and in-progress assessments survive mid-take
+    // category archive operations.
     questionOrder: {
       type: Map,
-      of: [String],   // Map<categoryKey, [questionId, ...]>
+      of: [String],
       default: {},
     },
 
     categoryOrder: {
-      type: [String],   // ordered list of category keys
+      type: [String],
       default: [],
     },
 
-    // No `default: null` — let it be undefined until submission
+    // Populated on submit only. No default — undefined until submission.
     overallScore: {
       type: Number,
     },
 
-    // No `default: null` — let it be undefined until submission
+    // Brief-aligned 3-tier levels (Phase 12-A).
+    //   Strength  >= 4.0
+    //   Growth    >= 3.0
+    //   Support   <  3.0
     level: {
       type: String,
-      enum: ["Emerging", "Developing", "Confident", "Advanced"],
+      enum: ["Support", "Growth", "Strength"],
     },
 
-    // No `default`, no `index: true` — just type + sparse unique
     certificateId: {
       type: String,
       unique: true,
       sparse: true,
     },
 
-    // No `default: null` — let it be undefined until submission
     submittedAt: {
       type: Date,
     },
@@ -108,20 +109,16 @@ const assessmentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
   },
   { timestamps: true }
 );
 
-// Helper: returns the progress as a ratio (0 to 1)
 assessmentSchema.methods.getProgress = function (totalQuestions) {
   if (!totalQuestions) return 0;
   return this.answers.size / totalQuestions;
 };
 
-// ---- Partial unique index ----
-// Enforces: each user can have at most ONE in-progress assessment.
-// Submitted assessments are unrestricted.
+// Partial unique index: one in-progress per user maximum.
 assessmentSchema.index(
   { user: 1, status: 1 },
   {

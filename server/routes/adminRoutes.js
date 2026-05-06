@@ -1,3 +1,5 @@
+// server/routes/adminRoutes.js
+
 const express = require("express");
 const router = express.Router();
 
@@ -16,6 +18,8 @@ const {
   getAuditLogs,
 } = require("../controllers/adminController");
 
+const categoryRoutes = require("./categoryRoutes");
+
 
 
 
@@ -30,6 +34,8 @@ router.post("/questions", createQuestion);
 router.patch("/questions/:id", updateQuestion);
 router.post("/questions/:id/reorder", reorderQuestion);
 router.get("/audit", getAuditLogs);
+
+router.use("/categories", categoryRoutes);
 
 
 module.exports = router;
