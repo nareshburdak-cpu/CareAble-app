@@ -1,7 +1,10 @@
+// client/src/components/admin/UserDetailDrawer.jsx
+
 /**
  * UserDetailDrawer
  * ----------------
  * Slide-in panel showing user details + admin actions.
+ * Phase 12-A: Multi-role — shows roles array, add/remove per role.
  */
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -10,6 +13,19 @@ import { useEffect, useState, useCallback } from "react";
 import api from "../../api/axios";
 import toast from "../../utils/toast";
 import { useAuth } from "../../hooks/useAuth";
+
+// All roles an admin can assign/remove
+const MANAGEABLE_ROLES = [
+  { key: "carer",    label: "Carer",    color: "emerald" },
+  { key: "employer", label: "Employer", color: "blue"    },
+  { key: "admin",    label: "Admin",    color: "purple"  },
+];
+
+const ROLE_COLORS = {
+  carer:    "bg-emerald-100 text-emerald-700",
+  employer: "bg-blue-100 text-blue-700",
+  admin:    "bg-purple-100 text-purple-700",
+};
 
 function UserDetailDrawer({ userId, onClose, onUpdate }) {
   const { user: currentUser } = useAuth();
@@ -38,7 +54,6 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
     fetchDetails();
   }, [fetchDetails]);
 
-  // Close on ESC
   useEffect(() => {
     const handleEsc = (e) => {
       if (e.key === "Escape") onClose();
@@ -63,15 +78,31 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
     }
   };
 
+  const handleAddRole = (roleKey) => {
+    const label = MANAGEABLE_ROLES.find((r) => r.key === roleKey)?.label || roleKey;
+    const confirm = roleKey === "admin"
+      ? `Grant admin access to this user? They will gain full admin privileges.`
+      : `Add the ${label} role to this user?`;
+    handleAction({ addRole: roleKey }, confirm);
+  };
+
+  const handleRemoveRole = (roleKey) => {
+    const label = MANAGEABLE_ROLES.find((r) => r.key === roleKey)?.label || roleKey;
+    handleAction(
+      { removeRole: roleKey },
+      `Remove the ${label} role from this user?`
+    );
+  };
+
+  const userRoles = user?.roles || [];
+
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 animate-fade-in"
         onClick={onClose}
       />
 
-      {/* Drawer */}
       <div className="fixed top-0 right-0 bottom-0 w-full md:w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right">
         {/* Header */}
         <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
@@ -101,12 +132,16 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                 <h3 className="text-lg font-semibold text-stone-900">{user.name}</h3>
                 <p className="text-sm text-stone-500">{user.email}</p>
 
+                {/* Role badges — shows all roles */}
                 <div className="flex flex-wrap gap-1 justify-center mt-3">
-                  {user.role === "admin" && (
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-                      Admin
+                  {userRoles.map((r) => (
+                    <span
+                      key={r}
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${ROLE_COLORS[r] || "bg-stone-100 text-stone-700"}`}
+                    >
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
                     </span>
-                  )}
+                  ))}
                   {user.emailVerified ? (
                     <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
                       Verified
@@ -132,7 +167,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                 <InfoCell label="Submitted" value={assessments.filter((a) => a.status === "submitted").length} />
               </div>
 
-              {/* Recent assessments */}
+              {/* Assessment history */}
               {assessments.length > 0 && (
                 <div className="mb-6">
                   <h4 className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-2">
@@ -143,7 +178,9 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                       <div key={a._id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg text-sm">
                         <div>
                           <p className="font-medium text-stone-900">
-                            {a.status === "submitted" ? `${a.level} · ${a.overallScore}/100` : "In progress"}
+                            {a.status === "submitted"
+                              ? `${a.level} · ${a.overallScore != null ? a.overallScore.toFixed(2) : "—"} / 5`
+                              : "In progress"}
                           </p>
                           <p className="text-xs text-stone-500">
                             {formatDate(a.submittedAt || a.updatedAt)}
@@ -167,7 +204,9 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                 <h4 className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-3">
                   Admin Actions
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
+
+                  {/* Email verification */}
                   {!user.emailVerified && (
                     <ActionButton
                       onClick={() => handleAction({ emailVerified: true })}
@@ -178,32 +217,55 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                     />
                   )}
 
-                  {user.role === "user" ? (
-                    <ActionButton
-                      onClick={() => handleAction(
-                        { role: "admin" },
-                        "Promote this user to admin? They will gain full admin access."
-                      )}
-                      disabled={actionLoading}
-                      icon="⬆"
-                      label="Promote to admin"
-                      hint="Grant admin privileges"
-                    />
-                  ) : (
-                    !isSelf && (
-                      <ActionButton
-                        onClick={() => handleAction(
-                          { role: "user" },
-                          "Demote this admin to a regular user?"
-                        )}
-                        disabled={actionLoading}
-                        icon="⬇"
-                        label="Demote to user"
-                        hint="Remove admin privileges"
-                      />
-                    )
-                  )}
+                  {/* Role management */}
+                  <div className="border border-stone-200 rounded-lg overflow-hidden">
+                    <div className="px-4 py-2 bg-stone-50 border-b border-stone-200">
+                      <p className="text-xs font-medium text-stone-600 uppercase tracking-wider">
+                        Role management
+                      </p>
+                    </div>
+                    <div className="divide-y divide-stone-100">
+                      {MANAGEABLE_ROLES.map((roleObj) => {
+                        const hasThisRole = userRoles.includes(roleObj.key);
+                        const isSelfAdmin = isSelf && roleObj.key === "admin";
 
+                        return (
+                          <div key={roleObj.key} className="flex items-center justify-between px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ROLE_COLORS[roleObj.key] || ""}`}>
+                                {roleObj.label}
+                              </span>
+                              {hasThisRole && (
+                                <span className="text-xs text-stone-400">active</span>
+                              )}
+                            </div>
+                            {isSelfAdmin ? (
+                              <span className="text-xs text-stone-400 italic">Can't modify own</span>
+                            ) : hasThisRole ? (
+                              <button
+                                onClick={() => handleRemoveRole(roleObj.key)}
+                                disabled={actionLoading || userRoles.length === 1}
+                                className="text-xs px-3 py-1 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                title={userRoles.length === 1 ? "Can't remove last role" : `Remove ${roleObj.label} role`}
+                              >
+                                Remove
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleAddRole(roleObj.key)}
+                                disabled={actionLoading}
+                                className="text-xs px-3 py-1 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                Add
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Account status */}
                   {!isSelf && (
                     user.isActive === false ? (
                       <ActionButton
@@ -231,7 +293,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
 
                   {isSelf && (
                     <p className="text-xs text-stone-500 italic px-3 py-2 bg-stone-50 rounded-lg">
-                      ℹ️ You can't deactivate or demote yourself.
+                      You can't deactivate your own account or remove your admin role.
                     </p>
                   )}
                 </div>
@@ -244,7 +306,6 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
   );
 }
 
-// ---- Helpers ----
 function InfoCell({ label, value }) {
   return (
     <div className="bg-stone-50 rounded-lg p-3">
@@ -260,7 +321,7 @@ function ActionButton({ onClick, disabled, icon, label, hint, variant = "default
   const variants = {
     default: "border-stone-200 hover:border-indigo-300 hover:bg-indigo-50",
     success: "border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700",
-    danger: "border-red-200 hover:border-red-400 hover:bg-red-50 text-red-700",
+    danger:  "border-red-200 hover:border-red-400 hover:bg-red-50 text-red-700",
   };
 
   return (

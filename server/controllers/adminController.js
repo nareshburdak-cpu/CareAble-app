@@ -255,27 +255,81 @@ const getUser = asyncHandler(async (req, res) => {
  * @route   PATCH /api/admin/users/:id
  * @access  Admin
  */
+
 const updateUser = asyncHandler(async (req, res) => {
-  const { role, isActive, emailVerified } = req.body;
+  const { role, addRole, removeRole, isActive, emailVerified } = req.body;
 
   const user = await User.findById(req.params.id);
   if (!user) throw new ApiError(404, "User not found");
 
   const isSelf = user._id.toString() === req.user._id.toString();
 
+  // ── Legacy role field (backward compat) ──────────────────────
+  // Still supported so old promote/demote calls don't break.
+  // Maps: "admin" → adds admin role, "user" → removes admin role.
   if (typeof role === "string") {
     if (isSelf) throw new ApiError(400, "You cannot change your own role");
-    if (!["user", "admin"].includes(role))
-      throw new ApiError(400, "Role must be 'user' or 'admin'");
-    const oldRole = user.role;
-    user.role = role;
+    if (!["user", "admin", "employer"].includes(role)) {
+      throw new ApiError(400, "Invalid role value");
+    }
+
+    if (role === "admin" && !user.roles.includes("admin")) {
+      user.roles.push("admin");
+    } else if (role === "user") {
+      user.roles = user.roles.filter((r) => r !== "admin");
+    } else if (role === "employer" && !user.roles.includes("employer")) {
+      user.roles.push("employer");
+    }
+
+    user.syncLegacyRole();
+
     await logAdminAction(req, role === "admin" ? "user.promote" : "user.demote", {
       targetType: "user",
       targetId: user._id,
-      details: { from: oldRole, to: role, email: user.email },
+      details: { role, email: user.email },
     });
   }
 
+  // ── Add a role (multi-role aware) ────────────────────────────
+  if (typeof addRole === "string") {
+    if (isSelf && addRole === "admin") {
+      throw new ApiError(400, "You cannot grant yourself the admin role");
+    }
+    const VALID_ROLES = ["carer", "employer", "admin"];
+    if (!VALID_ROLES.includes(addRole)) {
+      throw new ApiError(400, `Invalid role: ${addRole}`);
+    }
+    if (!user.roles.includes(addRole)) {
+      user.roles.push(addRole);
+      user.syncLegacyRole();
+      await logAdminAction(req, "user.role.add", {
+        targetType: "user",
+        targetId: user._id,
+        details: { addRole, email: user.email },
+      });
+    }
+  }
+
+  // ── Remove a role ─────────────────────────────────────────────
+  if (typeof removeRole === "string") {
+    if (isSelf && removeRole === "admin") {
+      throw new ApiError(400, "You cannot remove your own admin role");
+    }
+    // Always keep at least one role
+    const afterRemoval = user.roles.filter((r) => r !== removeRole);
+    if (afterRemoval.length === 0) {
+      throw new ApiError(400, "Cannot remove all roles — user must have at least one role");
+    }
+    user.roles = afterRemoval;
+    user.syncLegacyRole();
+    await logAdminAction(req, "user.role.remove", {
+      targetType: "user",
+      targetId: user._id,
+      details: { removeRole, email: user.email },
+    });
+  }
+
+  // ── isActive ──────────────────────────────────────────────────
   if (typeof isActive === "boolean") {
     if (isSelf) throw new ApiError(400, "You cannot deactivate your own account");
     user.isActive = isActive;
@@ -286,6 +340,7 @@ const updateUser = asyncHandler(async (req, res) => {
     });
   }
 
+  // ── emailVerified ─────────────────────────────────────────────
   if (typeof emailVerified === "boolean") {
     user.emailVerified = emailVerified;
     await logAdminAction(req, emailVerified ? "user.verify" : "user.unverify", {
@@ -309,7 +364,6 @@ const updateUser = asyncHandler(async (req, res) => {
     data: { user: cleaned },
   });
 });
-
 
 /**
  * @desc    List all questions (including archived) for admin

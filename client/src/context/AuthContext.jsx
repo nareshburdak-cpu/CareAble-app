@@ -1,15 +1,12 @@
+// client/src/context/AuthContext.jsx
+
 /* eslint-disable react-refresh/only-export-components */
 /**
  * AuthContext
  * -----------
  * Global authentication state.
  *
- * Features:
- *   - Bootstrap on mount: validate saved token with /auth/me
- *   - login / register / logout / refreshUser helpers
- *   - Cross-tab sync: logout in one tab logs out all tabs
- *
- * Note: useAuth hook is in src/hooks/useAuth.js (separate for Fast Refresh).
+ * Phase 12-A: register() now accepts a roles array for multi-role signup.
  */
 
 import { createContext, useEffect, useState } from "react";
@@ -21,7 +18,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // ---- Bootstrap: validate token on app load ----
+  // Bootstrap: validate saved token on app load
   useEffect(() => {
     const bootstrapAuth = async () => {
       const token = localStorage.getItem("token");
@@ -43,7 +40,7 @@ export function AuthProvider({ children }) {
     bootstrapAuth();
   }, []);
 
-  // ---- Cross-tab sync ----
+  // Cross-tab sync
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === "token") {
@@ -65,7 +62,6 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  // ---- Auth helpers ----
   const login = async (email, password) => {
     const res = await api.post("/auth/login", { email, password });
     const { token, user } = res.data.data;
@@ -75,8 +71,10 @@ export function AuthProvider({ children }) {
     return user;
   };
 
-  const register = async (name, email, password) => {
-    const res = await api.post("/auth/register", { name, email, password });
+  // roles: ["carer"] | ["employer"] | ["carer", "employer"]
+  // Defaults to ["carer"] if not provided — backend enforces this too.
+  const register = async (name, email, password, roles = ["carer"]) => {
+    const res = await api.post("/auth/register", { name, email, password, roles });
     const { token, user } = res.data.data;
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
@@ -90,7 +88,6 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
-  // Refresh user data without re-login (used by VerifyEmail page)
   const refreshUser = async () => {
     try {
       const res = await api.get("/auth/me");
@@ -100,6 +97,12 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // hasRole: convenience helper for components
+  // Usage: hasRole("employer") | hasRole("admin")
+  const hasRole = (roleName) => {
+    return Array.isArray(user?.roles) && user.roles.includes(roleName);
+  };
+
   const value = {
     user,
     isAuthenticated: !!user,
@@ -107,7 +110,8 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
-    refreshUser,   // ← exposed so any component can call it
+    refreshUser,
+    hasRole,
   };
 
   return (

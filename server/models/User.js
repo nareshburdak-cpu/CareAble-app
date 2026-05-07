@@ -1,15 +1,15 @@
+// server/models/User.js
+
 /**
  * User Model
  * ----------
  * Defines the shape of users in MongoDB.
  *
- * Features:
- *   - Unique email validation
- *   - Password hashing (via bcrypt pre-save hook)
- *   - Password comparison method
- *   - Role-based access (user / admin)
- *   - Auto timestamps (createdAt, updatedAt)
- *   - Password hidden from responses by default
+ * Phase 12-A: Multi-role architecture.
+ *   - `roles` array is the source of truth: ["carer"] | ["admin", "carer"] | ["employer"] | etc.
+ *   - `role` string kept for backward compat (JWT, existing middleware during transition).
+ *     Computed as: admin > employer > carer priority order.
+ *   - New users default to roles: ["carer"].
  */
 
 const mongoose = require("mongoose");
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: [6, "Password must be at least 6 characters"],
-      select: false, // ❗ Never return password in query results by default
+      select: false,
     },
 
     emailVerified: {
@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema(
 
     emailVerifyToken: {
       type: String,
-      select: false,    // hide from default queries
+      select: false,
     },
 
     emailVerifyExpires: {
@@ -60,14 +60,31 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
+    // ── Multi-role (Phase 12-A) ──────────────────────────────────
+    // Source of truth. Allowed values: "carer" | "employer" | "admin"
+    // A user can hold multiple roles simultaneously.
+    // Middleware checks roles.includes("admin") etc.
+    roles: {
+      type: [String],
+      enum: ["carer", "employer", "admin"],
+      default: ["carer"],
+      index: true,
+    },
+
+    // Legacy single-role field — kept for JWT compat and existing
+    // middleware during transition. Always derived from `roles`:
+    //   admin in roles   → "admin"
+    //   employer in roles → "employer"
+    //   otherwise        → "user"   (maps old "user" to carer)
+    // Updated by authController on register/login and by adminController
+    // on role changes. Do NOT use as source of truth in new code.
     role: {
       type: String,
-      enum: ["user", "admin"],
+      enum: ["user", "admin", "employer"],
       default: "user",
       index: true,
     },
 
-    // CareAble-specific fields (we'll use later)
     isCarer: {
       type: Boolean,
       default: false,
@@ -78,23 +95,21 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
-    // Add inside userSchema, near the other fields:
     passwordResetToken: {
       type: String,
-      select: false,    // never returned in queries by default
+      select: false,
     },
     passwordResetExpires: {
       type: Date,
       select: false,
     },
 
-    // One-time password for sensitive actions
     otpHash: {
       type: String,
       select: false,
     },
     otpAction: {
-      type: String,        // "change-password" | "delete-account" | etc.
+      type: String,
       select: false,
     },
     otpExpires: {
@@ -107,43 +122,50 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
-    // Whether the account is active (false = soft-deleted/deactivated)
     isActive: {
       type: Boolean,
       default: true,
       index: true,
     },
 
-    // Track when user was last active (we'll update on login)
     lastLoginAt: {
       type: Date,
     },
-
   },
   {
-    timestamps: true, // Adds createdAt & updatedAt automatically
+    timestamps: true,
   }
 );
 
-// ---- Middleware: Hash password before saving ----
-// Runs automatically whenever a user is saved (create OR password update)
-userSchema.pre("save", async function () {
-  // Only hash if the password was modified
-  if (!this.isModified("password")) return;
+// ── Helpers ───────────────────────────────────────────────────────
 
+/**
+ * Derive the legacy `role` string from the `roles` array.
+ * Priority: admin > employer > carer (→ "user")
+ * Call this whenever roles array changes, then save.
+ */
+userSchema.methods.syncLegacyRole = function () {
+  if (this.roles.includes("admin")) {
+    this.role = "admin";
+  } else if (this.roles.includes("employer")) {
+    this.role = "employer";
+  } else {
+    this.role = "user";
+  }
+};
+
+// ── Pre-save: hash password ───────────────────────────────────────
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
-
-// ---- Instance Method: Compare entered password with hashed password ----
-// Used during login: user.matchPassword("plainTextInput")
+// ── Instance methods ──────────────────────────────────────────────
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// ---- Instance Method: Strip sensitive fields when sending user as JSON ----
-// Called automatically when you do res.json(user)
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
@@ -151,51 +173,33 @@ userSchema.methods.toJSON = function () {
   return obj;
 };
 
-
-// Generate a password reset token + return the unhashed version (for the email link)
 userSchema.methods.createPasswordResetToken = function () {
-  // Generate random unhashed token (this goes in the email)
   const resetToken = crypto.randomBytes(32).toString("hex");
-
-  // Save the HASHED version (defense if DB is breached)
   this.passwordResetToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
-
-  // Expires in 30 minutes
   this.passwordResetExpires = Date.now() + 30 * 60 * 1000;
-
-  return resetToken; // unhashed — used in email link only
+  return resetToken;
 };
 
-// Generate an email verification token + return the unhashed version (for email link)
 userSchema.methods.createEmailVerifyToken = function () {
   const verifyToken = crypto.randomBytes(32).toString("hex");
-
   this.emailVerifyToken = crypto
     .createHash("sha256")
     .update(verifyToken)
     .digest("hex");
-
-  // Token valid for 7 days (less aggressive than password reset)
   this.emailVerifyExpires = Date.now() + 7 * 24 * 60 * 60 * 1000;
-
   return verifyToken;
 };
 
-// Generate a 6-digit OTP, save hashed version, return unhashed for the email
 userSchema.methods.createOtp = function (action) {
-  // 6-digit zero-padded code
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
   this.otpHash = crypto.createHash("sha256").update(otp).digest("hex");
   this.otpAction = action;
-  this.otpExpires = Date.now() + 10 * 60 * 1000;  // 10 minutes
+  this.otpExpires = Date.now() + 10 * 60 * 1000;
   this.otpAttempts = 0;
-
-  return otp;  // unhashed — for the email
+  return otp;
 };
-
 
 module.exports = mongoose.model("User", userSchema);

@@ -62,10 +62,23 @@ function verifyOtpChallenge(token, expectedUserId, expectedAction) {
  * @access  Public
  */
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, roles } = req.body;
 
-  const user = await User.create({ name, email, password });
+  const ALLOWED_SIGNUP_ROLES = ["carer", "employer"];
+  const requestedRoles = Array.isArray(roles)
+    ? roles.filter((r) => ALLOWED_SIGNUP_ROLES.includes(r))
+    : [];
+  const assignedRoles = requestedRoles.length > 0 ? requestedRoles : ["carer"];
 
+  const user = await User.create({
+    name,
+    email,
+    password,
+    roles: assignedRoles,
+    role: assignedRoles.includes("employer") && !assignedRoles.includes("carer")
+      ? "employer"
+      : "user",
+  });
   // Generate email verification token
   const verifyToken = user.createEmailVerifyToken();
   await user.save({ validateBeforeSave: false });

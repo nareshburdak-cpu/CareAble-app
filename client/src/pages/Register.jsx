@@ -1,15 +1,34 @@
+// client/src/pages/Register.jsx
+
 /**
  * Register Page
  * -------------
- * Uses AuthContext to register + auto-login.
+ * Phase 12-A: Role selection checklist added.
+ * Users can select Carer, Employer, or both.
+ * Admin is not self-selectable — only promotable by existing admins.
  */
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "../utils/toast";
-
 import { useAuth } from "../hooks/useAuth";
 import FormInput from "../components/FormInput";
+
+// Available roles at signup. Admin is intentionally excluded.
+const SIGNUP_ROLES = [
+  {
+    key: "carer",
+    label: "Carer",
+    description: "I provide informal care for a family member or friend and want to assess my skills.",
+    icon: "🤝",
+  },
+  {
+    key: "employer",
+    label: "Employer",
+    description: "I represent an organisation and want to verify caregiver certificates.",
+    icon: "🏢",
+  },
+];
 
 function Register() {
   const navigate = useNavigate();
@@ -21,6 +40,7 @@ function Register() {
     password: "",
     confirmPassword: "",
   });
+  const [selectedRoles, setSelectedRoles] = useState(["carer"]); // default
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,9 +48,19 @@ function Register() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const toggleRole = (roleKey) => {
+    setSelectedRoles((prev) => {
+      if (prev.includes(roleKey)) {
+        // Don't allow deselecting all roles
+        if (prev.length === 1) return prev;
+        return prev.filter((r) => r !== roleKey);
+      }
+      return [...prev, roleKey];
+    });
+    if (errors.roles) setErrors((prev) => ({ ...prev, roles: "" }));
   };
 
   const validate = () => {
@@ -53,6 +83,9 @@ function Register() {
     if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Passwords do not match";
     }
+    if (selectedRoles.length === 0) {
+      newErrors.roles = "Please select at least one role";
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -66,9 +99,10 @@ function Register() {
       const user = await register(
         formData.name.trim(),
         formData.email.trim().toLowerCase(),
-        formData.password
+        formData.password,
+        selectedRoles
       );
-      toast.success(`Welcome, ${user.name}! 🎉`);
+      toast.success(`Welcome, ${user.name}!`);
       navigate("/dashboard");
     } catch (err) {
       toast.error(err.message);
@@ -136,6 +170,56 @@ function Register() {
             />
             Show password
           </label>
+
+          {/* Role selection */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              I am joining as <span className="text-gray-400 font-normal">(select all that apply)</span>
+            </p>
+            <div className="space-y-2">
+              {SIGNUP_ROLES.map((role) => {
+                const selected = selectedRoles.includes(role.key);
+                return (
+                  <button
+                    key={role.key}
+                    type="button"
+                    onClick={() => toggleRole(role.key)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition ${
+                      selected
+                        ? "border-indigo-500 bg-indigo-50"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl mt-0.5">{role.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className={`text-sm font-semibold ${selected ? "text-indigo-700" : "text-gray-900"}`}>
+                            {role.label}
+                          </p>
+                          <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition ${
+                            selected
+                              ? "border-indigo-500 bg-indigo-500"
+                              : "border-gray-300"
+                          }`}>
+                            {selected && (
+                              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">{role.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {errors.roles && (
+              <p className="text-red-600 text-xs mt-1">{errors.roles}</p>
+            )}
+          </div>
 
           <button
             type="submit"
