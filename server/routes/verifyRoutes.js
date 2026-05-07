@@ -1,18 +1,41 @@
+// server/routes/verifyRoutes.js
+
 /**
  * Verify Routes
  * -------------
- *   GET /api/verify/:certificateId   (PUBLIC — no auth)
- *
- * IMPORTANT: This router is intentionally NOT protected by `protect` middleware.
- * It must remain public so QR-code scanners (employers, third parties) can verify
- * a certificate's authenticity without an account.
+ *   GET /api/verify/:certificateId             (PUBLIC — no auth)
+ *   GET /api/verify/employer/:certificateId    (protected — employer or admin)
+ *   GET /api/verify/admin/:certificateId       (protected — admin only)
  */
 
 const express = require("express");
-const { verifyCertificate } = require("../controllers/verifyController");
+const {
+  verifyCertificate,
+  verifyCertificateEmployer,
+  verifyCertificateAdmin,
+} = require("../controllers/verifyController");
+const { protect } = require("../middleware/authMiddleware");
+const requireEmployer = require("../middleware/requireEmployer");
+const requireAdmin = require("../middleware/requireAdmin");
+
 const router = express.Router();
 
-// Public verification endpoint — DO NOT add auth middleware here.
+// Authenticated routes FIRST — before the public wildcard
+router.get(
+  "/employer/:certificateId",
+  protect,
+  requireEmployer,
+  verifyCertificateEmployer
+);
+
+router.get(
+  "/admin/:certificateId",
+  protect,
+  requireAdmin,
+  verifyCertificateAdmin
+);
+
+// Public route LAST — catch-all param
 router.get("/:certificateId", verifyCertificate);
 
 module.exports = router;

@@ -1,12 +1,12 @@
+// client/src/pages/Dashboard.jsx
+
 /**
  * Dashboard — User's home base
  * ----------------------------
- * Shows:
- *   - Personalised welcome
- *   - Real-time stats (assessments, latest score, level)
- *   - Smart CTA (Start / Continue / Retake / Cooldown)
- *   - Cooldown banner when user must wait between retakes
- *   - Assessment history list with discard option for in-progress
+ * Phase 12-A Task 6 fixes:
+ *   - Level labels updated to Support/Growth/Strength
+ *   - Score display fixed to /5 (not /100)
+ *   - Question count is dynamic from assessment.questionTotal
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -19,63 +19,51 @@ import LoadingSpinner from "../components/LoadingSpinner";
 import { relativeTime, shortDate } from "../utils/formatDate";
 import CooldownBanner from "../components/CooldownBanner";
 
-// Level metadata
+// Brief-aligned level metadata — Support/Growth/Strength
 const LEVEL_META = {
-  Emerging:   { emoji: "🌱", badge: "bg-teal-100 text-teal-800" },
-  Developing: { emoji: "🌿", badge: "bg-green-100 text-green-800" },
-  Confident:  { emoji: "🌳", badge: "bg-indigo-100 text-indigo-800" },
-  Advanced:   { emoji: "🏆", badge: "bg-purple-100 text-purple-800" },
+  Support:  { emoji: "🌱", badge: "bg-amber-100 text-amber-800"   },
+  Growth:   { emoji: "🌿", badge: "bg-indigo-100 text-indigo-800" },
+  Strength: { emoji: "🏆", badge: "bg-emerald-100 text-emerald-800" },
 };
 
 function Dashboard() {
   const { user } = useAuth();
   const [assessments, setAssessments] = useState([]);
-  const [cooldown, setCooldown] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // Track if the initial fetch has happened (avoids loading spinner on refetches)
+  const [cooldown, setCooldown]       = useState(null);
+  const [loading, setLoading]         = useState(true);
   const hasLoadedOnce = useRef(false);
 
-  // Pure async function — no setState side effects, just returns the data
   const fetchAssessments = useCallback(async ({ silent = false } = {}) => {
     try {
       const res = await api.get("/assessments");
-      // Defensive deduplication by _id
       const unique = Array.from(
         new Map(res.data.data.assessments.map((a) => [a._id, a])).values()
       );
       setAssessments(unique);
-    } catch (err) {
+    } catch {
       if (!silent) toast.error("Could not load your history");
-      console.error(err);
     }
   }, []);
 
-  // Fetch cooldown status (non-blocking — silent on error)
   const fetchCooldown = useCallback(async () => {
     try {
       const res = await api.get("/assessments/cooldown-status");
       setCooldown(res.data.data.cooldown);
-    } catch (err) {
-      console.error("Cooldown status fetch failed:", err);
-    }
+    } catch {/* silent — cooldown is non-blocking */}
   }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     const init = async () => {
-      // Run both in parallel for faster initial paint
       await Promise.all([fetchAssessments(), fetchCooldown()]);
       if (!cancelled) {
         setLoading(false);
         hasLoadedOnce.current = true;
       }
     };
-
     init();
 
-    // Re-fetch when the tab regains focus (silent — no toast on focus failures)
     const handleFocus = () => {
       if (hasLoadedOnce.current) {
         fetchAssessments({ silent: true });
@@ -83,7 +71,6 @@ function Dashboard() {
       }
     };
     window.addEventListener("focus", handleFocus);
-
     return () => {
       cancelled = true;
       window.removeEventListener("focus", handleFocus);
@@ -92,13 +79,14 @@ function Dashboard() {
 
   if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
 
-  // ---- Computed stats ----
-  const submitted = assessments.filter((a) => a.status === "submitted");
+  const submitted  = assessments.filter((a) => a.status === "submitted");
   const inProgress = assessments.find((a) => a.status === "in-progress");
-  const latest = submitted[0]; // newest first
+  const latest     = submitted[0];
+  const isLocked   = cooldown?.active && !inProgress;
 
-  // CTA logic: in-progress always wins; otherwise check cooldown
-  const isLocked = cooldown?.active && !inProgress;
+  // Dynamic question count from the locked assessment
+  const inProgressTotal    = inProgress?.questionTotal ?? 36;
+  const inProgressAnswered = inProgress?.answerCount ?? 0;
 
   let ctaLabel = "Start Assessment";
   if (inProgress) ctaLabel = "Continue Assessment";
@@ -107,17 +95,15 @@ function Dashboard() {
   return (
     <section className="flex-1 p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Welcome card */}
+
+        {/* Welcome */}
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-10">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
             Welcome back, {user?.name?.split(" ")[0] || "friend"} 👋
           </h1>
-          <p className="text-gray-500">
-            Here's your caregiving journey at a glance.
-          </p>
+          <p className="text-gray-500">Here's your caregiving journey at a glance.</p>
         </div>
 
-        {/* Cooldown banner — only shown when active AND no in-progress to resume */}
         {isLocked && <CooldownBanner cooldown={cooldown} />}
 
         {/* Stat cards */}
@@ -129,8 +115,8 @@ function Dashboard() {
           />
           <StatCard
             label="Latest Score"
-            value={latest ? `${latest.overallScore}` : "—"}
-            suffix={latest ? "/100" : "Take your first"}
+            value={latest ? latest.overallScore?.toFixed(2) ?? "—" : "—"}
+            suffix={latest ? "/ 5.00" : "Take your first"}
             color="purple"
           />
           <StatCard
@@ -138,12 +124,10 @@ function Dashboard() {
             value={
               latest ? (
                 <span className="inline-flex items-center gap-1">
-                  <span className="text-3xl">{LEVEL_META[latest.level]?.emoji}</span>
+                  <span className="text-3xl">{LEVEL_META[latest.level]?.emoji ?? "—"}</span>
                   <span>{latest.level}</span>
                 </span>
-              ) : (
-                "—"
-              )
+              ) : "—"
             }
             color="pink"
           />
@@ -162,17 +146,16 @@ function Dashboard() {
           </h2>
           <p className="text-indigo-100 mb-6 max-w-2xl">
             {inProgress
-              ? `You've answered ${inProgress.answerCount ?? 0} of 30 questions so far. Pick up right where you left off.`
+              ? `You've answered ${inProgressAnswered} of ${inProgressTotal} questions. Pick up right where you left off.`
               : isLocked
               ? `You've recently completed an assessment. We'll unlock retakes in ${cooldown.daysRemaining} day${cooldown.daysRemaining === 1 ? "" : "s"} so your results stay meaningful.`
-              : "Discover your caregiving strengths across 6 skill areas. The assessment takes about 10–15 minutes and saves automatically as you go."}
+              : "Discover your caregiving strengths across 12 capability domains. The assessment saves automatically as you go."}
           </p>
 
           {isLocked ? (
             <button
               disabled
               className="inline-flex items-center gap-2 px-6 py-3 bg-white/30 text-white/70 font-semibold rounded-lg cursor-not-allowed backdrop-blur-sm"
-              title={`Available in ${cooldown.daysRemaining} day(s)`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -204,9 +187,7 @@ function Dashboard() {
         {/* History */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">
-              Your Assessment History
-            </h2>
+            <h2 className="text-xl font-bold text-gray-900">Your Assessment History</h2>
             <span className="text-sm text-gray-500">
               {assessments.length} {assessments.length === 1 ? "record" : "records"}
             </span>
@@ -218,9 +199,7 @@ function Dashboard() {
                 <span className="text-2xl">📋</span>
               </div>
               <p className="text-gray-500">No assessments yet.</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Start your first one to see it here.
-              </p>
+              <p className="text-sm text-gray-400 mt-1">Start your first one to see it here.</p>
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">
@@ -239,14 +218,13 @@ function Dashboard() {
   );
 }
 
-// ---- Stat card ----
+// ── Stat card ──────────────────────────────────────────────────────
 function StatCard({ label, value, suffix, color }) {
   const colorClasses = {
     indigo: "bg-indigo-50 text-indigo-700",
     purple: "bg-purple-50 text-purple-700",
-    pink: "bg-pink-50 text-pink-700",
+    pink:   "bg-pink-50 text-pink-700",
   };
-
   return (
     <div className={`p-6 rounded-xl ${colorClasses[color]}`}>
       <p className="text-sm font-medium">{label}</p>
@@ -258,22 +236,17 @@ function StatCard({ label, value, suffix, color }) {
   );
 }
 
-// ---- Single assessment row with discard option ----
+// ── Assessment row ─────────────────────────────────────────────────
 function AssessmentRow({ assessment, onDelete }) {
   const isSubmitted = assessment.status === "submitted";
-  const levelMeta = isSubmitted && LEVEL_META[assessment.level];
-
-  const dateSource = assessment.submittedAt || assessment.updatedAt;
+  const levelMeta   = isSubmitted ? LEVEL_META[assessment.level] : null;
+  const dateSource  = assessment.submittedAt || assessment.updatedAt;
+  const total       = assessment.questionTotal ?? 36;
 
   const handleDiscard = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
-    const confirmed = window.confirm(
-      "Discard this in-progress assessment? Your answers will be lost. (You can always start a new one.)"
-    );
-    if (!confirmed) return;
-
+    if (!window.confirm("Discard this in-progress assessment? Your answers will be lost.")) return;
     try {
       await api.delete(`/assessments/${assessment._id}`);
       toast.success("Assessment discarded.");
@@ -293,7 +266,7 @@ function AssessmentRow({ assessment, onDelete }) {
           <div className="flex items-center justify-between py-4 gap-4">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="text-2xl flex-shrink-0">
-                {isSubmitted ? levelMeta?.emoji : "⏳"}
+                {isSubmitted ? (levelMeta?.emoji ?? "📋") : "⏳"}
               </div>
               <div className="min-w-0">
                 <p className="text-gray-900 font-medium">
@@ -303,36 +276,31 @@ function AssessmentRow({ assessment, onDelete }) {
                   <p className="text-sm text-gray-500">
                     Score:{" "}
                     <span className="font-semibold text-gray-700">
-                      {assessment.overallScore}/100
+                      {assessment.overallScore?.toFixed(2) ?? "—"} / 5.00
                     </span>
                     <span className="mx-1.5 text-gray-300">·</span>
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${levelMeta?.badge}`}
-                    >
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${levelMeta?.badge ?? ""}`}>
                       {assessment.level}
                     </span>
                   </p>
                 ) : (
                   <p className="text-sm text-gray-500">
-                    {assessment.answerCount ?? 0} of 30 answered · Updated {relativeTime(dateSource)}
+                    {assessment.answerCount ?? 0} of {total} answered · Updated {relativeTime(dateSource)}
                   </p>
                 )}
               </div>
             </div>
-
             <div className="text-sm text-gray-400 flex-shrink-0">
               {isSubmitted ? "View →" : "Continue →"}
             </div>
           </div>
         </Link>
 
-        {/* Discard button — only for in-progress assessments */}
         {!isSubmitted && (
           <button
             onClick={handleDiscard}
             title="Discard this assessment"
-            aria-label="Discard in-progress assessment"
-            className="opacity-50 hover:opacity-100 focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition flex-shrink-0"
+            className="opacity-50 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition flex-shrink-0"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />

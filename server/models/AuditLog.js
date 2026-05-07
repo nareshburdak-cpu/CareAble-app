@@ -38,12 +38,13 @@ const auditLogSchema = new mongoose.Schema(
 
     targetType: {
       type: String,
-      enum: ["user", "question", "category", "assessment", null],
+      enum: ["user", "question", "category", "assessment", "setting", null],
       default: null,
     },
 
+    // Mixed allows both ObjectId and string keys like "questionsPerCategory"
     targetId: {
-      type: mongoose.Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.Mixed,
       default: null,
       index: true,
     },

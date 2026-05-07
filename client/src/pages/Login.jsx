@@ -55,8 +55,21 @@ function Login() {
         formData.email.trim().toLowerCase(),
         formData.password
       );
-      toast.success(`Welcome back, ${user.name}! 👋`);
-      navigate(from, { replace: true });
+      toast.success(`Welcome back, ${user.name}!`);
+
+      // Role-aware redirect:
+      // If they were sent here from a specific page, honour that.
+      // Otherwise, employer-only users land on employer dashboard.
+      const isEmployerOnly =
+        Array.isArray(user.roles) &&
+        user.roles.includes("employer") &&
+        !user.roles.includes("carer") &&
+        !user.roles.includes("admin");
+
+      const destination =
+        from !== "/dashboard" ? from : isEmployerOnly ? "/employer/dashboard" : "/dashboard";
+
+      navigate(destination, { replace: true });
     } catch (err) {
       toast.error(err.message);
     } finally {

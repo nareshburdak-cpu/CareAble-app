@@ -1,3 +1,5 @@
+// client/src/components/Navbar.jsx
+
 /**
  * Navbar — Top navigation
  * -----------------------
@@ -5,7 +7,8 @@
  *   - Logged out: Log in + Sign up buttons
  *   - Logged in: UserMenu dropdown (desktop) / Hamburger drawer (mobile)
  *
- * Mobile menu mirrors the modernized UserMenu styling for consistency.
+ * Phase 12-A Task 5: Employer Portal link visible to employer + admin roles.
+ * Admin panel link lives in UserMenu only — not exposed in the main nav bar.
  */
 
 import { useEffect, useState } from "react";
@@ -17,9 +20,11 @@ import UserMenu from "./UserMenu";
 import BRAND from "../constants/brand";
 
 function Navbar() {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, hasRole } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const showEmployerPortal = isAuthenticated && (hasRole("employer") || hasRole("admin"));
 
   // Close on Escape
   useEffect(() => {
@@ -52,7 +57,6 @@ function Navbar() {
     navigate("/");
   };
 
-  // Compute initials for mobile header
   const initials = user?.name
     ? user.name
         .split(" ")
@@ -62,7 +66,6 @@ function Navbar() {
         .toUpperCase()
     : "?";
 
-  // Desktop nav link styling
   const linkStyle = ({ isActive }) =>
     `px-3 py-2 rounded-md font-medium transition ${
       isActive
@@ -74,6 +77,7 @@ function Navbar() {
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-16">
+
           {/* Logo */}
           <Link
             to="/"
@@ -98,6 +102,11 @@ function Navbar() {
                 <NavLink to="/assessment" className={linkStyle}>
                   Assessment
                 </NavLink>
+                {showEmployerPortal && (
+                  <NavLink to="/employer/dashboard" className={linkStyle}>
+                    Employer Portal
+                  </NavLink>
+                )}
               </>
             )}
           </div>
@@ -148,75 +157,52 @@ function Navbar() {
         </div>
       </div>
 
-      {/* MOBILE MENU — overlay style */}
+      {/* MOBILE MENU */}
       {menuOpen && (
         <>
-          {/* Backdrop */}
           <div
             className="fixed inset-0 top-16 bg-gray-900/40 backdrop-blur-sm z-40 md:hidden animate-fade-in"
             onClick={closeMenu}
             aria-hidden="true"
           />
 
-          {/* Drawer */}
           <div className="fixed top-16 left-0 right-0 bg-white shadow-2xl z-50 md:hidden animate-slide-down max-h-[calc(100vh-4rem)] overflow-y-auto">
             <div className="p-4 space-y-2">
-              {/* User card (when logged in) — matches UserMenu desktop */}
+
+              {/* User card */}
               {isAuthenticated && user && (
                 <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 rounded-2xl p-5 mb-4 overflow-hidden">
-                  {/* Decorative blur orbs */}
                   <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-12 -left-8 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl pointer-events-none" />
-
                   <div className="relative flex items-center gap-3">
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base text-indigo-700 bg-white shadow-lg flex-shrink-0">
                       {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-white truncate">
-                        {user.name}
-                      </p>
-                      <p className="text-xs text-indigo-200 truncate">
-                        {user.email}
-                      </p>
+                      <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                      <p className="text-xs text-indigo-200 truncate">{user.email}</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Nav links */}
-              <MobileNavItem
-                to="/"
-                end
-                label="Home"
-                description="Welcome page"
-                icon="home"
-                onClick={closeMenu}
-              />
+              <MobileNavItem to="/" end label="Home" description="Welcome page" icon="home" onClick={closeMenu} />
 
               {isAuthenticated && (
                 <>
-                  <MobileNavItem
-                    to="/dashboard"
-                    label="Dashboard"
-                    description="Your home base"
-                    icon="dashboard"
-                    onClick={closeMenu}
-                  />
-                  <MobileNavItem
-                    to="/assessment"
-                    label="Assessment"
-                    description="Take a self-assessment"
-                    icon="assessment"
-                    onClick={closeMenu}
-                  />
-                  <MobileNavItem
-                    to="/profile"
-                    label="Profile"
-                    description="Manage your account"
-                    icon="profile"
-                    onClick={closeMenu}
-                  />
+                  <MobileNavItem to="/dashboard" label="Dashboard" description="Your home base" icon="dashboard" onClick={closeMenu} />
+                  <MobileNavItem to="/assessment" label="Assessment" description="Take a self-assessment" icon="assessment" onClick={closeMenu} />
+                  <MobileNavItem to="/profile" label="Profile" description="Manage your account" icon="profile" onClick={closeMenu} />
+                  {showEmployerPortal && (
+                    <MobileNavItem
+                      to="/employer/dashboard"
+                      label="Employer Portal"
+                      description="Verify caregiver certificates"
+                      icon="employer"
+                      onClick={closeMenu}
+                    />
+                  )}
                 </>
               )}
 
@@ -228,36 +214,18 @@ function Navbar() {
                     className="group w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg text-left transition"
                   >
                     <span className="w-9 h-9 rounded-lg bg-red-50 group-hover:bg-red-100 flex items-center justify-center transition flex-shrink-0">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                       </svg>
                     </span>
                     <span>Log out</span>
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <Link
-                      to="/login"
-                      onClick={closeMenu}
-                      className="block w-full px-4 py-2.5 text-center text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-200"
-                    >
+                    <Link to="/login" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-200">
                       Log in
                     </Link>
-                    <Link
-                      to="/register"
-                      onClick={closeMenu}
-                      className="block w-full px-4 py-2.5 text-center bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm"
-                    >
+                    <Link to="/register" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm">
                       Sign up
                     </Link>
                   </div>
@@ -271,54 +239,21 @@ function Navbar() {
   );
 }
 
-// ---- Mobile nav item — matches UserMenu desktop styling ----
+// ── Mobile nav item ────────────────────────────────────────────────────────
 function MobileNavItem({ to, end, label, description, icon, onClick }) {
   return (
     <NavLink to={to} end={end} onClick={onClick}>
       {({ isActive }) => (
-        <div
-          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-            isActive ? "bg-indigo-50" : "hover:bg-gray-50"
-          }`}
-        >
-          {/* Icon tile */}
-          <span
-            className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition ${
-              isActive
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
+        <div className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? "bg-indigo-50" : "hover:bg-gray-50"}`}>
+          <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition ${isActive ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30" : "bg-gray-100 text-gray-600"}`}>
             <NavIcon name={icon} />
           </span>
-
-          {/* Label + description */}
           <div className="flex-1 min-w-0">
-            <p
-              className={`text-sm font-medium ${
-                isActive ? "text-indigo-700" : "text-gray-900"
-              }`}
-            >
-              {label}
-            </p>
-            <p
-              className={`text-xs truncate ${
-                isActive ? "text-indigo-500" : "text-gray-500"
-              }`}
-            >
-              {description}
-            </p>
+            <p className={`text-sm font-medium ${isActive ? "text-indigo-700" : "text-gray-900"}`}>{label}</p>
+            <p className={`text-xs truncate ${isActive ? "text-indigo-500" : "text-gray-500"}`}>{description}</p>
           </div>
-
-          {/* Arrow when active */}
           {isActive && (
-            <svg
-              className="w-4 h-4 text-indigo-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2.5}
-            >
+            <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
           )}
@@ -328,57 +263,20 @@ function MobileNavItem({ to, end, label, description, icon, onClick }) {
   );
 }
 
-// ---- Icon library (matches UserMenu) ----
+// ── Icon library ───────────────────────────────────────────────────────────
 function NavIcon({ name }) {
-  const props = {
-    className: "w-4 h-4",
-    fill: "none",
-    stroke: "currentColor",
-    viewBox: "0 0 24 24",
-    strokeWidth: 2,
-  };
-
+  const props = { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", strokeWidth: 2 };
   switch (name) {
     case "home":
-      return (
-        <svg {...props}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-          />
-        </svg>
-      );
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
     case "dashboard":
-      return (
-        <svg {...props}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-          />
-        </svg>
-      );
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
     case "assessment":
-      return (
-        <svg {...props}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-          />
-        </svg>
-      );
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>;
     case "profile":
-      return (
-        <svg {...props}>
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      );
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
+    case "employer":
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>;
     default:
       return null;
   }

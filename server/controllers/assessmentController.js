@@ -6,6 +6,17 @@
  *   saveAnswer          (PATCH  /api/assessments/:id/answer)
  *   submitAssessment    (POST   /api/assessments/:id/submit)
  *   listMyAssessments   (GET    /api/assessments)
+ *
+ * Phase 12-A Task 6:
+ *   - startAssessment now samples N questions per active domain
+ *     (N from `questionsPerCategory` setting, default 3).
+ *   - The locked questionOrder/categoryOrder freezes both which
+ *     questions and the order, so submitted assessments are immune
+ *     to admin setting changes after the fact.
+ *   - submitAssessment counts against the LOCKED question set, not
+ *     the global question pool.
+ *   - All endpoints expose `questionTotal` so the frontend can drop
+ *     hardcoded "30 questions" strings.
  */
 
 const Assessment = require("../models/Assessment");
@@ -16,36 +27,52 @@ const { calculateScores } = require("../utils/scoring");
 const generateCertificate = require("../utils/generateCertificate");
 const { customAlphabet } = require("nanoid");
 const { shuffle } = require("../utils/shuffle");
+const categoryCache = require("../utils/categoryCache");
+const { getSetting } = require("../utils/settings");
+
 // Readable alphabet: no confusing chars (no 0/O, 1/I/l, etc.)
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nanoid = customAlphabet(ID_ALPHABET, 10);
-const categoryCache = require("../utils/categoryCache");
 
+const COOLDOWN_DAYS = 1;
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Count the number of questions LOCKED into a specific assessment's
+ * question order. Falls back to 0 if the assessment has no locked order
+ * (shouldn't happen after startAssessment, but defensive).
+ */
+function lockedQuestionCount(assessment) {
+  if (!assessment?.questionOrder) return 0;
+  let count = 0;
+  for (const ids of assessment.questionOrder.values()) {
+    count += ids.length;
+  }
+  return count;
+}
+
+/**
+ * Get all question IDs locked in this assessment, flattened.
+ */
+function lockedQuestionIds(assessment) {
+  if (!assessment?.questionOrder) return [];
+  const ids = [];
+  for (const arr of assessment.questionOrder.values()) {
+    ids.push(...arr);
+  }
+  return ids;
+}
+
+// ── Endpoints ──────────────────────────────────────────────────────
 
 /**
  * @desc    Start a new assessment (or return existing in-progress one)
  * @route   POST /api/assessments/start
  * @access  Private
- *
- * Strategy:
- * 1. Look for existing in-progress assessment → return it
- * 2. If found and there are duplicates → keep newest, delete the rest
- * 3. If none found → create one (handles race condition with try/catch)
- *
- * Defense in depth: frontend ref guard + this logic + DB partial unique index
  */
-const COOLDOWN_DAYS = 1;
-
-async function scoredQuestionCount() {
-  return Question.countDocuments({
-    isArchived: { $ne: true },
-    type: { $ne: "multi" },
-  });
-}
-
 const startAssessment = asyncHandler(async (req, res) => {
-  //  STEP 0: Check cooldown — but only if user has no in-progress assessment.
-  // Otherwise resuming would be wrongly blocked.
+  // STEP 0: Cooldown check (only if no in-progress to resume)
   const hasInProgress = await Assessment.exists({
     user: req.user._id,
     status: "in-progress",
@@ -70,7 +97,6 @@ const startAssessment = asyncHandler(async (req, res) => {
         (nextAvailable - Date.now()) / (24 * 60 * 60 * 1000)
       );
 
-      // Throw a structured 429 with cooldown metadata
       throw new ApiError(
         429,
         `Please wait ${daysRemaining} more day(s) before retaking. This helps keep results meaningful.`,
@@ -87,7 +113,7 @@ const startAssessment = asyncHandler(async (req, res) => {
     }
   }
 
-  // STEP 1: Find ALL in-progress assessments for this user
+  // STEP 1: Find existing in-progress, dedupe duplicates
   const allInProgress = await Assessment.find({
     user: req.user._id,
     status: "in-progress",
@@ -95,7 +121,6 @@ const startAssessment = asyncHandler(async (req, res) => {
 
   let assessment = null;
 
-  // STEP 2: If duplicates exist, keep the newest, delete the rest
   if (allInProgress.length > 0) {
     assessment = allInProgress[0];
     if (allInProgress.length > 1) {
@@ -104,7 +129,7 @@ const startAssessment = asyncHandler(async (req, res) => {
     }
   }
 
-  // STEP 3: No existing in-progress → create one
+  // STEP 2: Create new if needed
   if (!assessment) {
     try {
       assessment = await Assessment.create({
@@ -128,36 +153,56 @@ const startAssessment = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Could not start assessment. Please try again in a moment.");
   }
 
-  // STEP 4: Generate randomized order if not already set
+  // STEP 3: Lock question set if not already locked.
+  // Sampling: N questions per active domain (admin-configurable).
+  // Multi-select questions are NOT excluded from sampling here —
+  // they are excluded from SCORING (see scoring.js). Including them
+  // in the sample preserves demographic context capture.
   if (assessment.categoryOrder.length === 0) {
-    const activeCategories = await categoryCache.getCategories(); // add this import if not present
+    const questionsPerCategory = await getSetting("questionsPerCategory");
+
+    const activeCategories = await categoryCache.getCategories();
     const activeKeys = activeCategories.map((c) => c.key);
 
     const allQuestions = await Question.find({
       isArchived: { $ne: true },
       category: { $in: activeKeys },
     }).lean();
+
+    // Bucket questions by category
     const byCategory = {};
     for (const q of allQuestions) {
       if (!byCategory[q.category]) byCategory[q.category] = [];
       byCategory[q.category].push(q);
     }
 
-    const categoryKeys = Object.keys(byCategory);
-    const shuffledCategoryOrder = shuffle(categoryKeys);
-
+    // Sample N from each category. If a category has fewer than N
+    // available questions, take all of them — don't skip the category.
     const questionOrderMap = {};
-    for (const cat of shuffledCategoryOrder) {
-      const shuffledQs = shuffle(byCategory[cat]);
-      questionOrderMap[cat] = shuffledQs.map((q) => q._id.toString());
+    const populatedCategories = [];
+
+    for (const cat of activeKeys) {
+      const pool = byCategory[cat] || [];
+      if (pool.length === 0) continue; // category exists but has no questions yet
+
+      const shuffledPool = shuffle(pool);
+      const sampleSize = Math.min(questionsPerCategory, pool.length);
+      const sample = shuffledPool.slice(0, sampleSize);
+
+      questionOrderMap[cat] = sample.map((q) => q._id.toString());
+      populatedCategories.push(cat);
     }
+
+    // Shuffle the category order too (used for grouped views like
+    // the existing /questions endpoint and the Results page).
+    const shuffledCategoryOrder = shuffle(populatedCategories);
 
     assessment.categoryOrder = shuffledCategoryOrder;
     assessment.questionOrder = questionOrderMap;
     await assessment.save();
   }
 
-  const totalQuestions = await scoredQuestionCount();
+  const totalQuestions = lockedQuestionCount(assessment);
 
   res.status(200).json({
     success: true,
@@ -170,9 +215,11 @@ const startAssessment = asyncHandler(async (req, res) => {
           ? Math.round((assessment.answers.size / totalQuestions) * 100)
           : 0,
       },
+      questionTotal: totalQuestions,
     },
   });
 });
+
 /**
  * @desc    Get the user's current in-progress assessment
  * @route   GET /api/assessments/current
@@ -184,19 +231,20 @@ const getCurrent = asyncHandler(async (req, res) => {
     status: "in-progress",
   });
 
-  const totalQuestions = await scoredQuestionCount();
+  const totalQuestions = assessment ? lockedQuestionCount(assessment) : 0;
 
   res.status(200).json({
     success: true,
     data: {
-      assessment, // may be null — that's fine
+      assessment,
       progress: {
         answered: assessment ? assessment.answers.size : 0,
         total: totalQuestions,
-        percent: assessment
+        percent: assessment && totalQuestions > 0
           ? Math.round((assessment.answers.size / totalQuestions) * 100)
           : 0,
       },
+      questionTotal: totalQuestions,
     },
   });
 });
@@ -205,8 +253,6 @@ const getCurrent = asyncHandler(async (req, res) => {
  * @desc    Save or update a single answer (auto-save)
  * @route   PATCH /api/assessments/:id/answer
  * @access  Private
- *
- * Body: { questionId, value?, values? }
  */
 const saveAnswer = asyncHandler(async (req, res) => {
   const { questionId, value, values } = req.body;
@@ -215,11 +261,8 @@ const saveAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(400, "questionId is required");
   }
 
-  // Find the assessment and verify ownership
   const assessment = await Assessment.findById(req.params.id);
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -227,11 +270,15 @@ const saveAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This assessment has already been submitted");
   }
 
-  // Verify the question exists and the answer matches its type
-  const question = await Question.findById(questionId);
-  if (!question) {
-    throw new ApiError(404, "Question not found");
+  // Reject answers for questions not in this assessment's locked set —
+  // prevents tampering and keeps the answer map clean for scoring.
+  const lockedIds = new Set(lockedQuestionIds(assessment));
+  if (!lockedIds.has(questionId)) {
+    throw new ApiError(400, "This question is not part of your current assessment");
   }
+
+  const question = await Question.findById(questionId);
+  if (!question) throw new ApiError(404, "Question not found");
 
   const answerPayload = { answeredAt: new Date() };
 
@@ -241,18 +288,16 @@ const saveAnswer = asyncHandler(async (req, res) => {
     }
     answerPayload.values = values;
   } else {
-    // likert or frequency
     if (value === undefined || value === null || value === "") {
       throw new ApiError(400, "This question type requires `value`");
     }
     answerPayload.value = String(value);
   }
 
-  // Save the answer
   assessment.answers.set(questionId, answerPayload);
   await assessment.save();
 
-  const totalQuestions = await scoredQuestionCount();
+  const totalQuestions = lockedQuestionCount(assessment);
 
   res.status(200).json({
     success: true,
@@ -266,16 +311,13 @@ const saveAnswer = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Submit the assessment — scoring happens here (Task 6)
+ * @desc    Submit the assessment — scoring happens here
  * @route   POST /api/assessments/:id/submit
  * @access  Private
  */
-
 const submitAssessment = asyncHandler(async (req, res) => {
   const assessment = await Assessment.findById(req.params.id);
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -283,30 +325,38 @@ const submitAssessment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This assessment has already been submitted");
   }
   if (!req.user.emailVerified) {
-      throw new ApiError(403,"Please verify your email before submitting. Check your inbox or request a new verification link.");
-    }
-
-
-  const activeCategories = await categoryCache.getCategories();
-  const activeKeys = activeCategories.map((c) => c.key);
-  const questions = await Question.find({
-    isArchived: { $ne: true },
-    category: { $in: activeKeys },
-  }).lean();
-
-  if (assessment.answers.size < questions.length) {
     throw new ApiError(
-      400,
-      `You have answered ${assessment.answers.size} of ${questions.length} questions. Please answer all questions before submitting.`
+      403,
+      "Please verify your email before submitting. Check your inbox or request a new verification link."
     );
   }
+
+  // Validate against the LOCKED question set, not the global pool
+  const lockedIds = lockedQuestionIds(assessment);
+  const totalLocked = lockedIds.length;
+
+  if (totalLocked === 0) {
+    throw new ApiError(500, "Assessment has no questions locked. Please discard and start again.");
+  }
+
+  if (assessment.answers.size < totalLocked) {
+    throw new ApiError(
+      400,
+      `You have answered ${assessment.answers.size} of ${totalLocked} questions. Please answer all questions before submitting.`
+    );
+  }
+
+  // Fetch only the locked questions for scoring
+  const questions = await Question.find({
+    _id: { $in: lockedIds },
+  }).lean();
 
   const { categoryScores, overallScore, level } = calculateScores(
     assessment.answers,
     questions
   );
 
-  // 🆕 Generate a unique, human-readable certificate ID
+  // Generate unique certificate ID
   const year = new Date().getFullYear();
   let certificateId;
   let isUnique = false;
@@ -331,10 +381,9 @@ const submitAssessment = asyncHandler(async (req, res) => {
   assessment.level = level;
   assessment.certificateId = certificateId;
 
-  //  Compute completion time + flag rushed submissions
+  // Completion time + rushed flag
   const answersArray = Array.from(assessment.answers.values());
   if (answersArray.length >= 2) {
-    // Get earliest and latest answer timestamps
     const timestamps = answersArray
       .map((a) => a.answeredAt?.getTime())
       .filter(Boolean)
@@ -346,7 +395,7 @@ const submitAssessment = asyncHandler(async (req, res) => {
 
       assessment.completionTimeMs = totalMs;
       assessment.avgSecPerQuestion = Math.round(avgSecPerQuestion);
-      assessment.rushed = avgSecPerQuestion < 3;   // <3 sec = rushed
+      assessment.rushed = avgSecPerQuestion < 3;
     }
   }
 
@@ -362,7 +411,6 @@ const submitAssessment = asyncHandler(async (req, res) => {
   });
 });
 
-
 /**
  * @desc    Get a specific assessment by ID (with results)
  * @route   GET /api/assessments/:id
@@ -371,9 +419,7 @@ const submitAssessment = asyncHandler(async (req, res) => {
 const getAssessmentById = asyncHandler(async (req, res) => {
   const assessment = await Assessment.findById(req.params.id);
 
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -384,26 +430,36 @@ const getAssessmentById = asyncHandler(async (req, res) => {
   });
 });
 
-
 /**
  * @desc    List all of the user's assessments (newest first)
  * @route   GET /api/assessments
  * @access  Private
  */
-
 const listMyAssessments = asyncHandler(async (req, res) => {
-  // Fetch raw docs first (we need answer count without sending the full map)
   const docs = await Assessment.find({ user: req.user._id })
     .sort({ createdAt: -1 })
-    .lean(); // plain JS objects = easier to transform
+    .lean();
 
-  // Transform: replace heavy `answers` map with just its size
+  // Compute answerCount and questionTotal per row, drop heavy fields
   const assessments = docs.map((a) => {
     const answerCount = a.answers ? Object.keys(a.answers).length : 0;
-    delete a.answers; // remove the big field
+
+    // Total locked questions for this assessment
+    let questionTotal = 0;
+    if (a.questionOrder) {
+      // .lean() returns plain object, not Map
+      for (const arr of Object.values(a.questionOrder)) {
+        if (Array.isArray(arr)) questionTotal += arr.length;
+      }
+    }
+
+    delete a.answers;
+    delete a.questionOrder;
+
     return {
       ...a,
       answerCount,
+      questionTotal,
     };
   });
 
@@ -425,9 +481,7 @@ const deleteAnswer = asyncHandler(async (req, res) => {
   const { id, questionId } = req.params;
 
   const assessment = await Assessment.findById(id);
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -435,11 +489,10 @@ const deleteAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This assessment has already been submitted");
   }
 
-  // Remove the answer from the Map
   assessment.answers.delete(questionId);
   await assessment.save();
 
-  const totalQuestions = await scoredQuestionCount();
+  const totalQuestions = lockedQuestionCount(assessment);
 
   res.status(200).json({
     success: true,
@@ -460,9 +513,7 @@ const deleteAnswer = asyncHandler(async (req, res) => {
 const downloadCertificate = asyncHandler(async (req, res) => {
   const assessment = await Assessment.findById(req.params.id);
 
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -483,15 +534,11 @@ const downloadCertificate = asyncHandler(async (req, res) => {
  * @desc    Delete an in-progress assessment
  * @route   DELETE /api/assessments/:id
  * @access  Private
- *
- * Only allows deletion of in-progress assessments — submitted ones are permanent records.
  */
 const deleteAssessment = asyncHandler(async (req, res) => {
   const assessment = await Assessment.findById(req.params.id);
 
-  if (!assessment) {
-    throw new ApiError(404, "Assessment not found");
-  }
+  if (!assessment) throw new ApiError(404, "Assessment not found");
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
@@ -524,7 +571,6 @@ const getCooldownStatus = asyncHandler(async (req, res) => {
     status: "in-progress",
   });
 
-  // If user has in-progress, they should focus on that, not cooldown
   if (hasInProgress) {
     return res.status(200).json({
       success: true,

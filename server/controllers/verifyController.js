@@ -1,65 +1,45 @@
+// server/controllers/verifyController.js
+
 /**
  * Verify Controller
  * -----------------
  * Public endpoint to verify the authenticity of a CareAble certificate.
  *
- *   GET /api/verify/:certificateId   (NO AUTH — public)
- *
- * Privacy rules:
- *   - Only returns minimal public data: name, level, date, certificate ID
- *   - Never returns: email, scores per question, answers, user ID, etc.
- *   - Returns 404 for any invalid/missing/revoked certificate
- *     (generic message to avoid leaking enumeration info)
- *   - Skips certificates whose owner account has been deactivated
- *   - Skips assessments that aren't fully submitted
+ *   GET /api/verify/:certificateId         (NO AUTH — public)
+ *   GET /api/verify/employer/:certificateId (protected — employer or admin)
+ *   GET /api/verify/admin/:certificateId    (protected — admin only)
  */
 
 const Assessment = require("../models/Assessment");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
+const { getCategoryMap } = require("../utils/categoryCache");
 
-// CA-XXXXXX format: starts with "CA-" then alphanumeric (we accept letters+digits, 4-20 chars)
-// This guard short-circuits obviously invalid IDs before hitting the DB.
 const CERT_ID_PATTERN = /^CA-[A-Z0-9]{2,12}(-[A-Z0-9]{2,12}){0,3}$/i;
 
-/**
- * @desc    Verify a certificate by its public ID
- * @route   GET /api/verify/:certificateId
- * @access  Public
- */
+// ── existing public handler (DO NOT CHANGE) ────────────────────────────────
 const verifyCertificate = asyncHandler(async (req, res) => {
   const rawId = (req.params.certificateId || "").trim();
 
-  // Quick format guard — reject obviously malformed IDs without a DB hit
   if (!CERT_ID_PATTERN.test(rawId)) {
     throw new ApiError(404, "Certificate not found");
   }
 
-  // Look up the assessment by certificateId.
-  // We populate the user to access name + isActive, but we'll only
-  // expose the name in the response.
   const assessment = await Assessment.findOne({
     certificateId: rawId.toUpperCase(),
     status: "submitted",
   })
-    .populate({
-      path: "user",
-      select: "name isActive",
-    })
+    .populate({ path: "user", select: "name isActive" })
     .lean();
 
-  // Not found, not completed, or user record missing -> generic 404
   if (!assessment || !assessment.user) {
     throw new ApiError(404, "Certificate not found");
   }
 
-  // Owner deactivated their account -> treat as revoked
   if (assessment.user.isActive === false) {
     throw new ApiError(410, "This certificate has been revoked");
   }
 
-  // ---- Build the SAFE public payload ----
-  // ONLY include fields safe to show to a stranger scanning a QR code.
   return res.status(200).json({
     success: true,
     data: {
@@ -73,6 +53,138 @@ const verifyCertificate = asyncHandler(async (req, res) => {
   });
 });
 
+// ── employer-level verify ──────────────────────────────────────────────────
+/**
+ * @desc  Verify a certificate with enriched data for employers
+ * @route GET /api/verify/employer/:certificateId
+ * @access Protected — employer or admin
+ */
+const verifyCertificateEmployer = asyncHandler(async (req, res) => {
+  const rawId = (req.params.certificateId || "").trim();
+
+  if (!CERT_ID_PATTERN.test(rawId)) {
+    throw new ApiError(404, "Certificate not found");
+  }
+
+  const assessment = await Assessment.findOne({
+    certificateId: rawId.toUpperCase(),
+    status: "submitted",
+  })
+    .populate({ path: "user", select: "name isActive" })
+    .lean();
+
+  if (!assessment || !assessment.user) {
+    throw new ApiError(404, "Certificate not found");
+  }
+
+  if (assessment.user.isActive === false) {
+    throw new ApiError(410, "This certificate has been revoked");
+  }
+
+  // Resolve category keys → human-readable labels
+  const categoryMap = await getCategoryMap(); // { key: { name, ... } }
+
+  // categoryScores is a Map — convert to plain object with labels
+  const domainScores = {};
+  if (assessment.categoryScores) {
+    for (const [key, score] of Object.entries(assessment.categoryScores)) {
+      const label = categoryMap[key]?.name || key;
+      domainScores[label] = score;
+    }
+  }
+
+  // Top areas = domains >= 4.0
+  const topAreas = Object.entries(domainScores)
+    .filter(([, score]) => score >= 4.0)
+    .map(([label]) => label);
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      certificateId: assessment.certificateId,
+      name: assessment.user.name,
+      level: assessment.level,
+      overallScore: assessment.overallScore,
+      domainScores,
+      topAreas,
+      issuedAt: assessment.submittedAt,
+      completionTimeMs: assessment.completionTimeMs ?? null,
+      issuer: "CareAble",
+      verified: true,
+    },
+  });
+});
+
+// ── admin-level verify ─────────────────────────────────────────────────────
+/**
+ * @desc  Verify a certificate with full data for admins
+ * @route GET /api/verify/admin/:certificateId
+ * @access Protected — admin only
+ */
+const verifyCertificateAdmin = asyncHandler(async (req, res) => {
+  const rawId = (req.params.certificateId || "").trim();
+
+  if (!CERT_ID_PATTERN.test(rawId)) {
+    throw new ApiError(404, "Certificate not found");
+  }
+
+  const assessment = await Assessment.findOne({
+    certificateId: rawId.toUpperCase(),
+    status: "submitted",
+  })
+    .populate({ path: "user", select: "name email isActive roles createdAt" })
+    .lean();
+
+  if (!assessment || !assessment.user) {
+    throw new ApiError(404, "Certificate not found");
+  }
+
+  // Admins see revoked certs — they need to investigate
+  const isRevoked = assessment.user.isActive === false;
+
+  const categoryMap = await getCategoryMap();
+
+  const domainScores = {};
+  if (assessment.categoryScores) {
+    for (const [key, score] of Object.entries(assessment.categoryScores)) {
+      const label = categoryMap[key]?.name || key;
+      domainScores[label] = score;
+    }
+  }
+
+  const topAreas = Object.entries(domainScores)
+    .filter(([, score]) => score >= 4.0)
+    .map(([label]) => label);
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      // Certificate
+      certificateId: assessment.certificateId,
+      assessmentId: assessment._id,
+      level: assessment.level,
+      overallScore: assessment.overallScore,
+      domainScores,
+      topAreas,
+      issuedAt: assessment.submittedAt,
+      completionTimeMs: assessment.completionTimeMs ?? null,
+      avgSecPerQuestion: assessment.avgSecPerQuestion ?? null,
+      rushed: assessment.rushed ?? false,
+      issuer: "CareAble",
+      verified: true,
+      isRevoked,
+      // User
+      userId: assessment.user._id,
+      name: assessment.user.name,
+      email: assessment.user.email,
+      roles: assessment.user.roles,
+      accountCreatedAt: assessment.user.createdAt,
+    },
+  });
+});
+
 module.exports = {
   verifyCertificate,
+  verifyCertificateEmployer,
+  verifyCertificateAdmin,
 };

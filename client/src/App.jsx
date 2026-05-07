@@ -46,16 +46,20 @@ import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import VerifyCertificate from "./pages/VerifyCertificate"; // Phase 14: public QR landing page
 import AdminRoute from "./components/AdminRoute";
+import EmployerRoute from "./components/EmployerRoute";
+import EmployerDashboard from "./pages/EmployerDashboard";
 import AdminLayout from "./components/AdminLayout";
 import Analytics from "./pages/admin/Analytics";
 import Users from "./pages/admin/Users";
 import Questions from "./pages/admin/Questions";
 import Categories from "./pages/admin/Categories";
 import Audit from "./pages/admin/Audit";
+import ScrollToTop from "./components/ScrollToTop";
 
 function App() {
   return (
     <BrowserRouter>
+     <ScrollToTop />
       <Toaster
         position="top-right"
         toastOptions={{
@@ -173,6 +177,14 @@ function App() {
               <ProtectedRoute>
                 <Results />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/employer/dashboard"
+            element={
+              <EmployerRoute>
+                <EmployerDashboard />
+              </EmployerRoute>
             }
           />
 

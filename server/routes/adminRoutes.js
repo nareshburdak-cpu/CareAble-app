@@ -1,11 +1,8 @@
 // server/routes/adminRoutes.js
-
 const express = require("express");
 const router = express.Router();
-
 const { protect } = require("../middleware/authMiddleware");
 const requireAdmin = require("../middleware/requireAdmin");
-
 const {
   getAnalytics,
   listUsers,
@@ -17,11 +14,8 @@ const {
   reorderQuestion,
   getAuditLogs,
 } = require("../controllers/adminController");
-
+const { listSettings, updateSetting } = require("../controllers/settingsController");
 const categoryRoutes = require("./categoryRoutes");
-
-
-
 
 router.use(protect, requireAdmin);
 
@@ -35,7 +29,10 @@ router.patch("/questions/:id", updateQuestion);
 router.post("/questions/:id/reorder", reorderQuestion);
 router.get("/audit", getAuditLogs);
 
-router.use("/categories", categoryRoutes);
+// Phase 12-A Task 6: platform settings
+router.get("/settings", listSettings);
+router.patch("/settings/:key", updateSetting);
 
+router.use("/categories", categoryRoutes);
 
 module.exports = router;
