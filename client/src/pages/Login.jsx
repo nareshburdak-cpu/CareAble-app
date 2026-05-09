@@ -57,19 +57,21 @@ function Login() {
       );
       toast.success(`Welcome back, ${user.name}!`);
 
-      // Role-aware redirect:
-      // If they were sent here from a specific page, honour that.
-      // Otherwise, employer-only users land on employer dashboard.
-      const isEmployerOnly =
-        Array.isArray(user.roles) &&
-        user.roles.includes("employer") &&
-        !user.roles.includes("carer") &&
-        !user.roles.includes("admin");
+    if (!user.onboardingComplete && !user.roles?.includes("admin")) {
+      navigate("/onboarding", { replace: true });
+      return;
+    }
 
-      const destination =
-        from !== "/dashboard" ? from : isEmployerOnly ? "/employer/dashboard" : "/dashboard";
+    const isEmployerOnly =
+      Array.isArray(user.roles) &&
+      user.roles.includes("employer") &&
+      !user.roles.includes("carer") &&
+      !user.roles.includes("admin");
 
-      navigate(destination, { replace: true });
+    const destination =
+      from !== "/dashboard" ? from : isEmployerOnly ? "/employer/dashboard" : "/dashboard";
+
+    navigate(destination, { replace: true });
     } catch (err) {
       toast.error(err.message);
     } finally {

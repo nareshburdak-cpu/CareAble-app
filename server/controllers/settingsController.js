@@ -17,6 +17,8 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const { getAllSettings, setSetting, SETTING_SCHEMA } = require("../utils/settings");
 const { logAdminAction } = require("../utils/audit");
+const Question = require("../models/Question");
+const categoryCache = require("../utils/categoryCache");
 
 /**
  * @desc    List all platform settings
@@ -70,7 +72,48 @@ const updateSetting = asyncHandler(async (req, res) => {
   });
 });
 
+
+/**
+ * @desc    Get settings plus computed constraints
+ * @route   GET /api/admin/settings/meta
+ * @access  Admin
+ *
+ * Returns current settings + maxAllowed (min question pool
+ * across active categories) so the UI can cap the stepper correctly.
+ */
+const getSettingsMeta = asyncHandler(async (req, res) => {
+  const settings = await getAllSettings();
+
+  // Find the smallest question pool across active categories
+  const activeCategories = await categoryCache.getCategories();
+  const activeKeys = activeCategories.map((c) => c.key);
+
+  // Count non-archived questions per active category
+  const counts = await Promise.all(
+    activeKeys.map((key) =>
+      Question.countDocuments({ category: key, isArchived: { $ne: true } })
+    )
+  );
+
+  // Min pool = the bottleneck category
+  // If no categories or questions exist, fall back to 1
+  const maxAllowed = counts.length > 0 ? Math.min(...counts) : 1;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      settings,
+      meta: {
+        maxAllowed,
+        activeCategories: activeKeys.length,
+        poolSizes: Object.fromEntries(activeKeys.map((k, i) => [k, counts[i]])),
+      },
+    },
+  });
+});
+
 module.exports = {
   listSettings,
   updateSetting,
+  getSettingsMeta,
 };

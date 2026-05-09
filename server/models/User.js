@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
+      required: false,
       trim: true,
       minlength: [2, "Name must be at least 2 characters"],
       maxlength: [50, "Name cannot exceed 50 characters"],
@@ -131,6 +131,114 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+
+    // Collected in the post-registration onboarding wizard.
+    // `name` is always kept in sync as the display name.
+
+    firstName: {
+      type: String,
+      trim: true,
+      maxlength: [50, "First name cannot exceed 50 characters"],
+    },
+
+    lastName: {
+      type: String,
+      trim: true,
+      maxlength: [50, "Last name cannot exceed 50 characters"],
+    },
+
+    // True when user selected "I go by a single name"
+    useSingleName: {
+      type: Boolean,
+      default: false,
+    },
+
+    phone: {
+      type: String,
+      trim: true,
+    },
+
+    dob: {
+      type: Date,
+    },
+
+    postcode: {
+      type: String,
+      trim: true,
+    },
+
+    acceptedTerms: {
+      type: Boolean,
+      default: false,
+    },
+
+    consentToResearch: {
+      type: Boolean,
+      default: false,
+    },
+
+    onboardingComplete: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    // Filled in via the /onboarding wizard (carer flow only).
+
+    // Hidden worker status
+    employmentStatus: {
+      type: String,
+      enum: ["full-time", "part-time", "casual", "none", null],
+      default: null,
+    },
+    lookingForWork: {
+      type: Boolean,
+      default: null,
+    },
+    appliedForJobRecently: {
+      type: Boolean,
+      default: null,
+    },
+    industryInterests: {
+      type: [String],
+      default: [],
+    },
+
+    // CALD status
+    speaksOtherLanguage: {
+      type: Boolean,
+      default: null,
+    },
+    primaryLanguage: {
+      type: String,
+      default: null,
+    },
+
+    // Caregiving information
+    heardAboutFrom: {
+      type: String,
+      default: null,
+    },
+    careReason: {
+      type: String,
+      default: null,
+    },
+    careRecipientRelation: {
+      type: String,
+      default: null,
+    },
+    careRecipientAgeBand: {
+      type: String,
+      default: null,
+    },
+    careRecipientConditions: {
+      type: [String],
+      default: [],
+    },
+    caregivingDuration: {
+      type: String,
+      default: null,
+    },
+
   },
   {
     timestamps: true,

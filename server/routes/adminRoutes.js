@@ -14,7 +14,7 @@ const {
   reorderQuestion,
   getAuditLogs,
 } = require("../controllers/adminController");
-const { listSettings, updateSetting } = require("../controllers/settingsController");
+const { listSettings, updateSetting, getSettingsMeta } = require("../controllers/settingsController");
 const categoryRoutes = require("./categoryRoutes");
 
 router.use(protect, requireAdmin);
@@ -30,6 +30,7 @@ router.post("/questions/:id/reorder", reorderQuestion);
 router.get("/audit", getAuditLogs);
 
 // Phase 12-A Task 6: platform settings
+router.get("/settings/meta", getSettingsMeta);
 router.get("/settings", listSettings);
 router.patch("/settings/:key", updateSetting);
 

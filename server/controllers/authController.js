@@ -52,33 +52,131 @@ function verifyOtpChallenge(token, expectedUserId, expectedAction) {
   }
 }
 
-// =============================================================================
-// REGISTRATION & AUTH
-// =============================================================================
-
 /**
  * @desc    Register a new user
  * @route   POST /api/auth/register
  * @access  Public
+ *
+ * Phase 12-B: Collects all Appendix 1 fields at signup.
+ * Employer-only users are marked onboardingComplete: true immediately.
+ * Carer users go through additional Appendix 2 onboarding next.
  */
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, roles } = req.body;
+  const {
+    // Account
+    email,
+    password,
+    roles,
 
+    // Appendix 1 — required for all roles
+    firstName,
+    lastName,
+    useSingleName,
+    phone,
+    dob,
+    postcode,
+    acceptedTerms,
+    consentToResearch,
+  } = req.body;
+
+  // ── Validate roles ───────────────────────────────────────────────
   const ALLOWED_SIGNUP_ROLES = ["carer", "employer"];
   const requestedRoles = Array.isArray(roles)
     ? roles.filter((r) => ALLOWED_SIGNUP_ROLES.includes(r))
     : [];
   const assignedRoles = requestedRoles.length > 0 ? requestedRoles : ["carer"];
 
+  // ── Validate Appendix 1 fields ───────────────────────────────────
+  // Name
+  if (useSingleName) {
+    if (!firstName?.trim()) {
+      throw new ApiError(400, "Please enter your preferred name.");
+    }
+  } else {
+    if (!firstName?.trim()) throw new ApiError(400, "First name is required.");
+    if (!lastName?.trim())  throw new ApiError(400, "Last name is required.");
+  }
+
+  // Email
+  if (!email?.trim()) throw new ApiError(400, "Email is required.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new ApiError(400, "Please enter a valid email address.");
+  }
+
+  // Password
+  if (!password) throw new ApiError(400, "Password is required.");
+  if (password.length < 6) {
+    throw new ApiError(400, "Password must be at least 6 characters.");
+  }
+
+  // Phone — Australian format
+  if (!phone?.trim()) throw new ApiError(400, "Phone number is required.");
+  const phoneClean = phone.replace(/\s/g, "");
+  if (!/^(\+?61|0)[2-9]\d{8}$/.test(phoneClean)) {
+    throw new ApiError(
+      400,
+      "Please enter a valid Australian phone number (e.g. 0412 345 678)."
+    );
+  }
+
+  // DOB
+  if (!dob) throw new ApiError(400, "Date of birth is required.");
+  const dobDate = new Date(dob);
+  if (isNaN(dobDate.getTime())) {
+    throw new ApiError(400, "Invalid date of birth.");
+  }
+  const minAge = new Date();
+  minAge.setFullYear(minAge.getFullYear() - 16);
+  if (dobDate > minAge) {
+    throw new ApiError(400, "You must be at least 16 years old to use CareAble.");
+  }
+
+  // Postcode — Australian 4-digit
+  if (!postcode?.trim()) throw new ApiError(400, "Postcode is required.");
+  if (!/^\d{4}$/.test(postcode.trim())) {
+    throw new ApiError(400, "Please enter a valid 4-digit Australian postcode.");
+  }
+
+  // Terms — required
+  if (!acceptedTerms) {
+    throw new ApiError(400, "You must accept the Terms of Service to continue.");
+  }
+
+  // ── Build display name ───────────────────────────────────────────
+  const displayName = useSingleName
+    ? firstName.trim()
+    : `${firstName.trim()} ${lastName.trim()}`;
+    console.log("displayName:", displayName);
+
+  // ── Determine onboarding completion ──────────────────────────────
+  // Employer-only → fully onboarded after signup (no Appendix 2 questions)
+  // Carer or dual-role → still needs Appendix 2 questions
+  const isEmployerOnly =
+    assignedRoles.includes("employer") &&
+    !assignedRoles.includes("carer");
+
+  // ── Create user ──────────────────────────────────────────────────
+// Add this right before User.create(...)
+if (!displayName || displayName.trim().length < 2) {
+  throw new ApiError(400, "Please enter a valid name.");
+}
   const user = await User.create({
-    name,
-    email,
+    name: displayName,
+    firstName: firstName.trim(),
+    lastName: useSingleName ? "" : lastName.trim(),
+    useSingleName: !!useSingleName,
+    email: email.trim().toLowerCase(),
     password,
+    phone: phoneClean,
+    dob: dobDate,
+    postcode: postcode.trim(),
+    acceptedTerms: true,
+    consentToResearch: !!consentToResearch,
+    onboardingComplete: isEmployerOnly, // employer = done; carer = needs Appendix 2
     roles: assignedRoles,
-    role: assignedRoles.includes("employer") && !assignedRoles.includes("carer")
-      ? "employer"
-      : "user",
+    role: isEmployerOnly ? "employer" : "user",
   });
+
   // Generate email verification token
   const verifyToken = user.createEmailVerifyToken();
   await user.save({ validateBeforeSave: false });
@@ -594,6 +692,99 @@ const verifyOtp = asyncHandler(async (req, res) => {
   });
 });
 
+// ── completeOnboarding ─────────────────────────────────────────────
+/**
+ * @desc    Save Appendix 2 carer onboarding answers and mark complete
+ * @route   PATCH /api/auth/onboarding
+ * @access  Private
+ *
+ * Appendix 1 fields (name, phone, dob, postcode, terms)
+ * are now collected at registration. This endpoint handles ONLY the
+ * Appendix 2 carer-specific questions (employment, CALD, caregiving info).
+ *
+ * For employer-only users this endpoint shouldn't be called — they're
+ * already onboarded at signup. Defensive: if hit, just mark complete.
+ */
+const completeOnboarding = asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  // Already onboarded — idempotent
+  if (user.onboardingComplete) {
+    return res.status(200).json({
+      success: true,
+      message: "Onboarding already complete.",
+      data: { user },
+    });
+  }
+
+  const isEmployerOnly =
+    user.roles.includes("employer") &&
+    !user.roles.includes("carer") &&
+    !user.roles.includes("admin");
+
+  // Employer-only somehow not marked complete — fix it
+  if (isEmployerOnly) {
+    user.onboardingComplete = true;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Onboarding complete.",
+      data: { user },
+    });
+  }
+
+  // ── Appendix 2 — carer questions (all optional but should be sent) ──
+  const {
+    // Hidden worker status
+    employmentStatus,
+    lookingForWork,
+    appliedForJobRecently,
+    industryInterests,
+
+    // CALD status
+    speaksOtherLanguage,
+    primaryLanguage,
+
+    // Caregiving information
+    heardAboutFrom,
+    careReason,
+    careRecipientRelation,
+    careRecipientAgeBand,
+    careRecipientConditions,
+    caregivingDuration,
+  } = req.body;
+
+  // Light validation — enums where defined, types otherwise
+  const VALID_EMPLOYMENT = ["full-time", "part-time", "casual", "none"];
+  if (employmentStatus && !VALID_EMPLOYMENT.includes(employmentStatus)) {
+    throw new ApiError(400, "Invalid employment status.");
+  }
+
+  // Save fields — undefined fields are skipped (preserve nulls in DB)
+  if (employmentStatus !== undefined)        user.employmentStatus = employmentStatus;
+  if (lookingForWork !== undefined)          user.lookingForWork = !!lookingForWork;
+  if (appliedForJobRecently !== undefined)   user.appliedForJobRecently = !!appliedForJobRecently;
+  if (Array.isArray(industryInterests))      user.industryInterests = industryInterests;
+
+  if (speaksOtherLanguage !== undefined)     user.speaksOtherLanguage = !!speaksOtherLanguage;
+  if (primaryLanguage !== undefined)         user.primaryLanguage = primaryLanguage || null;
+
+  if (heardAboutFrom !== undefined)          user.heardAboutFrom = heardAboutFrom || null;
+  if (careReason !== undefined)              user.careReason = careReason || null;
+  if (careRecipientRelation !== undefined)   user.careRecipientRelation = careRecipientRelation || null;
+  if (careRecipientAgeBand !== undefined)    user.careRecipientAgeBand = careRecipientAgeBand || null;
+  if (Array.isArray(careRecipientConditions)) user.careRecipientConditions = careRecipientConditions;
+  if (caregivingDuration !== undefined)      user.caregivingDuration = caregivingDuration || null;
+
+  user.onboardingComplete = true;
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Welcome to CareAble! 🎉",
+    data: { user },
+  });
+});
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -611,4 +802,5 @@ module.exports = {
   resendVerification,
   requestOtp,
   verifyOtp,
+  completeOnboarding,
 };

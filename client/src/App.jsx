@@ -1,3 +1,5 @@
+// client/src/App.jsx
+
 /**
  * App — Root component
  * --------------------
@@ -13,7 +15,9 @@
  *     /register     → Register
  *
  *   Protected routes (logged IN only):
- *     /dashboard    → Dashboard
+ *     /onboarding   → Onboarding wizard (own layout, no navbar footer)
+ *     /dashboard    → Dashboard (requires onboarding complete)
+ *     /assessment   → Assessment (own layout)
  *
  *   Admin routes (role-gated, own layout):
  *     /admin-x7k9p  → Admin panel
@@ -28,6 +32,10 @@ import { Toaster } from "react-hot-toast";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
+import AdminRoute from "./components/AdminRoute";
+import EmployerRoute from "./components/EmployerRoute";
+import OnboardingRoute from "./components/OnboardingRoute";
+import ScrollToTop from "./components/ScrollToTop";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -44,22 +52,21 @@ import Contact from "./pages/Contact";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
-import VerifyCertificate from "./pages/VerifyCertificate"; // Phase 14: public QR landing page
-import AdminRoute from "./components/AdminRoute";
-import EmployerRoute from "./components/EmployerRoute";
+import VerifyCertificate from "./pages/VerifyCertificate";
 import EmployerDashboard from "./pages/EmployerDashboard";
+import Onboarding from "./pages/Onboarding";
 import AdminLayout from "./components/AdminLayout";
 import Analytics from "./pages/admin/Analytics";
 import Users from "./pages/admin/Users";
 import Questions from "./pages/admin/Questions";
 import Categories from "./pages/admin/Categories";
 import Audit from "./pages/admin/Audit";
-import ScrollToTop from "./components/ScrollToTop";
+import Settings from "./pages/admin/Settings";
 
 function App() {
   return (
     <BrowserRouter>
-     <ScrollToTop />
+      <ScrollToTop />
       <Toaster
         position="top-right"
         toastOptions={{
@@ -73,110 +80,70 @@ function App() {
       />
 
       <Routes>
+
+        {/* ── Onboarding — own full-screen layout, no Navbar/Footer ── */}
+        <Route
+          path="/onboarding"
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ── Assessment — own full-screen layout, no Footer ── */}
+        <Route
+          path="/assessment"
+          element={
+            <OnboardingRoute>
+              <Assessment />
+            </OnboardingRoute>
+          }
+        />
+
+        {/* ── Main layout: Navbar + Footer ── */}
         <Route element={<Layout />}>
+
           {/* Public */}
           <Route path="/" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
 
-          {/* Phase 14: Public certificate verification page (QR landing) — no auth required */}
+          {/* Public certificate verification — no auth required */}
           <Route path="/verify/:certificateId" element={<VerifyCertificate />} />
 
           {/* Public-only (redirect away if logged in) */}
-          <Route
-            path="/login"
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            }
-          />
-          <Route 
-            path="/about" 
-            element={
-            <About />
-            }
-          />
+          <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+          <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
-          <Route 
-            path="/privacy" 
-            element={
-            <Privacy />
-            }
-          />
-
-          <Route 
-            path="/terms" 
-            element={
-            <Terms />
-            }
-          />
-
-          <Route 
-            path="/contact" 
-            element={
-            <Contact />
-            }
-          />
-          <Route 
-            path="/forgot-password" 
-            element={
-            <ForgotPassword />
-            }
-             />
-          <Route 
-            path="/reset-password" 
-            element={
-            <ResetPassword />
-            }
-             />
-
-          <Route
-            path="/verify-email"
-            element={
-           <VerifyEmail />  
-            }
-          />
-
-
-          <Route
-            path="/register"
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            }
-          />
-
-
-
-          {/* Protected (must be logged in) */}
+          {/* Protected + onboarding complete */}
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <OnboardingRoute>
                 <Dashboard />
-              </ProtectedRoute>
+              </OnboardingRoute>
             }
           />
-
           <Route
             path="/profile"
-            element={<ProtectedRoute><Profile /></ProtectedRoute>}
-          />
-
-          <Route
-            path="/assessment"
             element={
-              <ProtectedRoute>
-                <Assessment />
-              </ProtectedRoute>
+              <OnboardingRoute>
+                <Profile />
+              </OnboardingRoute>
             }
           />
           <Route
             path="/results/:id"
             element={
-              <ProtectedRoute>
+              <OnboardingRoute>
                 <Results />
-              </ProtectedRoute>
+              </OnboardingRoute>
             }
           />
           <Route
@@ -192,6 +159,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
 
+        {/* ── Admin panel — own layout ── */}
         <Route element={<AdminRoute />}>
           <Route path="/admin-x7k9p" element={<AdminLayout />}>
             <Route index element={<Analytics />} />
@@ -199,6 +167,7 @@ function App() {
             <Route path="questions" element={<Questions />} />
             <Route path="categories" element={<Categories />} />
             <Route path="audit" element={<Audit />} />
+            <Route path="settings" element={<Settings />} />
           </Route>
         </Route>
 

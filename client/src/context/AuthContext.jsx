@@ -72,16 +72,15 @@ export function AuthProvider({ children }) {
   };
 
   // roles: ["carer"] | ["employer"] | ["carer", "employer"]
-  // Defaults to ["carer"] if not provided — backend enforces this too.
-  const register = async (name, email, password, roles = ["carer"]) => {
-    const res = await api.post("/auth/register", { name, email, password, roles });
+  // Pass entire signup payload as object to handle all Appendix 1 fields
+  const register = async (payload) => {
+    const res = await api.post("/auth/register", payload);
     const { token, user } = res.data.data;
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
     return user;
   };
-
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");

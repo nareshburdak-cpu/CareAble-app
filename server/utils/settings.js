@@ -118,7 +118,7 @@ async function setSetting(key, value, editorId) {
       lastEditedBy: editorId,
       lastEditedAt: new Date(),
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 
   invalidate();
