@@ -30,10 +30,18 @@ function OnboardingRoute({ children }) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Only carers belong on these routes.
+  // Defensive: if activeRole hasn't resolved yet but user is loaded,
+  // compute it directly from user.roles to avoid a premature redirect.
+  const effectiveRole = activeRole || (
+    user?.roles?.includes("admin") ? "admin"
+    : user?.roles?.includes("employer") ? "employer"
+    : "carer"
+  );
+
+  // Only carers belong on /dashboard and /assessment.
   // Admins → /admin-x7k9p, Employers → /employer/dashboard
-  if (activeRole !== "carer") {
-    return <Navigate to={roleDestination(activeRole)} replace />;
+  if (effectiveRole !== "carer") {
+    return <Navigate to={roleDestination(effectiveRole)} replace />;
   }
 
   // Carer hasn't finished onboarding yet

@@ -1,11 +1,6 @@
 // client/src/pages/Onboarding.jsx
 
 /**
- * Carer Onboarding Wizard — Phase 12-B
- * -------------------------------------
- * Appendix 2 questions — mandatory for all carer/dual-role users.
- * No skip option. All fields required before proceeding.
- *
  * Step 1 — Hidden worker status (employment)
  * Step 2 — CALD status (language)
  * Step 3 — Caregiving information
