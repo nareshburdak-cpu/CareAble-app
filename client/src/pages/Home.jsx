@@ -560,6 +560,7 @@ function Contact() {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
     if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
+    if (errors.submit) setErrors((prev) => ({ ...prev, submit: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -567,12 +568,30 @@ function Contact() {
     if (!validate()) return;
     setStatus("sending");
 
-    // Simulate send — connect to real email endpoint if needed
-    await new Promise((r) => setTimeout(r, 1200));
-    setStatus("sent");
-    setForm({ name: "", email: "", message: "" });
-  };
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      const res = await fetch(`${apiBase}/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Something went wrong.");
+      }
+
+      setStatus("sent");
+      setForm({ name: "", email: "", message: "" });
+    } catch (err) {
+      setStatus("idle");
+      setErrors((prev) => ({
+        ...prev,
+        submit: err.message || "Failed to send. Please try again.",
+      }));
+    }
+  };
   return (
     <section id="contact" className="py-20 md:py-28 bg-stone-50/60 border-y border-stone-200">
       <div className="max-w-6xl mx-auto px-4">
@@ -673,6 +692,11 @@ function Contact() {
                     <p className="text-xs text-red-600 mt-1">{errors.message}</p>
                   )}
                 </div>
+                 {errors.submit && (
+                  <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+                    {errors.submit}
+                  </p>
+                )}
                 <button
                   type="submit"
                   disabled={status === "sending"}

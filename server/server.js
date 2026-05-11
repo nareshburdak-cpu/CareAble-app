@@ -24,7 +24,7 @@ const authRoutes = require("./routes/authRoutes");
 const questionRoutes = require("./routes/questionRoutes");
 const assessmentRoutes = require("./routes/assessmentRoutes");
 const verifyRoutes = require("./routes/verifyRoutes");
-
+const contactRoutes = require("./routes/contactRoutes");
 // Middleware imports
 const notFound = require("./middleware/notFound");
 const errorHandler = require("./middleware/errorHandler");
@@ -86,7 +86,7 @@ app.use("/api/questions", questionRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/verify", verifyRoutes);
-
+app.use("/api/contact", require("./routes/contactRoutes"));
 // Root route
 app.get("/", (req, res) => {
   res.status(200).json({
