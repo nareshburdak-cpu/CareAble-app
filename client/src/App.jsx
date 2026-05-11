@@ -70,15 +70,13 @@ function App() {
       <Toaster
         position="top-right"
         toastOptions={{
-          duration: 4000,
           style: {
-            borderRadius: "12px",
-            background: "#1a202c",
-            color: "#fff",
+            background: "transparent",
+            boxShadow: "none",
+            padding: 0,
           },
         }}
       />
-
       <Routes>
 
         {/* ── Onboarding — own full-screen layout, no Navbar/Footer ── */}

@@ -5,20 +5,18 @@ import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "./LoadingSpinner";
 
 function EmployerRoute({ children }) {
-  const { isAuthenticated, loading, hasRole } = useAuth();
+  const { isAuthenticated, loading, hasRole, activeRole, roleDestination } = useAuth();
   const location = useLocation();
 
-  if (loading) {
-    return <LoadingSpinner message="Checking your session..." />;
-  }
+  if (loading) return <LoadingSpinner message="Checking your session..." />;
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Admins can access employer features — they need to verify certs too
+  // Only employer or admin can access employer routes
   if (!hasRole("employer") && !hasRole("admin")) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={roleDestination(activeRole)} replace />;
   }
 
   return children;

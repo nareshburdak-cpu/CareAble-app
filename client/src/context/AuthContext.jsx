@@ -6,17 +6,33 @@
  * -----------
  * Global authentication state.
  *
- * Phase 12-A: register() now accepts a roles array for multi-role signup.
+ * Phase 12-B: Role switcher support.
+ *   - activeRole: the currently active role context
+ *   - switchRole(role): switch active role, persists to localStorage
  */
 
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useState, useCallback } from "react";
 import api from "../api/axios";
 
 export const AuthContext = createContext(null);
 
+// Priority order for default role selection
+const ROLE_PRIORITY = ["carer", "employer", "admin"];
+
+function computeDefaultRole(roles) {
+  if (!Array.isArray(roles) || roles.length === 0) return "carer";
+  for (const r of ROLE_PRIORITY) {
+    if (roles.includes(r)) return r;
+  }
+  return roles[0];
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]           = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const [activeRole, setActiveRoleState] = useState(() => {
+    return localStorage.getItem("activeRole") || null;
+  });
 
   // Bootstrap: validate saved token on app load
   useEffect(() => {
@@ -28,11 +44,24 @@ export function AuthProvider({ children }) {
       }
       try {
         const res = await api.get("/auth/me");
-        setUser(res.data.data.user);
+        const u = res.data.data.user;
+        setUser(u);
+
+        // Restore or compute active role
+        const saved = localStorage.getItem("activeRole");
+        if (saved && u.roles?.includes(saved)) {
+          setActiveRoleState(saved);
+        } else {
+          const defaultRole = computeDefaultRole(u.roles);
+          setActiveRoleState(defaultRole);
+          localStorage.setItem("activeRole", defaultRole);
+        }
       } catch {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        localStorage.removeItem("activeRole");
         setUser(null);
+        setActiveRoleState(null);
       } finally {
         setLoading(false);
       }
@@ -46,14 +75,28 @@ export function AuthProvider({ children }) {
       if (e.key === "token") {
         if (!e.newValue) {
           setUser(null);
+          setActiveRoleState(null);
         } else if (e.newValue !== e.oldValue) {
           api
             .get("/auth/me")
-            .then((res) => setUser(res.data.data.user))
+            .then((res) => {
+              const u = res.data.data.user;
+              setUser(u);
+              const saved = localStorage.getItem("activeRole");
+              if (saved && u.roles?.includes(saved)) {
+                setActiveRoleState(saved);
+              } else {
+                const defaultRole = computeDefaultRole(u.roles);
+                setActiveRoleState(defaultRole);
+                localStorage.setItem("activeRole", defaultRole);
+              }
+            })
             .catch(() => {
               localStorage.removeItem("token");
               localStorage.removeItem("user");
+              localStorage.removeItem("activeRole");
               setUser(null);
+              setActiveRoleState(null);
             });
         }
       }
@@ -64,27 +107,39 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const res = await api.post("/auth/login", { email, password });
-    const { token, user } = res.data.data;
+    const { token, user: u } = res.data.data;
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setUser(user);
-    return user;
+    localStorage.setItem("user", JSON.stringify(u));
+
+    // Set default active role on login
+    const saved = localStorage.getItem("activeRole");
+    const defaultRole = (saved && u.roles?.includes(saved))
+      ? saved
+      : computeDefaultRole(u.roles);
+    localStorage.setItem("activeRole", defaultRole);
+    setActiveRoleState(defaultRole);
+    setUser(u);
+    return u;
   };
 
-  // roles: ["carer"] | ["employer"] | ["carer", "employer"]
-  // Pass entire signup payload as object to handle all Appendix 1 fields
   const register = async (payload) => {
     const res = await api.post("/auth/register", payload);
-    const { token, user } = res.data.data;
+    const { token, user: u } = res.data.data;
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setUser(user);
-    return user;
+    localStorage.setItem("user", JSON.stringify(u));
+    const defaultRole = computeDefaultRole(u.roles);
+    localStorage.setItem("activeRole", defaultRole);
+    setActiveRoleState(defaultRole);
+    setUser(u);
+    return u;
   };
+
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("activeRole");
     setUser(null);
+    setActiveRoleState(null);
   };
 
   const refreshUser = async () => {
@@ -96,16 +151,30 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // hasRole: convenience helper for components
-  // Usage: hasRole("employer") | hasRole("admin")
-  const hasRole = (roleName) => {
-    return Array.isArray(user?.roles) && user.roles.includes(roleName);
+  // Switch active role — persists to localStorage
+  const switchRole = useCallback((role) => {
+    if (!user?.roles?.includes(role)) return;
+    localStorage.setItem("activeRole", role);
+    setActiveRoleState(role);
+  }, [user]);
+
+  const hasRole = (roleName) =>
+    Array.isArray(user?.roles) && user.roles.includes(roleName);
+
+  // Destination URL per role
+  const roleDestination = (role) => {
+    if (role === "admin") return "/admin-x7k9p";
+    if (role === "employer") return "/employer/dashboard";
+    return "/dashboard";
   };
 
   const value = {
     user,
     isAuthenticated: !!user,
     loading,
+    activeRole,
+    switchRole,
+    roleDestination,
     login,
     register,
     logout,

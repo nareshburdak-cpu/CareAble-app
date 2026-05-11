@@ -1,22 +1,24 @@
+// client/src/pages/Login.jsx
+
 /**
  * Login Page
  * ----------
- * Uses AuthContext to log in users.
+ * Phase 12-B: Role-aware redirect using roleDestination.
+ * Priority: admin > employer > carer
  */
 
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast from "../utils/toast";
-
 import { useAuth } from "../hooks/useAuth";
 import FormInput from "../components/FormInput";
 
 function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, roleDestination } = useAuth();
 
-  const from = location.state?.from || "/dashboard";
+  const from = location.state?.from || null;
 
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
@@ -26,9 +28,7 @@ function Login() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
+    if (errors[name]) setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const validate = () => {
@@ -38,9 +38,7 @@ function Login() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Please enter a valid email";
     }
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    }
+    if (!formData.password) newErrors.password = "Password is required";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -55,23 +53,24 @@ function Login() {
         formData.email.trim().toLowerCase(),
         formData.password
       );
-      toast.success(`Welcome back, ${user.name}!`);
+      toast.success(`Welcome back, ${user.name.split(" ")[0]}! 👋`);
 
-    if (!user.onboardingComplete && !user.roles?.includes("admin")) {
-      navigate("/onboarding", { replace: true });
-      return;
-    }
+      // Onboarding check first — admins skip onboarding
+      if (!user.onboardingComplete && !user.roles?.includes("admin")) {
+        navigate("/onboarding", { replace: true });
+        return;
+      }
 
-    const isEmployerOnly =
-      Array.isArray(user.roles) &&
-      user.roles.includes("employer") &&
-      !user.roles.includes("carer") &&
-      !user.roles.includes("admin");
+      // Compute destination directly from the returned user object
+      // Priority: admin > employer > carer
+      // This avoids any async state timing issues with activeRole
+      const PRIORITY = ["admin", "employer", "carer"];
+      const computedRole = Array.isArray(user.roles)
+        ? PRIORITY.find((r) => user.roles.includes(r)) ?? "carer"
+        : "carer";
 
-    const destination =
-      from !== "/dashboard" ? from : isEmployerOnly ? "/employer/dashboard" : "/dashboard";
-
-    navigate(destination, { replace: true });
+      const destination = from || roleDestination(computedRole);
+      navigate(destination, { replace: true });
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -106,7 +105,6 @@ function Login() {
             placeholder="Enter your password"
             autoComplete="current-password"
           />
-          {/* NEW: Forgot password link */}
           <div className="text-right -mt-2 mb-2">
             <Link
               to="/forgot-password"
@@ -137,7 +135,10 @@ function Login() {
 
         <p className="mt-6 text-sm text-center text-gray-600">
           Don't have an account?{" "}
-          <Link to="/register" className="text-indigo-600 font-medium hover:underline">
+          <Link
+            to="/register"
+            className="text-indigo-600 font-medium hover:underline"
+          >
             Sign up
           </Link>
         </p>

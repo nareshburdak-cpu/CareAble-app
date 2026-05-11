@@ -3,15 +3,17 @@
 /**
  * OnboardingRoute
  * ---------------
- * Wraps protected routes that require onboarding to be complete.
+ * Wraps carer-only routes that require onboarding to be complete.
  *
  * Flow:
- *   Loading            → spinner
- *   Not authenticated  → /login
- *   Authenticated but onboarding incomplete → /onboarding
- *   Authenticated + onboarding complete     → render children
+ *   Loading                        → spinner
+ *   Not authenticated              → /login
+ *   Authenticated, wrong role      → their correct home (roleDestination)
+ *   Authenticated, no onboarding   → /onboarding
+ *   Authenticated + onboarding ✓  → render children
  *
- * Admin users skip onboarding entirely.
+ * Admin and employer users are redirected to their own home pages —
+ * they should never land on /dashboard or /assessment.
  */
 
 import { Navigate, useLocation } from "react-router-dom";
@@ -19,7 +21,7 @@ import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "./LoadingSpinner";
 
 function OnboardingRoute({ children }) {
-  const { isAuthenticated, loading, user, hasRole } = useAuth();
+  const { isAuthenticated, loading, user, activeRole, roleDestination } = useAuth();
   const location = useLocation();
 
   if (loading) return <LoadingSpinner message="Checking your session..." />;
@@ -28,10 +30,13 @@ function OnboardingRoute({ children }) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Admins skip onboarding
-  if (hasRole("admin")) return children;
+  // Only carers belong on these routes.
+  // Admins → /admin-x7k9p, Employers → /employer/dashboard
+  if (activeRole !== "carer") {
+    return <Navigate to={roleDestination(activeRole)} replace />;
+  }
 
-  // Redirect to onboarding if not complete
+  // Carer hasn't finished onboarding yet
   if (!user?.onboardingComplete) {
     return <Navigate to="/onboarding" replace />;
   }

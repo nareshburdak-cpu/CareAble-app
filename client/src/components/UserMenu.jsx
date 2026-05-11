@@ -3,11 +3,8 @@
 /**
  * UserMenu — Dropdown shown in the navbar when logged in.
  * --------------------------------------------------------
- * Phase 12-A Task 5:
- *   - Admin panel link added — visible only when hasRole("admin")
- *   - Employer Portal link added — visible to employer + admin roles
- *   - Both are role-gated here for UI; routes themselves are protected
- *     by AdminRoute / EmployerRoute components.
+ * Phase 12-B: Simplified — portal switching is now handled
+ * by RoleSwitcher. UserMenu shows only account-level items.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -16,35 +13,28 @@ import toast from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
 
 function UserMenu() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, activeRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
-  const showEmployerPortal = hasRole("employer") || hasRole("admin");
-  const showAdminPanel = hasRole("admin");
-
   // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
   // Close on Escape
   useEffect(() => {
     if (!open) return;
-    const handleEscape = (e) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
+    const handler = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
   const handleNavigate = () => setOpen(false);
@@ -62,9 +52,14 @@ function UserMenu() {
 
   const isActive = (path) => location.pathname === path;
 
+  // Role-aware menu items
+  const isCarerContext    = activeRole === "carer";
+  const isEmployerContext = activeRole === "employer";
+  const isAdminContext    = activeRole === "admin";
+
   return (
     <div className="relative" ref={menuRef}>
-      {/* Trigger button */}
+      {/* Trigger */}
       <button
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-2 p-1 pr-2.5 rounded-full transition-all ${
@@ -91,8 +86,7 @@ function UserMenu() {
 
       {/* Dropdown */}
       {open && (
-        <div role="menu" className="absolute right-0 mt-3 w-80 z-50 origin-top-right animate-dropdown">
-          {/* Floating arrow */}
+        <div role="menu" className="absolute right-0 mt-3 w-72 z-50 origin-top-right animate-dropdown">
           <div className="absolute -top-1.5 right-5 w-3 h-3 bg-white rotate-45 ring-1 ring-gray-200/60" />
 
           <div className="relative bg-white rounded-2xl shadow-2xl shadow-gray-900/15 ring-1 ring-gray-200/60 overflow-hidden">
@@ -108,13 +102,9 @@ function UserMenu() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
                   <p className="text-xs text-indigo-200 truncate">{user?.email}</p>
-                  {/* Role badge */}
                   <div className="mt-1.5 flex gap-1 flex-wrap">
                     {user?.roles?.map((role) => (
-                      <span
-                        key={role}
-                        className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-white/20 text-white/90"
-                      >
+                      <span key={role} className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-white/20 text-white/90">
                         {role}
                       </span>
                     ))}
@@ -123,88 +113,26 @@ function UserMenu() {
               </div>
             </div>
 
-            {/* Standard menu items */}
+            {/* Menu items — role-context aware */}
             <div className="p-2">
-              <MenuItem
-                to="/dashboard"
-                label="Dashboard"
-                description="Your home base"
-                icon="dashboard"
-                active={isActive("/dashboard")}
-                onClick={handleNavigate}
-              />
-              <MenuItem
-                to="/assessment"
-                label="Assessment"
-                description="Take a self-assessment"
-                icon="assessment"
-                active={isActive("/assessment")}
-                onClick={handleNavigate}
-              />
-              <MenuItem
-                to="/profile"
-                label="Profile"
-                description="Manage your account"
-                icon="profile"
-                active={isActive("/profile")}
-                onClick={handleNavigate}
-              />
+              {isCarerContext && (
+                <>
+                  <MenuItem to="/dashboard" label="Dashboard" description="Your home base" icon="dashboard" active={isActive("/dashboard")} onClick={handleNavigate} />
+                  <MenuItem to="/assessment" label="Assessment" description="Take a self-assessment" icon="assessment" active={isActive("/assessment")} onClick={handleNavigate} />
+                </>
+              )}
+              {isEmployerContext && (
+                <MenuItem to="/employer/dashboard" label="Employer Portal" description="Verify certificates" icon="employer" active={isActive("/employer/dashboard")} onClick={handleNavigate} />
+              )}
+              {isAdminContext && (
+                <MenuItem to="/admin-x7k9p" label="Admin Panel" description="Manage platform" icon="admin" active={location.pathname.startsWith("/admin-x7k9p")} onClick={handleNavigate} />
+              )}
+              <MenuItem to="/profile" label="Profile" description="Manage your account" icon="profile" active={isActive("/profile")} onClick={handleNavigate} />
             </div>
 
-            {/* Employer Portal — visible to employer + admin */}
-            {showEmployerPortal && (
-              <>
-                <div className="border-t border-gray-100 mx-2" />
-                <div className="p-2">
-                  <MenuItem
-                    to="/employer/dashboard"
-                    label="Employer Portal"
-                    description="Verify caregiver certificates"
-                    icon="employer"
-                    active={isActive("/employer/dashboard")}
-                    onClick={handleNavigate}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Admin panel — visible to admin only */}
-            {showAdminPanel && (
-              <>
-                <div className="border-t border-gray-100 mx-2" />
-                <div className="p-2">
-                  <Link
-                    to="/admin-x7k9p"
-                    role="menuitem"
-                    onClick={handleNavigate}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all hover:bg-amber-50"
-                  >
-                    <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 group-hover:bg-amber-200 flex items-center justify-center flex-shrink-0 transition">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-amber-900">Admin Panel</p>
-                      <p className="text-xs text-amber-600 truncate">Manage users, questions & analytics</p>
-                    </div>
-                    <svg
-                      className="w-4 h-4 text-amber-400 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      strokeWidth={2.5}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
-              </>
-            )}
-
-            {/* Divider + Logout */}
             <div className="border-t border-gray-100" />
+
+            {/* Logout */}
             <div className="p-2">
               <button
                 onClick={handleLogout}
@@ -226,46 +154,30 @@ function UserMenu() {
   );
 }
 
-// ── Menu item ──────────────────────────────────────────────────────────────
+// ── Menu item ──────────────────────────────────────────────────────
 function MenuItem({ to, label, description, icon, active, onClick }) {
   return (
     <Link
       to={to}
       role="menuitem"
       onClick={onClick}
-      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-        active ? "bg-indigo-50" : "hover:bg-gray-50"
-      }`}
+      className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${active ? "bg-indigo-50" : "hover:bg-gray-50"}`}
     >
-      <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition ${
-        active
-          ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
-          : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"
-      }`}>
+      <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition ${active ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30" : "bg-gray-100 text-gray-600 group-hover:bg-gray-200"}`}>
         <ItemIcon name={icon} />
       </span>
       <div className="flex-1 min-w-0">
         <p className={`text-sm font-medium ${active ? "text-indigo-700" : "text-gray-900"}`}>{label}</p>
         <p className={`text-xs truncate ${active ? "text-indigo-500" : "text-gray-500"}`}>{description}</p>
       </div>
-      <svg
-        className={`w-4 h-4 transition-all ${
-          active
-            ? "text-indigo-500 translate-x-0"
-            : "text-gray-300 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0"
-        }`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        strokeWidth={2.5}
-      >
+      <svg className={`w-4 h-4 transition-all ${active ? "text-indigo-500" : "text-gray-300 -translate-x-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-0"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
       </svg>
     </Link>
   );
 }
 
-// ── Icon library ───────────────────────────────────────────────────────────
+// ── Icon library ───────────────────────────────────────────────────
 function ItemIcon({ name }) {
   const props = { className: "w-4 h-4", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24", strokeWidth: 2 };
   switch (name) {
@@ -277,6 +189,8 @@ function ItemIcon({ name }) {
       return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
     case "employer":
       return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>;
+    case "admin":
+      return <svg {...props}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
     default:
       return null;
   }

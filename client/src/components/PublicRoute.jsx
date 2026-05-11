@@ -1,31 +1,17 @@
-/**
- * PublicRoute
- * -----------
- * Opposite of ProtectedRoute.
- * Redirects authenticated users AWAY from pages like /login and /register
- * (they don't need to see those if they're already logged in).
- *
- * Usage:
- *   <Route path="/login" element={
- *     <PublicRoute>
- *       <Login />
- *     </PublicRoute>
- *   } />
- */
+// client/src/components/PublicRoute.jsx
 
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "./LoadingSpinner";
 
 function PublicRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, activeRole, roleDestination } = useAuth();
 
-  if (loading) {
-    return <LoadingSpinner />;
-  }
+  if (loading) return <LoadingSpinner />;
 
+  // Already logged in → send to their role's correct home page
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={roleDestination(activeRole)} replace />;
   }
 
   return children;
