@@ -134,9 +134,9 @@ function App() {
           <Route
             path="/profile"
             element={
-              <OnboardingRoute>
+              <ProtectedRoute>
                 <Profile />
-              </OnboardingRoute>
+              </ProtectedRoute>
             }
           />
           <Route

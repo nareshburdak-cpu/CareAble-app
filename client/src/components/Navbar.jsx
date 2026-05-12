@@ -169,7 +169,7 @@ function Navbar() {
             aria-hidden="true"
           />
 
-          <div className="fixed top-16 left-0 right-0 bg-white shadow-2xl z-50 md:hidden max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <div className="fixed top-16 left-0 right-0 bg-white shadow-2xl z-50 md:hidden max-h-[calc(100vh-4rem)] overflow-y-auto rounded-b-2xl">
             <div className="p-4 space-y-2">
 
               {/* User card */}
