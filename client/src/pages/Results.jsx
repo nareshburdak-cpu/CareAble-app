@@ -276,7 +276,7 @@ function CompactScoreCard({ category, score }) {
           <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-base flex-shrink-0">{category.icon}</div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-gray-900 truncate">{category.label}</p>
+              <p className="text-sm font-semibold text-gray-900 truncate">{category.label}</p>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 {tier && <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded-full border " + tierColor}>{tier}</span>}
                 <svg className={"w-3.5 h-3.5 text-gray-400 transition-transform duration-200 " + (expanded ? "rotate-180" : "")} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
@@ -296,7 +296,7 @@ function CompactScoreCard({ category, score }) {
       </button>
       {expanded && (
         <div className="px-3.5 pb-3.5 border-t border-gray-50">
-          <p className="text-xs text-gray-500 leading-relaxed mt-2.5 mb-3">{category.description}</p>
+          <p className="text-sm text-gray-500 leading-relaxed mt-2.5 mb-3">{category.description}</p>
           {hasScore && (
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -305,7 +305,7 @@ function CompactScoreCard({ category, score }) {
                 { label: "Standing", value: score >= 4.0 ? "Top 25%" : score >= 3.0 ? "Middle" : "Lower 25%" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50 rounded-lg p-2 text-center">
-                  <p className="text-[10px] text-gray-400 mb-0.5">{stat.label}</p>
+                  <p className="text-xs text-gray-400 mb-0.5">{stat.label}</p>
                   <p className="text-xs font-bold text-gray-800">{stat.value}</p>
                 </div>
               ))}
@@ -336,7 +336,7 @@ function AiInsightsPlaceholder({ level, topAreas }) {
             <p className="text-xs text-indigo-600">Coming soon — personalised feedback from Claude AI</p>
           </div>
         </div>
-        <p className="text-xs text-gray-600 leading-relaxed">Once enabled, AI Insights will analyse your full capability profile and generate personalised feedback, career pathway suggestions, and tailored learning resources.</p>
+        <p className="text-sm text-gray-600 leading-relaxed">Once enabled, AI Insights will analyse your full capability profile and generate personalised feedback, career pathway suggestions, and tailored learning resources.</p>
       </div>
 
       {topAreas.length > 0 && (
@@ -347,8 +347,8 @@ function AiInsightsPlaceholder({ level, topAreas }) {
               <div key={cat.key} className="flex items-center gap-2.5 p-2.5 bg-emerald-50 rounded-lg border border-emerald-100">
                 <span className="text-xl flex-shrink-0">{cat.icon}</span>
                 <div>
-                  <p className="text-xs font-semibold text-emerald-900">{cat.label}</p>
-                  <p className="text-[10px] text-emerald-600">Key caregiving strength</p>
+                  <p className="text-sm font-semibold text-emerald-900">{cat.label}</p>
+                  <p className="text-xs text-emerald-600">Key caregiving strength</p>
                 </div>
               </div>
             ))}
@@ -362,7 +362,7 @@ function AiInsightsPlaceholder({ level, topAreas }) {
           {tips.map((tip, i) => (
             <div key={i} className="flex items-start gap-2.5 p-2.5 bg-gray-50 rounded-lg">
               <div className="w-5 h-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
-              <p className="text-xs text-gray-700 leading-relaxed">{tip}</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{tip}</p>
             </div>
           ))}
         </div>
@@ -371,8 +371,8 @@ function AiInsightsPlaceholder({ level, topAreas }) {
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2.5">
         <span className="text-lg flex-shrink-0">🔔</span>
         <div>
-          <p className="text-xs font-semibold text-amber-900 mb-0.5">Want personalised AI feedback?</p>
-          <p className="text-xs text-amber-700 leading-relaxed">Full AI-powered analysis with career pathway mapping and custom learning plans is coming in the next update.</p>
+          <p className="text-sm font-semibold text-amber-900 mb-0.5">Want personalised AI feedback?</p>
+          <p className="text-sm text-amber-700 leading-relaxed">Full AI-powered analysis with career pathway mapping and custom learning plans is coming in the next update.</p>
         </div>
       </div>
     </div>

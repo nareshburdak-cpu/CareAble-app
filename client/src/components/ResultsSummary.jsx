@@ -1,14 +1,6 @@
 // client/src/components/ResultsSummary.jsx
 
-/**
- * ResultsSummary — Highlights strongest + weakest domains
- * -------------------------------------------------------
- * Scores are on a 1–5 scale. Tier labels are brief-aligned:
- *   Strength / Growth / Support
- */
-
 function ResultsSummary({ categoryScores, categoryMeta }) {
-  // Only include domains that have a real score
   const scored = categoryMeta
     .map((cat) => ({ ...cat, score: categoryScores[cat.key] }))
     .filter((cat) => cat.score != null && cat.score > 0)
@@ -16,7 +8,7 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
 
   if (scored.length === 0) {
     return (
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 gap-3">
         <EmptyCard icon="💪" title="Your Strength" color="green" text="No scores available yet." />
         <EmptyCard icon="🌱" title="Growth Area" color="amber" text="No scores available yet." />
       </div>
@@ -28,49 +20,33 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
   const allSame = scored.every((c) => c.score === scored[0].score);
 
   return (
-    <div className="grid md:grid-cols-2 gap-4">
-      {/* Strength */}
-      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-xl p-6">
+    <div className="grid sm:grid-cols-2 gap-3">
+      <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-2xl">💪</span>
-          <h3 className="font-semibold text-green-900">Your Strength</h3>
+          <span className="text-xl">💪</span>
+          <p className="text-sm font-semibold text-emerald-800">Your Strength</p>
         </div>
         {allSame ? (
-          <p className="text-sm text-green-800">
-            You show balanced capability across all areas — keep it up!
-          </p>
+          <p className="text-sm text-emerald-700 leading-relaxed">Balanced capability across all areas — keep it up!</p>
         ) : (
           <>
-            <p className="text-green-900 font-medium mb-1">
-              {strongest.icon} {strongest.label}
-            </p>
-            <p className="text-sm text-green-800">
-              You scored <strong>{strongest.score.toFixed(2)} / 5</strong> — this is
-              where your caregiving experience shines.
-            </p>
+            <p className="text-sm font-medium text-emerald-900 mb-1">{strongest.icon} {strongest.label}</p>
+            <p className="text-sm text-emerald-700 leading-relaxed">Scored <span className="font-bold">{strongest.score.toFixed(2)} / 5</span> — this is where your caregiving experience shines.</p>
           </>
         )}
       </div>
 
-      {/* Growth area */}
-      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-xl p-6">
+      <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-2xl">🌱</span>
-          <h3 className="font-semibold text-amber-900">Growth Area</h3>
+          <span className="text-xl">🌱</span>
+          <p className="text-sm font-semibold text-amber-800">Growth Area</p>
         </div>
         {allSame ? (
-          <p className="text-sm text-amber-800">
-            No particular growth area — great, consistent capability!
-          </p>
+          <p className="text-sm text-amber-700 leading-relaxed">No particular growth area — great, consistent capability!</p>
         ) : (
           <>
-            <p className="text-amber-900 font-medium mb-1">
-              {weakest.icon} {weakest.label}
-            </p>
-            <p className="text-sm text-amber-800">
-              With a score of <strong>{weakest.score.toFixed(2)} / 5</strong>, this is
-              an area where additional resources could support you.
-            </p>
+            <p className="text-sm font-medium text-amber-900 mb-1">{weakest.icon} {weakest.label}</p>
+            <p className="text-sm text-amber-700 leading-relaxed">Scored <span className="font-bold">{weakest.score.toFixed(2)} / 5</span> — additional resources could support growth here.</p>
           </>
         )}
       </div>
@@ -79,15 +55,12 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
 }
 
 function EmptyCard({ icon, title, color, text }) {
-  const colors = {
-    green: "from-green-50 to-emerald-50 border-green-100",
-    amber: "from-amber-50 to-orange-50 border-amber-100",
-  };
+  const colors = { green: "bg-emerald-50 border-emerald-100", amber: "bg-amber-50 border-amber-100" };
   return (
-    <div className={`bg-gradient-to-br ${colors[color]} border rounded-xl p-6`}>
+    <div className={"border rounded-xl p-4 " + colors[color]}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-2xl">{icon}</span>
-        <h3 className="font-semibold text-gray-900">{title}</h3>
+        <span className="text-xl">{icon}</span>
+        <p className="text-sm font-semibold text-gray-700">{title}</p>
       </div>
       <p className="text-sm text-gray-500">{text}</p>
     </div>
