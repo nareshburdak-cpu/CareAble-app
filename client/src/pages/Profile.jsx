@@ -1,12 +1,10 @@
+// client/src/pages/Profile.jsx
+
 /**
- * Profile Page
- * ------------
- * Lets users view and edit their account:
- *   - Name (editable)
- *   - Email (read-only)
- *   - Member since + stats
- *   - Change password (now with OTP confirmation)
- *   - Delete account (now with OTP confirmation)
+ * Profile Page — mobile-first compact redesign
+ * --------------------------------------------
+ * Card heights tightened, padding reduced on mobile.
+ * Heavy desktop layouts only expand on md+ breakpoints.
  */
 
 import { useEffect, useState } from "react";
@@ -25,7 +23,6 @@ function Profile() {
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
-  // Load stats on mount
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -50,75 +47,151 @@ function Profile() {
     : "?";
 
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString("en-AU", {
-        month: "long",
-        year: "numeric",
-      })
+    ? new Date(user.createdAt).toLocaleDateString("en-AU", { month: "short", year: "numeric" })
     : "—";
 
   return (
-    <section className="flex-1 p-4 md:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header card */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl font-bold">
+    <section className="flex-1 px-3 py-4 md:p-8 bg-gray-50">
+      <div className="max-w-3xl mx-auto space-y-3 md:space-y-5">
+
+        {/* ── Compact header card ─────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center text-base md:text-lg font-bold flex-shrink-0">
               {initials}
             </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base md:text-xl font-bold text-gray-900 truncate">
                 {user?.name}
               </h1>
-              <p className="text-gray-500">{user?.email}</p>
+              <p className="text-xs md:text-sm text-gray-500 truncate">{user?.email}</p>
+              {user?.roles?.length > 0 && (
+                <div className="flex gap-1 mt-1 flex-wrap">
+                  {user.roles.map((role) => (
+                    <span
+                      key={role}
+                      className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700"
+                    >
+                      {role}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Account stats */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Account Stats
-          </h2>
-          {loadingStats ? (
-            <p className="text-sm text-gray-400">Loading stats...</p>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <StatBox label="Member Since" value={memberSince} />
-              <StatBox label="Assessments" value={stats?.submitted ?? 0} />
-              <StatBox label="Latest Level" value={stats?.latestLevel ?? "—"} />
+          {/* Inline stats row */}
+          {!loadingStats && stats && (
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-gray-100">
+              <InlineStat label="Member" value={memberSince} />
+              <InlineStat label="Submitted" value={stats.submitted} />
+              <InlineStat label="Latest" value={stats.latestLevel} />
             </div>
           )}
         </div>
 
-        {/* Edit name */}
+        {/* ── Edit profile ──────────────────────────────────── */}
         <EditNameCard />
 
-        {/* Change password */}
+        {/* ── Default role (multi-role only) ────────────────── */}
+        <DefaultRoleCard />
+
+        {/* ── Change password ───────────────────────────────── */}
         <ChangePasswordCard />
 
-        {/* Danger zone */}
+        {/* ── Danger zone ───────────────────────────────────── */}
         <DeleteAccountCard onDeleted={() => { logout(); navigate("/"); }} />
       </div>
     </section>
   );
 }
 
-// ==========================================================================
-// Sub-components
-// ==========================================================================
-
-function StatBox({ label, value }) {
+// ── Inline compact stat ─────────────────────────────────────
+function InlineStat({ label, value }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">
-        {label}
-      </p>
-      <p className="text-lg font-bold text-gray-900">{value}</p>
+    <div className="text-center">
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">{label}</p>
+      <p className="text-sm font-bold text-gray-900 mt-0.5 truncate">{value}</p>
     </div>
   );
 }
 
-// ---- Edit name (no OTP — non-destructive) ----
+// ── Collapsible card wrapper ────────────────────────────────
+function Card({ title, subtitle, children, danger = false }) {
+  return (
+    <div className={`bg-white rounded-2xl border p-4 md:p-6 ${
+      danger ? "border-red-200" : "border-gray-100"
+    }`}>
+      <div className="mb-3 md:mb-4">
+        <h2 className={`text-base md:text-lg font-semibold ${
+          danger ? "text-red-600" : "text-gray-900"
+        }`}>
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Default role pills ──────────────────────────────────────
+const ROLE_META = {
+  carer:    { label: "Carer",    icon: "🤝" },
+  employer: { label: "Employer", icon: "🏢" },
+  admin:    { label: "Admin",    icon: "⚙️" },
+};
+
+function DefaultRoleCard() {
+  const { user, activeRole, switchRole, roleDestination } = useAuth();
+  const navigate = useNavigate();
+
+  if (!user?.roles || user.roles.length <= 1) return null;
+
+  const handleSelect = (role) => {
+    switchRole(role);
+    localStorage.setItem("activeRole", role);
+    toast.success(`Default role: ${ROLE_META[role]?.label}`);
+    navigate(roleDestination(role));
+  };
+
+  return (
+    <Card title="Default Role" subtitle="Which portal you land on after login.">
+      <div className="flex flex-wrap gap-1.5">
+        {user.roles.map((role) => {
+          const meta = ROLE_META[role];
+          const active = role === activeRole;
+          if (!meta) return null;
+
+          return (
+            <button
+              key={role}
+              type="button"
+              onClick={() => handleSelect(role)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-xs font-medium transition-all ${
+                active
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+              }`}
+            >
+              <span>{meta.icon}</span>
+              <span>{meta.label}</span>
+              {active && (
+                <svg className="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// ── Edit name ───────────────────────────────────────────────
 function EditNameCard() {
   const { user } = useAuth();
   const [name, setName] = useState(user?.name || "");
@@ -130,7 +203,6 @@ function EditNameCard() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
     if (!name.trim()) return setError("Name is required");
     if (name.trim().length < 2) return setError("Name must be at least 2 characters");
 
@@ -149,46 +221,42 @@ function EditNameCard() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Edit Profile</h2>
-      <form onSubmit={handleSubmit}>
+    <Card title="Edit Profile">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <FormInput
           label="Full name"
           name="name"
           value={name}
-          onChange={(e) => {
-            setName(e.target.value);
-            setError("");
-          }}
+          onChange={(e) => { setName(e.target.value); setError(""); }}
           error={error}
           autoComplete="name"
         />
-
-        <FormInput
-          label="Email"
-          name="email"
-          value={user?.email || ""}
-          onChange={() => {}}
-          disabled
-          readOnly
-        />
-        <p className="text-xs text-gray-400 -mt-3 mb-3">
-          Email cannot be changed
-        </p>
-
+        <div>
+          <FormInput
+            label="Email"
+            name="email"
+            value={user?.email || ""}
+            onChange={() => {}}
+            disabled
+            readOnly
+          />
+          <p className="text-[11px] text-gray-400 -mt-2">
+            Email cannot be changed
+          </p>
+        </div>
         <button
           type="submit"
           disabled={!dirty || isSubmitting}
-          className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
+          className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
         >
           {isSubmitting ? "Saving..." : "Save Changes"}
         </button>
       </form>
-    </div>
+    </Card>
   );
 }
 
-// ---- Change password (NOW with OTP) ----
+// ── Change password ─────────────────────────────────────────
 function ChangePasswordCard() {
   const [formData, setFormData] = useState({
     currentPassword: "",
@@ -198,6 +266,7 @@ function ChangePasswordCard() {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -217,14 +286,12 @@ function ChangePasswordCard() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Step 1: Validate form, then open OTP modal (which sends the email)
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) return;
     setShowOtp(true);
   };
 
-  // Step 2: After OTP verified, perform the actual password change
   const handleOtpVerified = async (otpToken) => {
     setIsSubmitting(true);
     try {
@@ -236,12 +303,13 @@ function ChangePasswordCard() {
       toast.success("Password updated 🔐");
       setFormData({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setShowOtp(false);
+      setExpanded(false);
     } catch (err) {
       toast.error(err.message);
       if (err.message.toLowerCase().includes("current password")) {
         setErrors({ currentPassword: err.message });
       }
-      setShowOtp(false);   // close modal so user can retry
+      setShowOtp(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -249,47 +317,72 @@ function ChangePasswordCard() {
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h2>
-        <form onSubmit={handleSubmit}>
-          <FormInput
-            label="Current password"
-            name="currentPassword"
-            type="password"
-            value={formData.currentPassword}
-            onChange={handleChange}
-            error={errors.currentPassword}
-            autoComplete="current-password"
-          />
-          <FormInput
-            label="New password"
-            name="newPassword"
-            type="password"
-            value={formData.newPassword}
-            onChange={handleChange}
-            error={errors.newPassword}
-            autoComplete="new-password"
-          />
-          <FormInput
-            label="Confirm new password"
-            name="confirmPassword"
-            type="password"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            error={errors.confirmPassword}
-            autoComplete="new-password"
-          />
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="px-6 py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition"
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-between p-4 md:p-6 hover:bg-gray-50 transition"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm md:text-base font-semibold text-gray-900">Change Password</p>
+              <p className="text-xs text-gray-500">Update your account password</p>
+            </div>
+          </div>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
           >
-            {isSubmitting ? "Updating..." : "Update Password"}
-          </button>
-        </form>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {expanded && (
+          <div className="px-4 pb-4 md:px-6 md:pb-6 pt-1 border-t border-gray-100">
+            <form onSubmit={handleSubmit} className="space-y-3 mt-4">
+              <FormInput
+                label="Current password"
+                name="currentPassword"
+                type="password"
+                value={formData.currentPassword}
+                onChange={handleChange}
+                error={errors.currentPassword}
+                autoComplete="current-password"
+              />
+              <FormInput
+                label="New password"
+                name="newPassword"
+                type="password"
+                value={formData.newPassword}
+                onChange={handleChange}
+                error={errors.newPassword}
+                autoComplete="new-password"
+              />
+              <FormInput
+                label="Confirm new password"
+                name="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                error={errors.confirmPassword}
+                autoComplete="new-password"
+              />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition"
+              >
+                {isSubmitting ? "Updating..." : "Update Password"}
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
-      {/* OTP modal — shown when user submits valid form */}
       {showOtp && (
         <OtpModal
           action="change-password"
@@ -302,15 +395,14 @@ function ChangePasswordCard() {
   );
 }
 
-// ---- Delete account (NOW with OTP) ----
+// ── Delete account ──────────────────────────────────────────
 function DeleteAccountCard({ onDeleted }) {
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showOtp, setShowOtp] = useState(false);
 
-  // Step 1: Validate password locally, then open OTP modal
   const handleDelete = (e) => {
     e.preventDefault();
     setError("");
@@ -321,7 +413,6 @@ function DeleteAccountCard({ onDeleted }) {
     setShowOtp(true);
   };
 
-  // Step 2: After OTP verified, perform the actual deletion
   const handleOtpVerified = async (otpToken) => {
     setIsSubmitting(true);
     try {
@@ -341,61 +432,69 @@ function DeleteAccountCard({ onDeleted }) {
 
   return (
     <>
-      <div className="bg-white rounded-2xl shadow-sm border-2 border-red-100 p-6 md:p-8">
-        <h2 className="text-lg font-semibold text-red-600 mb-1">Danger Zone</h2>
-        <p className="text-sm text-gray-500 mb-4">
-          Deleting your account removes all your data permanently, including assessments and certificates. This cannot be undone.
-        </p>
-
-        {!showConfirm ? (
-          <button
-            onClick={() => setShowConfirm(true)}
-            className="px-6 py-2.5 bg-white text-red-600 font-medium rounded-lg border-2 border-red-200 hover:bg-red-50 transition"
-          >
-            Delete My Account
-          </button>
-        ) : (
-          <form onSubmit={handleDelete} className="bg-red-50 rounded-lg p-4">
-            <p className="text-sm text-red-800 font-medium mb-3">
-              ⚠️ This is permanent. Enter your password to confirm.
-            </p>
-            <FormInput
-              label="Password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setError("");
-              }}
-              error={error}
-              autoComplete="current-password"
-            />
-            <div className="flex gap-2 mt-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:bg-red-300 transition"
-              >
-                {isSubmitting ? "Deleting..." : "Continue"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowConfirm(false);
-                  setPassword("");
-                  setError("");
-                }}
-                className="px-6 py-2.5 bg-white text-gray-700 font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition"
-              >
-                Cancel
-              </button>
+      <div className="bg-white rounded-2xl border border-red-100 overflow-hidden">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-between p-4 md:p-6 hover:bg-red-50/40 transition"
+        >
+          <div className="flex items-center gap-3 text-left">
+            <div className="w-9 h-9 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
             </div>
-          </form>
+            <div>
+              <p className="text-sm md:text-base font-semibold text-red-600">Delete Account</p>
+              <p className="text-xs text-gray-500">Permanently remove your account</p>
+            </div>
+          </div>
+          <svg
+            className={`w-4 h-4 text-red-400 transition-transform flex-shrink-0 ${expanded ? "rotate-180" : ""}`}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {expanded && (
+          <div className="px-4 pb-4 md:px-6 md:pb-6 border-t border-red-100">
+            <div className="bg-red-50 rounded-xl p-3 mt-4 mb-3">
+              <p className="text-xs text-red-800 leading-relaxed">
+                ⚠️ <strong>This is permanent.</strong> All your data — assessments, certificates, and account info — will be deleted forever.
+              </p>
+            </div>
+
+            <form onSubmit={handleDelete} className="space-y-3">
+              <FormInput
+                label="Confirm with your password"
+                name="password"
+                type="password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                error={error}
+                autoComplete="current-password"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:bg-red-300 transition"
+                >
+                  {isSubmitting ? "Deleting..." : "Delete forever"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setExpanded(false); setPassword(""); setError(""); }}
+                  className="px-5 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
         )}
       </div>
 
-      {/* OTP modal — shown after password confirmed */}
       {showOtp && (
         <OtpModal
           action="delete-account"
