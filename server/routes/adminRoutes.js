@@ -13,6 +13,7 @@ const {
   updateQuestion,
   reorderQuestion,
   getAuditLogs,
+  listAssessments,
 } = require("../controllers/adminController");
 const { listSettings, updateSetting, getSettingsMeta } = require("../controllers/settingsController");
 const categoryRoutes = require("./categoryRoutes");
@@ -28,12 +29,10 @@ router.post("/questions", createQuestion);
 router.patch("/questions/:id", updateQuestion);
 router.post("/questions/:id/reorder", reorderQuestion);
 router.get("/audit", getAuditLogs);
-
-// Phase 12-A Task 6: platform settings
 router.get("/settings/meta", getSettingsMeta);
 router.get("/settings", listSettings);
 router.patch("/settings/:key", updateSetting);
-
+router.get("/assessments", listAssessments);
 router.use("/categories", categoryRoutes);
 
 module.exports = router;

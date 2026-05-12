@@ -603,6 +603,65 @@ const getAuditLogs = asyncHandler(async (req, res) => {
 });
 
 
+/**
+ * @desc    List all assessments (admin only)
+ * @route   GET /api/admin/assessments
+ * @access  Admin
+ */
+const listAssessments = asyncHandler(async (req, res) => {
+  const page   = Math.max(1, parseInt(req.query.page)  || 1);
+  const limit  = Math.min(50, parseInt(req.query.limit) || 20);
+  const skip   = (page - 1) * limit;
+  const search = (req.query.search || "").trim();
+  const filter = req.query.filter || "all"; // all | submitted | in-progress
+
+  // ── Build query ──────────────────────────────────────────────────
+  const query = {};
+
+  if (filter === "submitted")   query.status = "submitted";
+  if (filter === "in-progress") query.status = "in-progress";
+
+  // If searching, find matching users first
+  let userIdFilter = null;
+  if (search) {
+    const matchingUsers = await require("../models/User")
+      .find({
+        $or: [
+          { name:  { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      })
+      .select("_id")
+      .lean();
+    userIdFilter = matchingUsers.map((u) => u._id);
+    query.user = { $in: userIdFilter };
+  }
+
+  const [assessments, total] = await Promise.all([
+    Assessment.find(query)
+      .populate({ path: "user", select: "name email roles isActive" })
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Assessment.countDocuments(query),
+  ]);
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      assessments,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    },
+  });
+});
+
+
 module.exports = {
   getAnalytics,
   listUsers,
@@ -613,4 +672,5 @@ module.exports = {
   updateQuestion,
   reorderQuestion,
   getAuditLogs,
+  listAssessments,
 };

@@ -62,6 +62,8 @@ import Questions from "./pages/admin/Questions";
 import Categories from "./pages/admin/Categories";
 import Audit from "./pages/admin/Audit";
 import Settings from "./pages/admin/Settings";
+import Assessments from "./pages/admin/Assessments";
+
 
 function App() {
   return (
@@ -162,6 +164,7 @@ function App() {
           <Route path="/admin-x7k9p" element={<AdminLayout />}>
             <Route index element={<Analytics />} />
             <Route path="users" element={<Users />} />
+            <Route path="assessments" element={<Assessments />} />
             <Route path="questions" element={<Questions />} />
             <Route path="categories" element={<Categories />} />
             <Route path="audit" element={<Audit />} />
