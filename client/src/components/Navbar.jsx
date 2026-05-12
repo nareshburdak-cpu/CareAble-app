@@ -117,7 +117,6 @@ function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <>
-                <RoleSwitcher mode="navbar" />
                 <UserMenu />
               </>
             ) : (

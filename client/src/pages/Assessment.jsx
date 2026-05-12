@@ -235,7 +235,7 @@ export default function Assessment() {
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Sticky exit button — top right corner ── */}
-      <div className="sticky top-16 z-40 pointer-events-none">
+      <div className="sticky top-2 z-40 pointer-events-none">
         <div className="max-w-2xl mx-auto px-4">
           <div className="flex justify-end py-2">
             <Link
