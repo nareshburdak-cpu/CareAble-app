@@ -1,16 +1,17 @@
+// client/src/pages/Results.jsx
+
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import toast from "../utils/toast";
 import api from "../api/axios";
 import LoadingSpinner from "../components/LoadingSpinner";
 import CapabilityHeatmap from "../components/CapabilityHeatmap";
-import CategoryScoreCard from "../components/CategoryScoreCard";
 import ResultsSummary from "../components/ResultsSummary";
 
 const LEVEL_META = {
-  Support:  { emoji: "🌱", color: "text-amber-600",   description: "Additional support and resources can help strengthen these capabilities." },
-  Growth:   { emoji: "🌿", color: "text-indigo-600",  description: "You are developing strong caregiving capabilities with room to grow further." },
-  Strength: { emoji: "🏆", color: "text-emerald-600", description: "You demonstrate strong, well-developed caregiving capabilities." },
+  Support:  { emoji: "🌱", color: "text-amber-600",   bg: "bg-amber-50",   description: "Additional support and resources can help strengthen these capabilities." },
+  Growth:   { emoji: "🌿", color: "text-indigo-600",  bg: "bg-indigo-50",  description: "You are developing strong caregiving capabilities with room to grow further." },
+  Strength: { emoji: "🏆", color: "text-emerald-600", bg: "bg-emerald-50", description: "You demonstrate strong, well-developed caregiving capabilities." },
 };
 
 const TABS = [
@@ -22,11 +23,50 @@ const TABS = [
 
 function Results() {
   const { id } = useParams();
-  const [assessment, setAssessment] = useState(null);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [assessment, setAssessment]   = useState(null);
+  const [categories, setCategories]   = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab]     = useState("overview");
+
+  // ── Lifted AI insights state ───────────────────────────────────
+  // Kept here so switching tabs never unmounts/resets it.
+  // Initialised from localStorage so a page refresh restores last result.
+  const storageKey = `ai-insights-${id}`;
+  const [insights, setInsights]     = useState(() => {
+    try {
+      const saved = localStorage.getItem(`ai-insights-${id}`);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [aiLoading, setAiLoading]   = useState(false);
+  const [aiError, setAiError]       = useState(null);
+
+  const generateInsights = async (isRegenerate = false) => {
+    if (isRegenerate) {
+      localStorage.removeItem(storageKey);
+      setInsights(null);
+    }
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res  = await api.post("/ai/insights", { assessmentId: id });
+      const data = res.data.data.insights;
+      setInsights(data);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+      } catch {
+        // localStorage full — non-blocking
+      }
+    } catch (err) {
+      setAiError(err.message || "Could not generate insights. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+  // ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,9 +91,9 @@ function Results() {
     try {
       const response = await api.get("/assessments/" + assessment._id + "/certificate", { responseType: "blob" });
       const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
+      const url  = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url;
+      link.href  = url;
       link.download = "CareAble_Certificate_" + (assessment.certificateId || assessment.level) + ".pdf";
       document.body.appendChild(link);
       link.click();
@@ -91,9 +131,9 @@ function Results() {
     );
   }
 
-  const meta = LEVEL_META[assessment.level] || LEVEL_META.Growth;
+  const meta          = LEVEL_META[assessment.level] || LEVEL_META.Growth;
   const submittedDate = new Date(assessment.submittedAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" });
-  const topAreas = categories
+  const topAreas      = categories
     .filter((cat) => (assessment.categoryScores?.[cat.key] || 0) >= 4.0)
     .sort((a, b) => (assessment.categoryScores?.[b.key] || 0) - (assessment.categoryScores?.[a.key] || 0));
   const areaCount = Object.values(assessment.categoryScores || {}).filter((v) => v != null).length;
@@ -126,7 +166,8 @@ function Results() {
           </div>
         </div>
       </div>
-      {/* Tabs — clean white, no background color */}
+
+      {/* Tabs */}
       <div className="bg-white border-b border-gray-200 sticky top-16 z-30">
         <div className="max-w-5xl mx-auto px-2 sm:px-4">
           <div className="flex overflow-x-auto" style={{ scrollbarWidth: "none" }}>
@@ -135,6 +176,10 @@ function Results() {
                 className={"flex items-center gap-1.5 px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors duration-150 " + (activeTab === tab.key ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-800")}>
                 <span className="text-sm">{tab.icon}</span>
                 <span>{tab.label}</span>
+                {/* Dot indicator when insights are loaded */}
+                {tab.key === "ai-insights" && insights && !aiLoading && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                )}
               </button>
             ))}
           </div>
@@ -173,7 +218,6 @@ function Results() {
               <CapabilityHeatmap categoryScores={assessment.categoryScores || {}} categoryMeta={categories} />
             </div>
 
-            {/* Certificate download at bottom of overview */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -212,9 +256,14 @@ function Results() {
           </div>
         )}
 
-        {/* AI INSIGHTS */}
+        {/* AI INSIGHTS — state lives in parent, passed as props */}
         {activeTab === "ai-insights" && (
-          <AiInsightsPlaceholder level={assessment.level} topAreas={topAreas} />
+          <AiInsightsTab
+            insights={insights}
+            loading={aiLoading}
+            error={aiError}
+            onGenerate={generateInsights}
+          />
         )}
 
         {/* CERTIFICATE */}
@@ -261,13 +310,206 @@ function Results() {
   );
 }
 
+// ── AI Insights tab ────────────────────────────────────────────────
+// State is owned by Results — this component is purely presentational.
+function AiInsightsTab({ insights, loading, error, onGenerate }) {
+
+  // Loading state — shown when generating (including on first generate)
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center">
+          <svg className="w-6 h-6 text-indigo-600 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+            <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-gray-800">Analysing your results…</p>
+          <p className="text-xs text-gray-400 mt-1">ChatGPT is reading your capability profile</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not yet generated — show the prompt card
+  if (!insights) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-lg flex-shrink-0">
+              ✨
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">AI-Powered Insights</p>
+              <p className="text-xs text-indigo-600">Personalised feedback powered by ChatGPT</p>
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 leading-relaxed mb-4">
+            Get personalised feedback based on your exact capability scores — including
+            tailored resources, a summary of your strengths, and one clear next step.
+          </p>
+          {error && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+          <button
+            onClick={() => onGenerate(false)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition shadow-sm"
+          >
+            <span>✨</span>
+            Generate My Insights
+          </button>
+          <p className="text-xs text-gray-400 mt-3">Takes 5–10 seconds · Results are personalised to your scores</p>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">What you'll get</p>
+          <div className="space-y-3">
+            {[
+              { icon: "💬", label: "Personal summary",     desc: "A warm overview of what your scores say about you as a carer." },
+              { icon: "💪", label: "Strengths spotlight",  desc: "Recognition of the domains where you're excelling." },
+              { icon: "🌱", label: "Growth guidance",      desc: "Constructive, encouraging focus on your development areas." },
+              { icon: "📚", label: "Australian resources", desc: "3 real, relevant programs and services tailored to your profile." },
+              { icon: "🎯", label: "Next step",            desc: "One clear action you can take this week." },
+            ].map((item) => (
+              <div key={item.label} className="flex items-start gap-3">
+                <span className="text-lg flex-shrink-0">{item.icon}</span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{item.label}</p>
+                  <p className="text-xs text-gray-500">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Results
+  return (
+    <div className="space-y-4">
+
+      {/* Summary */}
+      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">💬</span>
+          <p className="text-sm font-bold text-gray-900">Your Summary</p>
+        </div>
+        <p className="text-sm text-gray-700 leading-relaxed">{insights.summary}</p>
+      </div>
+
+      {/* Strengths + Growth */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <div className="bg-white border border-emerald-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">💪</span>
+            <p className="text-sm font-bold text-emerald-800">Your Strengths</p>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">{insights.strengths}</p>
+        </div>
+        <div className="bg-white border border-amber-100 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🌱</span>
+            <p className="text-sm font-bold text-amber-800">Growth Opportunities</p>
+          </div>
+          <p className="text-sm text-gray-700 leading-relaxed">{insights.growth}</p>
+        </div>
+      </div>
+
+      {/* Resources */}
+      {Array.isArray(insights.resources) && insights.resources.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">📚</span>
+            <p className="text-sm font-bold text-gray-900">Recommended Resources</p>
+          </div>
+          <p className="text-xs text-gray-400 mb-3">
+            Tap any resource to search and find the latest information online.
+          </p>
+          <div className="space-y-3">
+            {insights.resources.map((r, i) => {
+              const searchQuery = encodeURIComponent(`${r.organisation} ${r.program} Australia`);
+              const searchUrl   = `https://www.google.com/search?q=${searchQuery}`;
+              return (
+                <a key={i} href={searchUrl} target="_blank" rel="noopener noreferrer"
+                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition group">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0 group-hover:bg-indigo-200 transition">
+                    {i + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition">
+                        {r.program}
+                      </p>
+                      {r.type && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
+                          {r.type}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-indigo-600 mt-0.5">
+                      {r.organisation}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      {r.description}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Search Google for this resource →
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 flex-shrink-0 mt-0.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Next step */}
+      {insights.nextStep && (
+        <div className="bg-indigo-600 rounded-xl p-5 text-white">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-base">🎯</span>
+            <p className="text-sm font-bold">Your Next Step</p>
+          </div>
+          <p className="text-sm leading-relaxed text-indigo-100">{insights.nextStep}</p>
+        </div>
+      )}
+
+      {/* Regenerate */}
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-xs text-gray-400">Generated by ChatGPT · Results may vary</p>
+        <button
+          onClick={() => onGenerate(true)}
+          className="text-xs text-indigo-500 hover:text-indigo-700 font-medium transition flex items-center gap-1"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Regenerate
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── CompactScoreCard ───────────────────────────────────────────────
 function CompactScoreCard({ category, score }) {
   const [expanded, setExpanded] = useState(false);
-  const hasScore = score != null && score > 0;
-  const tier = !hasScore ? null : score >= 4.0 ? "Strength" : score >= 3.0 ? "Growth" : "Support";
+  const hasScore  = score != null && score > 0;
+  const tier      = !hasScore ? null : score >= 4.0 ? "Strength" : score >= 3.0 ? "Growth" : "Support";
   const tierColor = tier === "Strength" ? "text-emerald-700 bg-emerald-50 border-emerald-200" : tier === "Growth" ? "text-indigo-700 bg-indigo-50 border-indigo-200" : "text-amber-700 bg-amber-50 border-amber-200";
-  const barColor = score >= 4.0 ? "#10b981" : score >= 3.0 ? "#6366f1" : score >= 2.0 ? "#f59e0b" : "#f43f5e";
-  const barWidth = hasScore ? Math.min(100, Math.max(0, ((score - 1) / 4) * 100)) : 0;
+  const barColor  = score >= 4.0 ? "#10b981" : score >= 3.0 ? "#6366f1" : score >= 2.0 ? "#f59e0b" : "#f43f5e";
+  const barWidth  = hasScore ? Math.min(100, Math.max(0, ((score - 1) / 4) * 100)) : 0;
 
   return (
     <div className={"bg-white rounded-xl border shadow-sm transition-all duration-200 " + (expanded ? "border-indigo-200" : "border-gray-100")}>
@@ -300,8 +542,8 @@ function CompactScoreCard({ category, score }) {
           {hasScore && (
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: "Score", value: score.toFixed(2) + " / 5" },
-                { label: "Level", value: tier },
+                { label: "Score",    value: score.toFixed(2) + " / 5" },
+                { label: "Level",    value: tier },
                 { label: "Standing", value: score >= 4.0 ? "Top 25%" : score >= 3.0 ? "Middle" : "Lower 25%" },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50 rounded-lg p-2 text-center">
@@ -313,68 +555,6 @@ function CompactScoreCard({ category, score }) {
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ── AI Insights placeholder ─────────────────────────────────── */
-function AiInsightsPlaceholder({ level, topAreas }) {
-  const suggestions = {
-    Support:  ["Look into free online caregiving courses on platforms like TAFE NSW Digital", "Connect with local Carer Gateway services for personalised support", "The Carer Gateway app offers tools and resources tailored to your situation"],
-    Growth:   ["Consider the Certificate III in Individual Support (CHC33021) to formalise your skills", "Explore volunteering with Carers Australia to broaden your experience", "Join a local carer support group to share strategies and grow your network"],
-    Strength: ["Your skills align with Certificate IV in Disability or Aged Care — worth exploring", "Consider mentoring other carers through Carer Gateway programs", "Your capability level could translate into paid care work — look at SEEK or Hireup"],
-  };
-  const tips = suggestions[level] || suggestions.Growth;
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-base flex-shrink-0">✨</div>
-          <div>
-            <p className="text-sm font-bold text-gray-900">AI-Powered Insights</p>
-            <p className="text-xs text-indigo-600">Coming soon — personalised feedback from Claude AI</p>
-          </div>
-        </div>
-        <p className="text-sm text-gray-600 leading-relaxed">Once enabled, AI Insights will analyse your full capability profile and generate personalised feedback, career pathway suggestions, and tailored learning resources.</p>
-      </div>
-
-      {topAreas.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Your Strongest Areas</p>
-          <div className="space-y-2">
-            {topAreas.slice(0, 3).map((cat) => (
-              <div key={cat.key} className="flex items-center gap-2.5 p-2.5 bg-emerald-50 rounded-lg border border-emerald-100">
-                <span className="text-xl flex-shrink-0">{cat.icon}</span>
-                <div>
-                  <p className="text-sm font-semibold text-emerald-900">{cat.label}</p>
-                  <p className="text-xs text-emerald-600">Key caregiving strength</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Recommended Next Steps</p>
-        <div className="space-y-2">
-          {tips.map((tip, i) => (
-            <div key={i} className="flex items-start gap-2.5 p-2.5 bg-gray-50 rounded-lg">
-              <div className="w-5 h-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">{i + 1}</div>
-              <p className="text-sm text-gray-700 leading-relaxed">{tip}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2.5">
-        <span className="text-lg flex-shrink-0">🔔</span>
-        <div>
-          <p className="text-sm font-semibold text-amber-900 mb-0.5">Want personalised AI feedback?</p>
-          <p className="text-sm text-amber-700 leading-relaxed">Full AI-powered analysis with career pathway mapping and custom learning plans is coming in the next update.</p>
-        </div>
-      </div>
     </div>
   );
 }

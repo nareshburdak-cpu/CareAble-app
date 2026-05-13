@@ -16,7 +16,7 @@
 import hotToast from "react-hot-toast";
 
 // ── Toast queue management ──────────────────────────────────────
-const MAX_TOASTS = 3;
+const MAX_TOASTS = 2;
 const activeToastIds = [];
 
 function trackToast(id) {
@@ -194,7 +194,7 @@ if (typeof document !== "undefined" && !document.getElementById("toast-keyframes
 
 // ── Public API ──────────────────────────────────────────────────
 function show(variant, message, options = {}) {
-  const duration = options.duration ?? 400000;
+  const duration = options.duration ?? 2000;
 
   const id = hotToast.custom(
     (t) => (

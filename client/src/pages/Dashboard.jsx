@@ -1,36 +1,38 @@
 // client/src/pages/Dashboard.jsx
 
 /**
- * Dashboard — User's home base
- * ----------------------------
- * Phase 12-A Task 6 fixes:
- *   - Level labels updated to Support/Growth/Strength
- *   - Score display fixed to /5 (not /100)
- *   - Question count is dynamic from assessment.questionTotal
+ * Dashboard — User's home base (v3 — compact + above-the-fold CTA)
+ * ----------------------------------------------------------------
+ * Layout goals:
+ *  - Primary CTA (Continue / Start / View) visible without scroll on
+ *    desktop AND mobile
+ *  - Tighter vertical rhythm — no oversized cards
+ *  - Certificate download uses authenticated blob fetch (no token loss)
+ *  - Modern, dense, scannable
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "../utils/toast";
-
 import api from "../api/axios";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "../components/LoadingSpinner";
 import { relativeTime, shortDate } from "../utils/formatDate";
 import CooldownBanner from "../components/CooldownBanner";
 
-// Brief-aligned level metadata — Support/Growth/Strength
 const LEVEL_META = {
-  Support:  { emoji: "🌱", badge: "bg-amber-100 text-amber-800"   },
-  Growth:   { emoji: "🌿", badge: "bg-indigo-100 text-indigo-800" },
-  Strength: { emoji: "🏆", badge: "bg-emerald-100 text-emerald-800" },
+  Support:  { emoji: "🌱", badge: "bg-amber-100 text-amber-800",   border: "border-l-amber-400",   ring: "#f59e0b", label: "Support",  description: "Building your foundation" },
+  Growth:   { emoji: "🌿", badge: "bg-indigo-100 text-indigo-800", border: "border-l-indigo-400",  ring: "#6366f1", label: "Growth",   description: "Developing your capabilities" },
+  Strength: { emoji: "🏆", badge: "bg-emerald-100 text-emerald-800", border: "border-l-emerald-400", ring: "#10b981", label: "Strength", description: "Recognised caregiver capability" },
 };
 
+// ── Main component ─────────────────────────────────────────────────
 function Dashboard() {
   const { user } = useAuth();
   const [assessments, setAssessments] = useState([]);
   const [cooldown, setCooldown]       = useState(null);
   const [loading, setLoading]         = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const hasLoadedOnce = useRef(false);
 
   const fetchAssessments = useCallback(async ({ silent = false } = {}) => {
@@ -49,12 +51,11 @@ function Dashboard() {
     try {
       const res = await api.get("/assessments/cooldown-status");
       setCooldown(res.data.data.cooldown);
-    } catch {/* silent — cooldown is non-blocking */}
+    } catch {/* silent */}
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-
     const init = async () => {
       await Promise.all([fetchAssessments(), fetchCooldown()]);
       if (!cancelled) {
@@ -77,6 +78,31 @@ function Dashboard() {
     };
   }, [fetchAssessments, fetchCooldown]);
 
+  // Authenticated certificate download — same pattern as Results.jsx.
+  // Cannot use a plain <a href> with target="_blank" because that opens
+  // a new tab without the JWT cookie/header, which is exactly the
+  // "No token provided" error from the screenshot.
+  const handleDownloadCertificate = async (assessmentId, certificateId, level) => {
+    setDownloading(true);
+    try {
+      const response = await api.get(`/assessments/${assessmentId}/certificate`, { responseType: "blob" });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url  = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href  = url;
+      link.download = `CareAble_Certificate_${certificateId || level || "result"}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Certificate downloaded!");
+    } catch (err) {
+      toast.error(err.message || "Could not download certificate");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (loading) return <LoadingSpinner message="Loading your dashboard..." />;
 
   const submitted  = assessments.filter((a) => a.status === "submitted");
@@ -84,162 +110,502 @@ function Dashboard() {
   const latest     = submitted[0];
   const isLocked   = cooldown?.active && !inProgress;
 
-  // Dynamic question count from the locked assessment
   const inProgressTotal    = inProgress?.questionTotal ?? 36;
   const inProgressAnswered = inProgress?.answerCount ?? 0;
 
-  let ctaLabel = "Start Assessment";
-  if (inProgress) ctaLabel = "Continue Assessment";
-  else if (latest) ctaLabel = "Retake Assessment";
+  const topAreas = latest?.categoryScores
+    ? Object.entries(latest.categoryScores)
+        .filter(([, score]) => score >= 4.0)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+    : [];
+
+  const aiResources = (() => {
+    if (!latest?._id) return null;
+    try {
+      const saved = localStorage.getItem(`ai-insights-${latest._id}`);
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed?.resources) && parsed.resources.length > 0 ? parsed.resources : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const avgScore  = submitted.length > 0
+    ? (submitted.reduce((sum, a) => sum + (a.overallScore ?? 0), 0) / submitted.length).toFixed(2)
+    : null;
+  const bestScore = submitted.length > 0 ? Math.max(...submitted.map((a) => a.overallScore ?? 0)) : null;
 
   return (
-    <section className="flex-1 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <section className="flex-1 bg-gradient-to-b from-stone-50 via-white to-stone-50">
+      <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-5">
 
-        {/* Welcome */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 md:p-10">
-          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-            Welcome back, {user?.name?.split(" ")[0] || "friend"} 👋
-          </h1>
-          <p className="text-gray-500">Here's your caregiving journey at a glance.</p>
-        </div>
-
+        {/* Cooldown banner (only when active) */}
         {isLocked && <CooldownBanner cooldown={cooldown} />}
 
-        {/* Stat cards */}
-        <div className="grid md:grid-cols-3 gap-4">
-          <StatCard
-            label="Completed Assessments"
-            value={submitted.length}
-            color="indigo"
-          />
-          <StatCard
-            label="Latest Score"
-            value={latest ? latest.overallScore?.toFixed(2) ?? "—" : "—"}
-            suffix={latest ? "/ 5.00" : "Take your first"}
-            color="purple"
-          />
-          <StatCard
-            label="Current Level"
-            value={
-              latest ? (
-                <span className="inline-flex items-center gap-1">
-                  <span className="text-3xl">{LEVEL_META[latest.level]?.emoji ?? "—"}</span>
-                  <span>{latest.level}</span>
-                </span>
-              ) : "—"
-            }
-            color="pink"
-          />
-        </div>
+        {/* ROW 1 — Above the fold: hero (left) + primary CTA (right) */}
+        <div className="grid lg:grid-cols-5 gap-4">
 
-        {/* Main CTA */}
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl shadow-lg p-6 md:p-10 text-white">
-          <h2 className="text-2xl md:text-3xl font-bold mb-2">
-            {inProgress
-              ? "Your assessment is waiting"
-              : isLocked
-              ? "Take a moment to reflect"
-              : latest
-              ? "Keep your skills up to date"
-              : "Ready to begin?"}
-          </h2>
-          <p className="text-indigo-100 mb-6 max-w-2xl">
-            {inProgress
-              ? `You've answered ${inProgressAnswered} of ${inProgressTotal} questions. Pick up right where you left off.`
-              : isLocked
-              ? `You've recently completed an assessment. We'll unlock retakes in ${cooldown.daysRemaining} day${cooldown.daysRemaining === 1 ? "" : "s"} so your results stay meaningful.`
-              : "Discover your caregiving strengths across 12 capability domains. The assessment saves automatically as you go."}
-          </p>
-
-          {isLocked ? (
-            <button
-              disabled
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white/30 text-white/70 font-semibold rounded-lg cursor-not-allowed backdrop-blur-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              Locked · {cooldown.daysRemaining}d
-            </button>
-          ) : (
-            <Link
-              to="/assessment"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-700 font-semibold rounded-lg hover:bg-indigo-50 transition shadow-lg hover:shadow-xl"
-            >
-              {ctaLabel}
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
-          )}
-
-          {latest && (
-            <Link
-              to={`/results/${latest._id}`}
-              className="inline-block mt-3 ml-0 sm:ml-3 text-indigo-100 hover:text-white text-sm underline-offset-4 hover:underline"
-            >
-              View latest results →
-            </Link>
-          )}
-        </div>
-
-        {/* History */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">Your Assessment History</h2>
-            <span className="text-sm text-gray-500">
-              {assessments.length} {assessments.length === 1 ? "record" : "records"}
-            </span>
+          {/* Hero + score combined card */}
+          <div className="lg:col-span-3">
+            <HeroCard
+              user={user}
+              latest={latest}
+              inProgress={inProgress}
+            />
           </div>
 
-          {assessments.length === 0 ? (
-            <div className="text-center py-10">
-              <div className="inline-flex items-center justify-center w-12 h-12 bg-indigo-50 rounded-full mb-3">
-                <span className="text-2xl">📋</span>
-              </div>
-              <p className="text-gray-500">No assessments yet.</p>
-              <p className="text-sm text-gray-400 mt-1">Start your first one to see it here.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {assessments.map((a) => (
-                <AssessmentRow
-                  key={a._id}
-                  assessment={a}
-                  onDelete={() => fetchAssessments({ silent: true })}
-                />
-              ))}
-            </ul>
-          )}
+          {/* Primary action card — always visible without scroll */}
+          <div className="lg:col-span-2">
+            <PrimaryActionCard
+              inProgress={inProgress}
+              latest={latest}
+              isLocked={isLocked}
+              cooldown={cooldown}
+              inProgressTotal={inProgressTotal}
+              inProgressAnswered={inProgressAnswered}
+              downloading={downloading}
+              onDownload={handleDownloadCertificate}
+            />
+          </div>
         </div>
+
+        {/* ROW 2 — Stat strip (only after first assessment) */}
+        {submitted.length > 0 && (
+          <StatStrip
+            submitted={submitted}
+            avgScore={avgScore}
+            bestScore={bestScore}
+            topAreas={topAreas}
+          />
+        )}
+
+        {/* ROW 3 — Top capability areas (only after first assessment) */}
+        {latest && (
+          <TopAreasCard topAreas={topAreas} categoryScores={latest.categoryScores} />
+        )}
+
+        {/* ROW 4 — AI resources (only when generated) */}
+        {aiResources && (
+          <AiResourcesCard resources={aiResources} assessmentId={latest._id} />
+        )}
+
+        {/* ROW 5 — History */}
+        <HistorySection
+          assessments={assessments}
+          onDelete={() => fetchAssessments({ silent: true })}
+        />
       </div>
     </section>
   );
 }
 
-// ── Stat card ──────────────────────────────────────────────────────
-function StatCard({ label, value, suffix, color }) {
-  const colorClasses = {
-    indigo: "bg-indigo-50 text-indigo-700",
-    purple: "bg-purple-50 text-purple-700",
-    pink:   "bg-pink-50 text-pink-700",
-  };
+// ── HERO CARD — name + score ring (when latest exists) ─────────────
+function HeroCard({ user, latest, inProgress }) {
+  const firstName = user?.name?.split(" ")[0] || "friend";
+  const level     = latest?.level;
+  const meta      = level ? LEVEL_META[level] : null;
+  const initials  = user?.name
+    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    : "?";
+
+  const tagline = inProgress
+    ? "Your assessment is waiting — pick up where you left off."
+    : latest
+    ? "Your caregiving skills are documented and recognised."
+    : "Start your first assessment to discover your caregiver profile.";
+
   return (
-    <div className={`p-6 rounded-xl ${colorClasses[color]}`}>
-      <p className="text-sm font-medium">{label}</p>
-      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
-        <div className="text-3xl font-bold text-gray-900">{value}</div>
-        {suffix && <span className="text-sm text-gray-500">{suffix}</span>}
+    <div className="relative h-full overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
+      {/* Decorative blob */}
+      <div
+        className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(99,102,241,0.4), transparent 70%)" }}
+      />
+
+      <div className="relative flex flex-col h-full gap-4">
+
+        {/* Top: greeting */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              {meta ? (
+                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badge}`}>
+                  {meta.emoji} {meta.label} Level
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                  ✨ New Carer
+                </span>
+              )}
+            </div>
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+              Welcome back, {firstName} 👋
+            </h1>
+            <p className="text-xs md:text-sm text-gray-500 mt-1 line-clamp-2">{tagline}</p>
+          </div>
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0">
+            {initials}
+          </div>
+        </div>
+
+        {/* Bottom: score ring + brief stats — only if latest exists */}
+        {latest ? (
+          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+            <ScoreRingInline score={latest.overallScore ?? 0} level={latest.level} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Latest Score</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900 leading-none">
+                {(latest.overallScore ?? 0).toFixed(2)}
+                <span className="text-sm text-gray-400 font-normal ml-1">/ 5.00</span>
+              </p>
+              <p className="text-xs text-gray-500 mt-1 truncate">
+                {meta?.emoji} {meta?.label} · {meta?.description}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-6 border-t border-gray-100">
+            <p className="text-sm text-gray-400 italic">Take your first assessment to see your score here</p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Assessment row ─────────────────────────────────────────────────
-function AssessmentRow({ assessment, onDelete }) {
+// ── Inline score ring (compact 80px) ───────────────────────────────
+function ScoreRingInline({ score, level }) {
+  const meta   = LEVEL_META[level] ?? LEVEL_META.Growth;
+  const size   = 80;
+  const stroke = 7;
+  const r      = (size - stroke) / 2;
+  const circ   = 2 * Math.PI * r;
+  const progress   = Math.max(0, Math.min(1, (score - 1) / 4));
+  const dashOffset = circ * (1 - progress);
+
+  return (
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={meta.ring} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={dashOffset}
+          style={{ transition: "stroke-dashoffset 1s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-lg">{meta.emoji}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── PRIMARY ACTION CARD ────────────────────────────────────────────
+function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressTotal, inProgressAnswered, downloading, onDownload }) {
+
+  // Decide the hero CTA based on state priority
+  let mainCta = null;
+
+  if (isLocked) {
+    mainCta = {
+      type: "locked",
+      title: "Retake locked",
+      sub: `Available in ${cooldown?.daysRemaining ?? "?"} day${cooldown?.daysRemaining === 1 ? "" : "s"}`,
+      icon: "🔒",
+    };
+  } else if (inProgress) {
+    mainCta = {
+      type: "link",
+      to: "/assessment",
+      title: "Continue Assessment",
+      sub: `${inProgressAnswered} of ${inProgressTotal} answered`,
+      icon: "⏳",
+      progress: inProgressTotal > 0 ? (inProgressAnswered / inProgressTotal) * 100 : 0,
+    };
+  } else if (latest) {
+    mainCta = {
+      type: "link",
+      to: "/assessment",
+      title: "Retake Assessment",
+      sub: "Take a fresh assessment",
+      icon: "🔄",
+    };
+  } else {
+    mainCta = {
+      type: "link",
+      to: "/assessment",
+      title: "Start Assessment",
+      sub: "Discover your caregiver profile",
+      icon: "▶",
+    };
+  }
+
+  return (
+    <div className="h-full flex flex-col gap-3">
+
+      {/* Hero CTA — big gradient card */}
+      {mainCta.type === "locked" ? (
+        <div className="flex-1 bg-gray-100 border border-gray-200 rounded-2xl p-5 flex flex-col justify-between min-h-[140px]">
+          <div>
+            <span className="text-2xl">{mainCta.icon}</span>
+            <p className="font-bold text-gray-800 text-base mt-2">{mainCta.title}</p>
+            <p className="text-xs text-gray-500 mt-1">{mainCta.sub}</p>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-3">This helps keep your results meaningful</p>
+        </div>
+      ) : (
+        <Link
+          to={mainCta.to}
+          className="group flex-1 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between min-h-[140px] hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
+        >
+          <div>
+            <span className="text-2xl">{mainCta.icon}</span>
+            <p className="font-bold text-white text-base mt-2">{mainCta.title}</p>
+            <p className="text-xs text-indigo-100 mt-1">{mainCta.sub}</p>
+            {/* Inline progress for in-progress assessment */}
+            {mainCta.progress !== undefined && (
+              <div className="mt-3 w-full h-1 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-white rounded-full transition-all duration-700"
+                  style={{ width: `${mainCta.progress}%` }}
+                />
+              </div>
+            )}
+          </div>
+          <span className="text-white text-xs group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 self-end">
+            Open <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+          </span>
+        </Link>
+      )}
+
+      {/* Two small action chips */}
+      <div className="grid grid-cols-2 gap-3">
+        {latest ? (
+          <Link
+            to={`/results/${latest._id}`}
+            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base flex-shrink-0">📊</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-800 truncate">View Results</p>
+                <p className="text-[10px] text-gray-400 truncate">
+                  {latest.overallScore?.toFixed(2)} · {latest.level}
+                </p>
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50">
+            <div className="flex items-center gap-2">
+              <span className="text-base flex-shrink-0">📊</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-600 truncate">View Results</p>
+                <p className="text-[10px] text-gray-400 truncate">After your first</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {latest ? (
+          <button
+            onClick={() => onDownload(latest._id, latest.certificateId, latest.level)}
+            disabled={downloading}
+            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-emerald-200 hover:shadow-sm transition-all text-left disabled:opacity-60 disabled:cursor-wait"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base flex-shrink-0">{downloading ? "⏳" : "🏅"}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-800 truncate">
+                  {downloading ? "Preparing…" : "Latest Certificate"}
+                </p>
+                <p className="text-[10px] text-emerald-600 truncate font-medium">
+                  {downloading ? "Just a moment" : "Download PDF →"}
+                </p>
+              </div>
+            </div>
+          </button>
+        ) : (
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50">
+            <div className="flex items-center gap-2">
+              <span className="text-base flex-shrink-0">🏅</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-gray-600 truncate">Certificate</p>
+                <p className="text-[10px] text-gray-400 truncate">After your first</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── STAT STRIP — compact 4-up ──────────────────────────────────────
+function StatStrip({ submitted, avgScore, bestScore, topAreas }) {
+  const topAreaName = topAreas[0] ? formatCategoryKey(topAreas[0][0]) : "—";
+
+  const stats = [
+    { label: "Assessments", value: submitted.length,             color: "text-indigo-600" },
+    { label: "Avg Score",   value: avgScore ?? "—",              color: "text-purple-600" },
+    { label: "Best Score",  value: bestScore?.toFixed(2) ?? "—", color: "text-emerald-600" },
+    { label: "Top Domain",  value: topAreaName,                  color: "text-amber-600", small: true },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+      {stats.map((s) => (
+        <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+          <p className="text-[10px] font-medium text-gray-400 mb-0.5 uppercase tracking-wide">{s.label}</p>
+          <p className={`font-bold leading-tight ${s.small ? "text-xs md:text-sm" : "text-xl md:text-2xl"} ${s.color}`}>
+            {s.value}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── TOP AREAS CARD ─────────────────────────────────────────────────
+function TopAreasCard({ topAreas, categoryScores }) {
+  const allScored = categoryScores
+    ? Object.entries(categoryScores).filter(([, s]) => s != null).sort(([, a], [, b]) => b - a)
+    : [];
+  const belowStrength = allScored.filter(([, s]) => s < 4.0);
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">Top Capability Areas</h2>
+          <p className="text-xs text-gray-400">Domains scored 4.0 or above</p>
+        </div>
+        <span className="text-[11px] font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
+          {topAreas.length} {topAreas.length === 1 ? "strength" : "strengths"}
+        </span>
+      </div>
+
+      {topAreas.length === 0 ? (
+        <p className="text-sm text-gray-400 italic py-2">No domains scored ≥ 4.0 yet — keep building.</p>
+      ) : (
+        <div className="space-y-1.5">
+          {topAreas.map(([key, score]) => (
+            <div key={key} className="flex items-center justify-between gap-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-xs font-medium text-emerald-800 min-w-0 flex-1 truncate">
+                🏅 {formatCategoryKey(key)}
+              </span>
+              <span className="text-xs font-bold text-emerald-700 flex-shrink-0">{score.toFixed(2)}</span>
+            </div>
+          ))}
+          {belowStrength.length > 0 && (
+            <p className="text-[11px] text-gray-400 pt-1.5">
+              +{belowStrength.length} other domain{belowStrength.length !== 1 ? "s" : ""} scored below 4.0
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── AI RESOURCES CARD ──────────────────────────────────────────────
+function AiResourcesCard({ resources, assessmentId }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base">📚</span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-gray-900">Recommended Resources</h2>
+            <p className="text-[11px] text-gray-400 truncate">From your AI Insights · tailored to your profile</p>
+          </div>
+        </div>
+        <Link
+          to={`/results/${assessmentId}`}
+          onClick={() => sessionStorage.setItem("results-tab", "ai-insights")}
+          className="text-xs text-indigo-500 hover:text-indigo-700 font-medium transition whitespace-nowrap flex-shrink-0"
+        >
+          View all →
+        </Link>
+      </div>
+
+      <div className="divide-y divide-gray-50">
+        {resources.map((r, i) => {
+          const searchQuery = encodeURIComponent(`${r.organisation} ${r.program} Australia`);
+          const searchUrl   = `https://www.google.com/search?q=${searchQuery}`;
+          return (
+            <a key={i} href={searchUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-start gap-3 px-5 py-3 hover:bg-indigo-50 transition group">
+              <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-[11px] flex-shrink-0 group-hover:bg-indigo-200 transition">
+                {i + 1}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition">
+                    {r.program || r.title}
+                  </p>
+                  {r.type && (
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{r.type}</span>
+                  )}
+                </div>
+                {r.organisation && (
+                  <p className="text-[11px] font-medium text-indigo-600 mt-0.5">{r.organisation}</p>
+                )}
+                <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{r.description}</p>
+              </div>
+              <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 flex-shrink-0 mt-0.5 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── HISTORY SECTION ────────────────────────────────────────────────
+function HistorySection({ assessments, onDelete }) {
+  if (assessments.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-8 text-center">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-indigo-50 flex items-center justify-center">
+          <span className="text-xl">📋</span>
+        </div>
+        <p className="text-sm text-gray-700 font-semibold">No assessments yet</p>
+        <p className="text-xs text-gray-400 mt-1">Start your first assessment to see your history here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
+        <h2 className="text-sm font-bold text-gray-900">Assessment History</h2>
+        <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+          {assessments.length} {assessments.length === 1 ? "record" : "records"}
+        </span>
+      </div>
+      <div className="divide-y divide-gray-50">
+        {assessments.map((a, idx) => (
+          <HistoryCard
+            key={a._id}
+            assessment={a}
+            isLatest={idx === 0 && a.status === "submitted"}
+            onDelete={onDelete}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HistoryCard({ assessment, isLatest, onDelete }) {
   const isSubmitted = assessment.status === "submitted";
-  const levelMeta   = isSubmitted ? LEVEL_META[assessment.level] : null;
+  const meta        = isSubmitted ? (LEVEL_META[assessment.level] ?? null) : null;
   const dateSource  = assessment.submittedAt || assessment.updatedAt;
   const total       = assessment.questionTotal ?? 36;
 
@@ -257,59 +623,66 @@ function AssessmentRow({ assessment, onDelete }) {
   };
 
   return (
-    <li>
-      <div className="flex items-center gap-2 group">
-        <Link
-          to={isSubmitted ? `/results/${assessment._id}` : "/assessment"}
-          className="block flex-1 px-2 -mx-2 rounded-lg hover:bg-gray-50 transition min-w-0"
-        >
-          <div className="flex items-center justify-between py-4 gap-4">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <div className="text-2xl flex-shrink-0">
-                {isSubmitted ? (levelMeta?.emoji ?? "📋") : "⏳"}
-              </div>
-              <div className="min-w-0">
-                <p className="text-gray-900 font-medium">
-                  {isSubmitted ? "Submitted" : "In progress"} · {shortDate(dateSource)}
-                </p>
-                {isSubmitted ? (
-                  <p className="text-sm text-gray-500">
-                    Score:{" "}
-                    <span className="font-semibold text-gray-700">
-                      {assessment.overallScore?.toFixed(2) ?? "—"} / 5.00
-                    </span>
-                    <span className="mx-1.5 text-gray-300">·</span>
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${levelMeta?.badge ?? ""}`}>
-                      {assessment.level}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    {assessment.answerCount ?? 0} of {total} answered · Updated {relativeTime(dateSource)}
-                  </p>
+    <div className={`flex items-stretch group border-l-4 ${meta ? meta.border : "border-l-gray-200"} hover:bg-gray-50 transition-colors`}>
+      <Link to={isSubmitted ? `/results/${assessment._id}` : "/assessment"} className="flex-1 px-4 py-3 min-w-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <span className="text-lg flex-shrink-0">{isSubmitted ? (meta?.emoji ?? "📋") : "⏳"}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <p className="text-sm font-semibold text-gray-900">{shortDate(dateSource)}</p>
+                {isLatest && (
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide">Latest</span>
+                )}
+                {isSubmitted && meta && (
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${meta.badge}`}>{meta.label}</span>
+                )}
+                {!isSubmitted && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">In progress</span>
                 )}
               </div>
-            </div>
-            <div className="text-sm text-gray-400 flex-shrink-0">
-              {isSubmitted ? "View →" : "Continue →"}
+              {isSubmitted ? (
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Score <span className="font-semibold text-gray-600">{assessment.overallScore?.toFixed(2) ?? "—"} / 5.00</span>
+                  {assessment.certificateId && (
+                    <><span className="mx-1">·</span><span className="font-mono">{assessment.certificateId}</span></>
+                  )}
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  {assessment.answerCount ?? 0} of {total} answered · {relativeTime(dateSource)}
+                </p>
+              )}
             </div>
           </div>
-        </Link>
+          <span className="text-[11px] text-gray-300 flex-shrink-0 group-hover:text-indigo-400 transition-colors">
+            {isSubmitted ? "View →" : "Continue →"}
+          </span>
+        </div>
+      </Link>
 
-        {!isSubmitted && (
-          <button
-            onClick={handleDiscard}
-            title="Discard this assessment"
-            className="opacity-50 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition flex-shrink-0"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+      {!isSubmitted && (
+        <div className="flex items-center pr-3">
+          <button onClick={handleDiscard} title="Discard this assessment"
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
             </svg>
           </button>
-        )}
-      </div>
-    </li>
+        </div>
+      )}
+    </div>
   );
+}
+
+// ── Utility ────────────────────────────────────────────────────────
+function formatCategoryKey(key) {
+  if (!key) return "";
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
 }
 
 export default Dashboard;
