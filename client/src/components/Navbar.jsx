@@ -73,16 +73,10 @@ function Navbar() {
         <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link
-            to="/"
-            onClick={closeMenu}
-            className="flex items-center gap-2 hover:opacity-80 transition"
-            aria-label={`${BRAND.name} home`}
-          >
-            <span className="text-2xl">{BRAND.emoji}</span>
-            <span className="text-xl font-bold text-gray-900">{BRAND.name}</span>
+          <Link to="/" onClick={closeMenu} className="flex items-center gap-2 hover:opacity-80 transition" aria-label="CareAble home">
+            <img src="/logo-icon.png" alt="" className="w-8 h-8 object-contain" aria-hidden="true" />
+            <span className="text-xl font-bold text-gray-900">{BRAND.text}</span>
           </Link>
-
           {/* Desktop nav links — role-aware */}
           <div className="hidden md:flex items-center gap-2">
             <NavLink to="/" className={linkStyle} end>

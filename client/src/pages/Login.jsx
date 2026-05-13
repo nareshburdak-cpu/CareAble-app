@@ -12,6 +12,8 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import toast from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
 import FormInput from "../components/FormInput";
+import BRAND from "../constants/brand";
+
 
 function Login() {
   const navigate = useNavigate();
@@ -81,8 +83,9 @@ function Login() {
   return (
     <section className="flex-1 flex items-center justify-center p-4 py-12">
       <div className="bg-white rounded-2xl shadow-xl p-8 md:p-10 max-w-md w-full">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
-        <p className="text-gray-500 mb-8">Log in to continue your journey.</p>
+        <img src="/logo-icon.png" alt="" className="w-14 h-14 object-contain mx-auto mb-3" aria-hidden="true" />
+        <h1 className="text-2xl font-bold text-gray-900 mb-1 text-center">Welcome back</h1>
+        <p className="text-gray-500 mb-8 text-center">Log in to continue your journey.</p>
 
         <form onSubmit={handleSubmit} noValidate>
           <FormInput

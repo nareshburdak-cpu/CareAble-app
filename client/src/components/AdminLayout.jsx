@@ -10,7 +10,6 @@
 import { useState, useEffect } from "react";
 import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import logo from "../assets/vite.svg";
 
 const NAV_ITEMS = [
   { to: "/admin-x7k9p", end: true, label: "Analytics",   icon: "chart"    },
@@ -49,7 +48,7 @@ function AdminLayout() {
 
         <Link to="/admin-x7k9p" className="flex items-center gap-2.5 px-5 py-4 border-b border-stone-100 hover:bg-stone-50 transition group">
           <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center p-1">
-            <img src={logo} alt="CareAble" className="w-full h-full object-contain" />
+            <img src="/logo-icon.png" alt="CareAble" className="w-full h-full object-contain" />
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>
@@ -105,7 +104,7 @@ function AdminLayout() {
       <div className="md:hidden fixed top-0 left-0 right-0 bg-white border-b border-stone-200 px-4 py-3 z-30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-md overflow-hidden flex items-center justify-center p-1">
-            <img src={logo} alt="CareAble" className="w-full h-full object-contain" />
+            <img src="/logo-icon.png" alt="CareAble" className="w-full h-full object-contain" />
           </div>
           <span className="font-bold text-stone-900 text-sm">Admin Panel</span>
         </div>
@@ -137,7 +136,7 @@ function AdminLayout() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-stone-100">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
-              <img src={logo} alt="CareAble" className="w-full h-full object-contain" />
+              <img src="/logo-icon.png" alt="CareAble" className="w-full h-full object-contain" />
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>

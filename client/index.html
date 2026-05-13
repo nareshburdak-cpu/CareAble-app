@@ -2,24 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="src/assets/vite.svg" />
+    <link rel="icon" type="image/png" href="/logo-icon.png" />
+    <link rel="apple-touch-icon" href="/logo-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#6366f1" />
-    <title>CareAble — Supporting hidden caregiving workers</title>
-    <meta
-      name="description"
-      content="Self-assess your caregiving skills and align with the Australian Skills Classification."
-    />
 
-    <!-- Pre-React loading screen — renders instantly -->
+    <!-- Primary meta -->
+    <title>CareAble — Caregiver Capability Recognition</title>
+    <meta name="description" content="CareAble helps unpaid carers recognise and validate their caregiving skills. Take a free self-assessment, get a personalised capability report, and download a professional digital certificate." />
+
+    <!-- Open Graph (social sharing) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://careable.site" />
+    <meta property="og:title" content="CareAble — Caregiver Capability Recognition" />
+    <meta property="og:description" content="Turn your caregiving experience into recognised, professional capability. Free self-assessment aligned with the Australian Skills Classification." />
+    <meta property="og:image" content="https://careable.site/og-image.png" />
+
+    <!-- Twitter card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CareAble — Caregiver Capability Recognition" />
+    <meta name="twitter:description" content="Turn your caregiving experience into recognised, professional capability." />
+    <meta name="twitter:image" content="https://careable.site/og-image.png" />
+
+    <!-- Theme colour -->
+    <meta name="theme-color" content="#4f46e5" />
+
     <style>
-      /* Minimal base — Tailwind handles everything else once loaded */
       body {
         margin: 0;
         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
       }
 
-      /* Fullscreen loading screen */
       #initial-loader {
         position: fixed;
         inset: 0;
@@ -38,23 +50,28 @@
         pointer-events: none;
       }
 
-      .loader-logo {
-        font-size: 3rem;
+      .loader-logo-img {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
         margin-bottom: 1rem;
         animation: loader-pulse 1.4s ease-in-out infinite;
+        filter: brightness(0) invert(1);
       }
 
       .loader-brand {
         font-size: 1.5rem;
-        font-weight: 600;
+        font-weight: 700;
         letter-spacing: -0.02em;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
       }
 
       .loader-tagline {
         font-size: 0.875rem;
         opacity: 0.8;
         margin-bottom: 2rem;
+        text-align: center;
+        max-width: 280px;
       }
 
       .loader-spinner {
@@ -77,9 +94,9 @@
     </style>
   </head>
   <body>
-    <!-- This shows IMMEDIATELY, before React loads -->
+    <!-- Loading screen — shows before React mounts -->
     <div id="initial-loader">
-      <div class="loader-logo">🫶</div>
+      <img src="/logo-icon.png" alt="CareAble" class="loader-logo-img" />
       <div class="loader-brand">CareAble</div>
       <div class="loader-tagline">Supporting hidden caregiving workers in Australia</div>
       <div class="loader-spinner" aria-label="Loading"></div>
@@ -87,8 +104,6 @@
 
     <!-- React mounts here -->
     <div id="root"></div>
-
-    <!-- Main app bundle -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

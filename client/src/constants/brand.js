@@ -1,25 +1,26 @@
 /**
  * Brand Constants
  * ---------------
- * Single source of truth for all CareAble brand strings.
+ * Single source of truth for all CareAble brand strings and colours.
  * 🚨 If you change `tagline`, also update client/index.html
  */
 
 export const BRAND = {
   // Core identity
   name: "CareAble",
+  text: "CareAble",
   tagline: "Supporting hidden caregiving workers",
   shortDescription:
     "Self-assess your caregiving skills, aligned with the Australian Skills Classification.",
   longDescription:
     "CareAble helps unpaid carers — family members, friends, and neighbours — recognise and celebrate their caregiving skills. Get a personalised capability report and a professional digital certificate.",
-  
-    // Version (manually bump this on releases)
-  version: "0.8.0",   // Phase 8 = v0.8
+
+  // Version (manually bump this on releases)
+  version: "0.13.0",   // Phase 13 = v0.13
 
   // Contact email (used on Contact page)
   supportEmail: "hello@careable.site",
-  
+
   // Partners
   university: "La Trobe University",
   centre: "ACAMI",
@@ -35,6 +36,16 @@ export const BRAND = {
 
   // Symbols
   emoji: "🫶",
+
+  // Brand colours — extracted from official logo SVG
+  // Use these in BrandWordmark and anywhere else brand colour is needed
+  colors: {
+    care: "#40aa9b",   // teal  — "Care" half of wordmark
+    able: "#2c6bc2",   // blue  — "Able" half of wordmark
+  },
+
+  // Wordmark font stack — Century Gothic with safe fallbacks
+  fontStack: "'Century Gothic', 'Gill Sans', 'Trebuchet MS', Futura, sans-serif",
 };
 
 // Convenience exports

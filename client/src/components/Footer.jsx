@@ -24,9 +24,9 @@ function Footer() {
           {/* Brand block */}
           <div className="col-span-5">
             <Link to="/" className="inline-flex items-center gap-2.5 mb-4 group">
-              <span className="text-3xl group-hover:scale-110 transition-transform duration-200">{BRAND.emoji}</span>
-              <span className="font-serif font-bold text-2xl text-stone-900 group-hover:text-indigo-700 transition">{BRAND.name}</span>
-            </Link>
+              <img src="/logo-icon.png" alt="" className="w-9 h-9 object-contain group-hover:scale-110 transition-transform duration-200" aria-hidden="true" />
+              <span className="text-2xl font-bold text-stone-900">{BRAND.text}</span>
+            </Link>            
             <p className="text-sm text-stone-500 leading-relaxed mb-5 max-w-xs">{BRAND.tagline}. Helping unpaid carers turn everyday caregiving into recognised, professional capability.</p>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 rounded-full shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -68,10 +68,10 @@ function Footer() {
         <div className="md:hidden mb-8">
           <div className="flex items-center justify-between mb-6">
             <Link to="/" className="inline-flex items-center gap-2 group">
-              <span className="text-2xl group-hover:scale-110 transition-transform">{BRAND.emoji}</span>
-              <span className="font-serif font-bold text-xl text-stone-900">{BRAND.name}</span>
+              <img src="/logo-icon.png" alt="" className="w-8 h-8 object-contain group-hover:scale-110 transition-transform" aria-hidden="true" />
+              <span className="text-xl font-bold text-stone-900">{BRAND.text}</span>
             </Link>
-            <span className="font-mono text-xs text-stone-400 bg-white border border-stone-200 px-2 py-0.5 rounded-md">{"v" + BRAND.version}</span>
+           <span className="font-mono text-xs text-stone-400 bg-white border border-stone-200 px-2 py-0.5 rounded-md">{"v" + BRAND.version}</span>
           </div>
 
           <p className="text-sm text-stone-500 leading-relaxed mb-5">{BRAND.tagline}.</p>

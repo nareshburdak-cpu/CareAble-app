@@ -16,6 +16,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
+import BRAND from "../constants/brand";
+
 
 // ── helpers ────────────────────────────────────────────────────────
 const MONTHS = [
@@ -224,9 +226,13 @@ function Register() {
           {step === 1 && (
             <>
               <div className="text-center mb-8">
-                <span className="inline-block text-4xl mb-3">👋</span>
+                <img
+                  src="/logo-icon.png"
+                  alt="CareAble"
+                  className="w-14 h-14 object-contain mx-auto mb-3"
+                />
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  Welcome to CareAble
+                  Welcome to {BRAND.text}
                 </h1>
                 <p className="text-gray-500">
                   How would you like to use CareAble? You can select more than one.
