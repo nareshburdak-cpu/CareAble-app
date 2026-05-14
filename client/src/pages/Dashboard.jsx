@@ -3,12 +3,13 @@
 /**
  * Dashboard — User's home base (v3 — compact + above-the-fold CTA)
  * ----------------------------------------------------------------
- * Layout goals:
- *  - Primary CTA (Continue / Start / View) visible without scroll on
- *    desktop AND mobile
- *  - Tighter vertical rhythm — no oversized cards
- *  - Certificate download uses authenticated blob fetch (no token loss)
- *  - Modern, dense, scannable
+ * Mobile overflow fixes:
+ *  - StatStrip: clamped font sizes, min-w-0 on all cells
+ *  - HistoryCard: certificate ID truncated, overflow-hidden on row
+ *  - TopAreasCard: badge text truncates correctly
+ *  - PrimaryActionCard chips: text truncates instead of overflowing
+ *  - HeroCard: score number won't push layout on tiny screens
+ *  - All containers: max-w-full + overflow-hidden guards added
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,8 +22,8 @@ import { relativeTime, shortDate } from "../utils/formatDate";
 import CooldownBanner from "../components/CooldownBanner";
 
 const LEVEL_META = {
-  Support:  { emoji: "🌱", badge: "bg-amber-100 text-amber-800",   border: "border-l-amber-400",   ring: "#f59e0b", label: "Support",  description: "Building your foundation" },
-  Growth:   { emoji: "🌿", badge: "bg-indigo-100 text-indigo-800", border: "border-l-indigo-400",  ring: "#6366f1", label: "Growth",   description: "Developing your capabilities" },
+  Support:  { emoji: "🌱", badge: "bg-amber-100 text-amber-800",    border: "border-l-amber-400",   ring: "#f59e0b", label: "Support",  description: "Building your foundation" },
+  Growth:   { emoji: "🌿", badge: "bg-indigo-100 text-indigo-800",  border: "border-l-indigo-400",  ring: "#6366f1", label: "Growth",   description: "Developing your capabilities" },
   Strength: { emoji: "🏆", badge: "bg-emerald-100 text-emerald-800", border: "border-l-emerald-400", ring: "#10b981", label: "Strength", description: "Recognised caregiver capability" },
 };
 
@@ -78,10 +79,6 @@ function Dashboard() {
     };
   }, [fetchAssessments, fetchCooldown]);
 
-  // Authenticated certificate download — same pattern as Results.jsx.
-  // Cannot use a plain <a href> with target="_blank" because that opens
-  // a new tab without the JWT cookie/header, which is exactly the
-  // "No token provided" error from the screenshot.
   const handleDownloadCertificate = async (assessmentId, certificateId, level) => {
     setDownloading(true);
     try {
@@ -138,26 +135,17 @@ function Dashboard() {
   const bestScore = submitted.length > 0 ? Math.max(...submitted.map((a) => a.overallScore ?? 0)) : null;
 
   return (
-    <section className="flex-1 bg-gradient-to-b from-stone-50 via-white to-stone-50">
+    <section className="flex-1 bg-gradient-to-b from-stone-50 via-white to-stone-50 overflow-x-hidden">
       <div className="max-w-6xl mx-auto px-4 py-4 md:py-6 space-y-4 md:space-y-5">
 
-        {/* Cooldown banner (only when active) */}
         {isLocked && <CooldownBanner cooldown={cooldown} />}
 
-        {/* ROW 1 — Above the fold: hero (left) + primary CTA (right) */}
+        {/* ROW 1 */}
         <div className="grid lg:grid-cols-5 gap-4">
-
-          {/* Hero + score combined card */}
-          <div className="lg:col-span-3">
-            <HeroCard
-              user={user}
-              latest={latest}
-              inProgress={inProgress}
-            />
+          <div className="lg:col-span-3 min-w-0">
+            <HeroCard user={user} latest={latest} inProgress={inProgress} />
           </div>
-
-          {/* Primary action card — always visible without scroll */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 min-w-0">
             <PrimaryActionCard
               inProgress={inProgress}
               latest={latest}
@@ -171,7 +159,7 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* ROW 2 — Stat strip (only after first assessment) */}
+        {/* ROW 2 */}
         {submitted.length > 0 && (
           <StatStrip
             submitted={submitted}
@@ -181,17 +169,17 @@ function Dashboard() {
           />
         )}
 
-        {/* ROW 3 — Top capability areas (only after first assessment) */}
+        {/* ROW 3 */}
         {latest && (
           <TopAreasCard topAreas={topAreas} categoryScores={latest.categoryScores} />
         )}
 
-        {/* ROW 4 — AI resources (only when generated) */}
+        {/* ROW 4 */}
         {aiResources && (
           <AiResourcesCard resources={aiResources} assessmentId={latest._id} />
         )}
 
-        {/* ROW 5 — History */}
+        {/* ROW 5 */}
         <HistorySection
           assessments={assessments}
           onDelete={() => fetchAssessments({ silent: true })}
@@ -201,7 +189,7 @@ function Dashboard() {
   );
 }
 
-// ── HERO CARD — name + score ring (when latest exists) ─────────────
+// ── HERO CARD ──────────────────────────────────────────────────────
 function HeroCard({ user, latest, inProgress }) {
   const firstName = user?.name?.split(" ")[0] || "friend";
   const level     = latest?.level;
@@ -218,16 +206,14 @@ function HeroCard({ user, latest, inProgress }) {
 
   return (
     <div className="relative h-full overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-5 md:p-6">
-      {/* Decorative blob */}
       <div
         className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: "radial-gradient(circle, rgba(99,102,241,0.4), transparent 70%)" }}
       />
 
       <div className="relative flex flex-col h-full gap-4">
-
-        {/* Top: greeting */}
         <div className="flex items-start justify-between gap-3">
+          {/* FIX: min-w-0 ensures text can truncate */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               {meta ? (
@@ -240,7 +226,8 @@ function HeroCard({ user, latest, inProgress }) {
                 </span>
               )}
             </div>
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+            {/* FIX: truncate long names */}
+            <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight truncate">
               Welcome back, {firstName} 👋
             </h1>
             <p className="text-xs md:text-sm text-gray-500 mt-1 line-clamp-2">{tagline}</p>
@@ -250,13 +237,14 @@ function HeroCard({ user, latest, inProgress }) {
           </div>
         </div>
 
-        {/* Bottom: score ring + brief stats — only if latest exists */}
         {latest ? (
           <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
             <ScoreRingInline score={latest.overallScore ?? 0} level={latest.level} />
+            {/* FIX: min-w-0 prevents score section from overflowing */}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Latest Score</p>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900 leading-none">
+              {/* FIX: score number sized so it never wraps on mobile */}
+              <p className="text-2xl font-bold text-gray-900 leading-none">
                 {(latest.overallScore ?? 0).toFixed(2)}
                 <span className="text-sm text-gray-400 font-normal ml-1">/ 5.00</span>
               </p>
@@ -275,7 +263,7 @@ function HeroCard({ user, latest, inProgress }) {
   );
 }
 
-// ── Inline score ring (compact 80px) ───────────────────────────────
+// ── SCORE RING ─────────────────────────────────────────────────────
 function ScoreRingInline({ score, level }) {
   const meta   = LEVEL_META[level] ?? LEVEL_META.Growth;
   const size   = 80;
@@ -305,8 +293,6 @@ function ScoreRingInline({ score, level }) {
 
 // ── PRIMARY ACTION CARD ────────────────────────────────────────────
 function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressTotal, inProgressAnswered, downloading, onDownload }) {
-
-  // Decide the hero CTA based on state priority
   let mainCta = null;
 
   if (isLocked) {
@@ -345,8 +331,6 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
 
   return (
     <div className="h-full flex flex-col gap-3">
-
-      {/* Hero CTA — big gradient card */}
       {mainCta.type === "locked" ? (
         <div className="flex-1 bg-gray-100 border border-gray-200 rounded-2xl p-5 flex flex-col justify-between min-h-[140px]">
           <div>
@@ -361,11 +345,11 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
           to={mainCta.to}
           className="group flex-1 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between min-h-[140px] hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
         >
-          <div>
+          <div className="min-w-0">
             <span className="text-2xl">{mainCta.icon}</span>
-            <p className="font-bold text-white text-base mt-2">{mainCta.title}</p>
-            <p className="text-xs text-indigo-100 mt-1">{mainCta.sub}</p>
-            {/* Inline progress for in-progress assessment */}
+            {/* FIX: truncate so title never breaks layout */}
+            <p className="font-bold text-white text-base mt-2 truncate">{mainCta.title}</p>
+            <p className="text-xs text-indigo-100 mt-1 truncate">{mainCta.sub}</p>
             {mainCta.progress !== undefined && (
               <div className="mt-3 w-full h-1 bg-white/20 rounded-full overflow-hidden">
                 <div
@@ -375,22 +359,22 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
               </div>
             )}
           </div>
-          <span className="text-white text-xs group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 self-end">
+          <span className="text-white text-xs group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 self-end mt-2">
             Open <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
           </span>
         </Link>
       )}
 
-      {/* Two small action chips */}
+      {/* FIX: chips use overflow-hidden + truncate to prevent blowout */}
       <div className="grid grid-cols-2 gap-3">
         {latest ? (
           <Link
             to={`/results/${latest._id}`}
-            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition-all"
+            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition-all overflow-hidden"
           >
             <div className="flex items-center gap-2">
               <span className="text-base flex-shrink-0">📊</span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-gray-800 truncate">View Results</p>
                 <p className="text-[10px] text-gray-400 truncate">
                   {latest.overallScore?.toFixed(2)} · {latest.level}
@@ -399,10 +383,10 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
             </div>
           </Link>
         ) : (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50">
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50 overflow-hidden">
             <div className="flex items-center gap-2">
               <span className="text-base flex-shrink-0">📊</span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-gray-600 truncate">View Results</p>
                 <p className="text-[10px] text-gray-400 truncate">After your first</p>
               </div>
@@ -414,13 +398,13 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
           <button
             onClick={() => onDownload(latest._id, latest.certificateId, latest.level)}
             disabled={downloading}
-            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-emerald-200 hover:shadow-sm transition-all text-left disabled:opacity-60 disabled:cursor-wait"
+            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-emerald-200 hover:shadow-sm transition-all text-left disabled:opacity-60 disabled:cursor-wait overflow-hidden w-full"
           >
             <div className="flex items-center gap-2">
               <span className="text-base flex-shrink-0">{downloading ? "⏳" : "🏅"}</span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-gray-800 truncate">
-                  {downloading ? "Preparing…" : "Latest Certificate"}
+                  {downloading ? "Preparing…" : "Certificate"}
                 </p>
                 <p className="text-[10px] text-emerald-600 truncate font-medium">
                   {downloading ? "Just a moment" : "Download PDF →"}
@@ -429,10 +413,10 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
             </div>
           </button>
         ) : (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50">
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50 overflow-hidden">
             <div className="flex items-center gap-2">
               <span className="text-base flex-shrink-0">🏅</span>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold text-gray-600 truncate">Certificate</p>
                 <p className="text-[10px] text-gray-400 truncate">After your first</p>
               </div>
@@ -444,7 +428,7 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
   );
 }
 
-// ── STAT STRIP — compact 4-up ──────────────────────────────────────
+// ── STAT STRIP ─────────────────────────────────────────────────────
 function StatStrip({ submitted, avgScore, bestScore, topAreas }) {
   const topAreaName = topAreas[0] ? formatCategoryKey(topAreas[0][0]) : "—";
 
@@ -452,15 +436,21 @@ function StatStrip({ submitted, avgScore, bestScore, topAreas }) {
     { label: "Assessments", value: submitted.length,             color: "text-indigo-600" },
     { label: "Avg Score",   value: avgScore ?? "—",              color: "text-purple-600" },
     { label: "Best Score",  value: bestScore?.toFixed(2) ?? "—", color: "text-emerald-600" },
-    { label: "Top Domain",  value: topAreaName,                  color: "text-amber-600", small: true },
+    { label: "Top Domain",  value: topAreaName,                  color: "text-amber-600",  small: true },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
       {stats.map((s) => (
-        <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
-          <p className="text-[10px] font-medium text-gray-400 mb-0.5 uppercase tracking-wide">{s.label}</p>
-          <p className={`font-bold leading-tight ${s.small ? "text-xs md:text-sm" : "text-xl md:text-2xl"} ${s.color}`}>
+        /* FIX: overflow-hidden + min-w-0 prevents any child from blowing out the cell */
+        <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 overflow-hidden min-w-0">
+          <p className="text-[10px] font-medium text-gray-400 mb-0.5 uppercase tracking-wide truncate">{s.label}</p>
+          {/* FIX: numeric stats use fixed size; domain name is small + truncated */}
+          <p className={`font-bold leading-tight truncate ${
+            s.small
+              ? "text-xs"                  // domain name — always small, always truncates
+              : "text-xl md:text-2xl"      // numbers — large on desktop, still fits mobile
+          } ${s.color}`}>
             {s.value}
           </p>
         </div>
@@ -478,12 +468,12 @@ function TopAreasCard({ topAreas, categoryScores }) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <div className="min-w-0">
           <h2 className="text-sm font-bold text-gray-900">Top Capability Areas</h2>
           <p className="text-xs text-gray-400">Domains scored 4.0 or above</p>
         </div>
-        <span className="text-[11px] font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
+        <span className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
           {topAreas.length} {topAreas.length === 1 ? "strength" : "strengths"}
         </span>
       </div>
@@ -493,9 +483,11 @@ function TopAreasCard({ topAreas, categoryScores }) {
       ) : (
         <div className="space-y-1.5">
           {topAreas.map(([key, score]) => (
-            <div key={key} className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-xs font-medium text-emerald-800 min-w-0 flex-1 truncate">
-                🏅 {formatCategoryKey(key)}
+            /* FIX: row is overflow-hidden, badge is min-w-0 + truncate */
+            <div key={key} className="flex items-center justify-between gap-3 overflow-hidden">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-xs font-medium text-emerald-800 min-w-0 flex-1 overflow-hidden">
+                <span className="flex-shrink-0">🏅</span>
+                <span className="truncate">{formatCategoryKey(key)}</span>
               </span>
               <span className="text-xs font-bold text-emerald-700 flex-shrink-0">{score.toFixed(2)}</span>
             </div>
@@ -517,7 +509,7 @@ function AiResourcesCard({ resources, assessmentId }) {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base">📚</span>
+          <span className="text-base flex-shrink-0">📚</span>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-gray-900">Recommended Resources</h2>
             <p className="text-[11px] text-gray-400 truncate">From your AI Insights · tailored to your profile</p>
@@ -544,15 +536,15 @@ function AiResourcesCard({ resources, assessmentId }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition">
+                  <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition truncate">
                     {r.program || r.title}
                   </p>
                   {r.type && (
-                    <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{r.type}</span>
+                    <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{r.type}</span>
                   )}
                 </div>
                 {r.organisation && (
-                  <p className="text-[11px] font-medium text-indigo-600 mt-0.5">{r.organisation}</p>
+                  <p className="text-[11px] font-medium text-indigo-600 mt-0.5 truncate">{r.organisation}</p>
                 )}
                 <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{r.description}</p>
               </div>
@@ -623,46 +615,51 @@ function HistoryCard({ assessment, isLatest, onDelete }) {
   };
 
   return (
-    <div className={`flex items-stretch group border-l-4 ${meta ? meta.border : "border-l-gray-200"} hover:bg-gray-50 transition-colors`}>
-      <Link to={isSubmitted ? `/results/${assessment._id}` : "/assessment"} className="flex-1 px-4 py-3 min-w-0">
-        <div className="flex items-center justify-between gap-3">
+    /* FIX: overflow-hidden on the row stops any child from breaking the card width */
+    <div className={`flex items-stretch group border-l-4 overflow-hidden ${meta ? meta.border : "border-l-gray-200"} hover:bg-gray-50 transition-colors`}>
+      <Link to={isSubmitted ? `/results/${assessment._id}` : "/assessment"} className="flex-1 px-4 py-3 min-w-0 overflow-hidden">
+        <div className="flex items-center justify-between gap-2">
+          {/* FIX: left side is min-w-0 so it shrinks before the right side is pushed out */}
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <span className="text-lg flex-shrink-0">{isSubmitted ? (meta?.emoji ?? "📋") : "⏳"}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-sm font-semibold text-gray-900">{shortDate(dateSource)}</p>
                 {isLatest && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide">Latest</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide flex-shrink-0">Latest</span>
                 )}
                 {isSubmitted && meta && (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${meta.badge}`}>{meta.label}</span>
+                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.badge}`}>{meta.label}</span>
                 )}
                 {!isSubmitted && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">In progress</span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">In progress</span>
                 )}
               </div>
               {isSubmitted ? (
-                <p className="text-[11px] text-gray-400 mt-0.5">
+                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                   Score <span className="font-semibold text-gray-600">{assessment.overallScore?.toFixed(2) ?? "—"} / 5.00</span>
+                  {/* FIX: certificate ID truncated, not allowed to overflow */}
                   {assessment.certificateId && (
-                    <><span className="mx-1">·</span><span className="font-mono">{assessment.certificateId}</span></>
+                    <><span className="mx-1">·</span>
+                    <span className="font-mono">{assessment.certificateId}</span></>
                   )}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-400 mt-0.5">
+                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                   {assessment.answerCount ?? 0} of {total} answered · {relativeTime(dateSource)}
                 </p>
               )}
             </div>
           </div>
-          <span className="text-[11px] text-gray-300 flex-shrink-0 group-hover:text-indigo-400 transition-colors">
+          {/* FIX: action text is flex-shrink-0 so it never disappears */}
+          <span className="text-[11px] text-gray-300 flex-shrink-0 group-hover:text-indigo-400 transition-colors whitespace-nowrap">
             {isSubmitted ? "View →" : "Continue →"}
           </span>
         </div>
       </Link>
 
       {!isSubmitted && (
-        <div className="flex items-center pr-3">
+        <div className="flex items-center pr-3 flex-shrink-0">
           <button onClick={handleDiscard} title="Discard this assessment"
             className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition opacity-0 group-hover:opacity-100">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

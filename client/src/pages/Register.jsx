@@ -231,10 +231,10 @@ function Register() {
                   alt="CareAble"
                   className="w-14 h-14 object-contain mx-auto mb-3"
                 />
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">
                   Welcome to {BRAND.text}
                 </h1>
-                <p className="text-gray-500">
+                <p className="text-sm text-gray-500">
                   How would you like to use CareAble? You can select more than one.
                 </p>
               </div>
