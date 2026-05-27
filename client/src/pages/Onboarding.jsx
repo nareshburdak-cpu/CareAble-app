@@ -1,17 +1,17 @@
 // client/src/pages/Onboarding.jsx
 
 /**
+ * Onboarding Wizard
+ * -----------------
+ * Step 0 — Contact details (phone, DOB, postcode)
+ *          ONLY shown for users missing these (Google signups).
+ *          Email signups collect them at registration → skip Step 0.
  * Step 1 — Hidden worker status (employment)
  * Step 2 — CALD status (language)
  * Step 3 — Caregiving information
  *
  * "Other" selections reveal a text input.
- * Dropdowns show options only (no re-selectable placeholder).
  * Each step validates before allowing Continue.
- *
- * Fixes:
- *   ✓ Sticky header now has bg-white + backdrop-blur so content doesn't bleed through
- *   ✓ Header height reduced (tighter py, smaller progress bar area)
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -19,6 +19,19 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import toast from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
+
+// ── DOB helpers (match Register page) ──────────────────────────────
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const currentYear = new Date().getFullYear();
+const YEARS = Array.from({ length: currentYear - 1920 - 15 }, (_, i) => currentYear - 16 - i);
+
+function getDaysInMonth(month, year) {
+  if (!month || !year) return 31;
+  return new Date(year, month, 0).getDate();
+}
 
 // ── Option data ────────────────────────────────────────────────────
 
@@ -108,30 +121,48 @@ const DURATION_OPTIONS = [
 
 // ── Main component ─────────────────────────────────────────────────
 export default function Onboarding() {
-  const { hasRole, refreshUser } = useAuth();
+  const { user, hasRole, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const isEmployerOnly =
     hasRole("employer") && !hasRole("carer") && !hasRole("admin");
 
-  const totalSteps = 3;
-  const [step, setStep]             = useState(1);
+  // Does this user still need contact details? (Google signups won't have phone)
+  const needsContactStep = !user?.phone;
+
+  // Build the active step list. Step 0 is conditional.
+  // steps = ["contact", "work", "language", "caregiving"] OR ["work", "language", "caregiving"]
+  const steps = needsContactStep
+    ? ["contact", "work", "language", "caregiving"]
+    : ["work", "language", "caregiving"];
+  const totalSteps = steps.length;
+
+  const [stepIndex, setStepIndex]   = useState(0); // 0-based index into `steps`
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors]         = useState({});
 
-  // Step 1
+  const currentStep = steps[stepIndex];
+
+  // ── Step 0 — Contact details ─────────────────────────────────────
+  const [phone, setPhone]       = useState("");
+  const [dobDay, setDobDay]     = useState("");
+  const [dobMonth, setDobMonth] = useState("");
+  const [dobYear, setDobYear]   = useState("");
+  const [postcode, setPostcode] = useState("");
+
+  // ── Step 1 — Work ────────────────────────────────────────────────
   const [employmentStatus, setEmploymentStatus]           = useState("");
   const [lookingForWork, setLookingForWork]               = useState(null);
   const [appliedForJobRecently, setAppliedForJobRecently] = useState(null);
   const [industryInterests, setIndustryInterests]         = useState([]);
   const [industryOther, setIndustryOther]                 = useState("");
 
-  // Step 2
+  // ── Step 2 — Language ────────────────────────────────────────────
   const [speaksOtherLanguage, setSpeaksOtherLanguage] = useState(null);
   const [primaryLanguage, setPrimaryLanguage]         = useState("");
   const [languageOther, setLanguageOther]             = useState("");
 
-  // Step 3
+  // ── Step 3 — Caregiving ──────────────────────────────────────────
   const [heardAboutFrom, setHeardAboutFrom]                       = useState("");
   const [heardAboutOther, setHeardAboutOther]                     = useState("");
   const [careReason, setCareReason]                               = useState("");
@@ -143,8 +174,35 @@ export default function Onboarding() {
   const [conditionsOther, setConditionsOther]                     = useState("");
   const [caregivingDuration, setCaregivingDuration]               = useState("");
 
+  const daysInMonth = getDaysInMonth(Number(dobMonth), Number(dobYear));
+
   // ── Validation ───────────────────────────────────────────────────
-  const validateStep1 = () => {
+  const validateContact = () => {
+    const e = {};
+    const phoneClean = phone.replace(/\s/g, "");
+    if (!phoneClean) {
+      e.phone = "Phone number is required.";
+    } else if (!/^(\+?61|0)[2-9]\d{8}$/.test(phoneClean)) {
+      e.phone = "Enter a valid Australian number (e.g. 0412 345 678).";
+    }
+    if (!dobDay || !dobMonth || !dobYear) {
+      e.dob = "Please enter your full date of birth.";
+    } else {
+      const dobDate = new Date(dobYear, dobMonth - 1, dobDay);
+      const minAge = new Date();
+      minAge.setFullYear(minAge.getFullYear() - 16);
+      if (dobDate > minAge) e.dob = "You must be at least 16 years old.";
+    }
+    if (!postcode.trim()) {
+      e.postcode = "Postcode is required.";
+    } else if (!/^\d{4}$/.test(postcode.trim())) {
+      e.postcode = "Enter a valid 4-digit Australian postcode.";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const validateWork = () => {
     const e = {};
     if (!employmentStatus) e.employmentStatus = "Please select your work situation.";
     if (lookingForWork === null) e.lookingForWork = "Please answer this question.";
@@ -157,7 +215,7 @@ export default function Onboarding() {
     return Object.keys(e).length === 0;
   };
 
-  const validateStep2 = () => {
+  const validateLanguage = () => {
     const e = {};
     if (speaksOtherLanguage === null) e.speaksOtherLanguage = "Please answer this question.";
     if (speaksOtherLanguage === true) {
@@ -170,7 +228,7 @@ export default function Onboarding() {
     return Object.keys(e).length === 0;
   };
 
-  const validateStep3 = () => {
+  const validateCaregiving = () => {
     const e = {};
     if (!heardAboutFrom) e.heardAboutFrom = "Please select how you heard about us.";
     if (heardAboutFrom === "Other" && !heardAboutOther.trim()) {
@@ -196,24 +254,33 @@ export default function Onboarding() {
     return Object.keys(e).length === 0;
   };
 
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case "contact":    return validateContact();
+      case "work":       return validateWork();
+      case "language":   return validateLanguage();
+      case "caregiving": return validateCaregiving();
+      default:           return true;
+    }
+  };
+
   // ── Navigation ───────────────────────────────────────────────────
   const handleNext = () => {
-    const valid = step === 1 ? validateStep1() : validateStep2();
-    if (!valid) return;
+    if (!validateCurrentStep()) return;
     setErrors({});
-    setStep((s) => s + 1);
+    setStepIndex((i) => i + 1);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   const handleBack = () => {
     setErrors({});
-    setStep((s) => s - 1);
+    setStepIndex((i) => i - 1);
     window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   // ── Submit ───────────────────────────────────────────────────────
   const handleFinish = async () => {
-    if (!validateStep3()) return;
+    if (!validateCaregiving()) return;
     setSubmitting(true);
     try {
       const resolvedIndustries = industryInterests.includes("Other")
@@ -236,7 +303,7 @@ export default function Onboarding() {
         ? [...careRecipientConditions.filter((c) => c !== "Other"), conditionsOther.trim()]
         : careRecipientConditions;
 
-      await api.patch("/auth/onboarding", {
+      const payload = {
         employmentStatus,
         lookingForWork,
         appliedForJobRecently,
@@ -249,7 +316,16 @@ export default function Onboarding() {
         careRecipientAgeBand,
         careRecipientConditions: resolvedConditions,
         caregivingDuration,
-      });
+      };
+
+      // Only send contact fields if we collected them (Google users)
+      if (needsContactStep) {
+        payload.phone = phone.replace(/\s/g, "");
+        payload.dob = new Date(dobYear, dobMonth - 1, dobDay).toISOString();
+        payload.postcode = postcode.trim();
+      }
+
+      await api.patch("/auth/onboarding", payload);
 
       await refreshUser();
       toast.success("All set! Welcome to CareAble 🎉");
@@ -261,52 +337,55 @@ export default function Onboarding() {
     }
   };
 
+  // Employer-only users shouldn't be here — bounce them
   if (isEmployerOnly) {
     navigate("/employer/dashboard", { replace: true });
     return null;
   }
 
+  const isLastStep = stepIndex === totalSteps - 1;
+
+  // Step labels for the progress header (adapts to whether Step 0 exists)
+  const stepLabels = needsContactStep
+    ? ["Details", "Work", "Language", "Caregiving"]
+    : ["Work", "Language", "Caregiving"];
+
   // ── Render ───────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-stone-50">
 
-      {/* ── Sticky top bar ──────────────────────────────────────────
-          bg-white + border-b ensures content never bleeds through.
-          Tighter py-2 reduces total header height.                  */}
+      {/* ── Sticky top bar ──────────────────────────────────────── */}
       <div className="sticky top-0 z-10 bg-white border-b border-stone-200 shadow-sm px-4 py-2">
         <div className="max-w-lg mx-auto">
 
-          {/* Brand + step counter — single compact row */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">🤲</span>
               <span className="font-bold text-stone-900 text-base">CareAble</span>
             </div>
             <span className="text-xs font-medium text-stone-400">
-              Step {step} of {totalSteps}
+              Step {stepIndex + 1} of {totalSteps}
             </span>
           </div>
 
-          {/* Progress bar */}
           <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-              style={{ width: `${(step / totalSteps) * 100}%` }}
+              style={{ width: `${((stepIndex + 1) / totalSteps) * 100}%` }}
             />
           </div>
 
-          {/* Step labels */}
           <div className="flex justify-between mt-1">
-            {["Work", "Language", "Caregiving"].map((label, i) => (
+            {stepLabels.map((label, i) => (
               <span
                 key={label}
                 className={`text-[11px] font-medium transition ${
-                  i + 1 === step ? "text-indigo-600" :
-                  i + 1 < step  ? "text-emerald-500" :
-                                  "text-stone-300"
+                  i === stepIndex ? "text-indigo-600" :
+                  i < stepIndex  ? "text-emerald-500" :
+                                   "text-stone-300"
                 }`}
               >
-                {i + 1 < step ? "✓ " : ""}{label}
+                {i < stepIndex ? "✓ " : ""}{label}
               </span>
             ))}
           </div>
@@ -318,7 +397,15 @@ export default function Onboarding() {
 
         {/* Step heading */}
         <div className="mb-5">
-          {step === 1 && (
+          {currentStep === "contact" && (
+            <>
+              <h1 className="text-2xl font-bold text-stone-900 mb-1">Your contact details</h1>
+              <p className="text-base text-stone-500">
+                A few details to complete your CareAble profile.
+              </p>
+            </>
+          )}
+          {currentStep === "work" && (
             <>
               <h1 className="text-2xl font-bold text-stone-900 mb-1">Your work situation</h1>
               <p className="text-base text-stone-500">
@@ -326,7 +413,7 @@ export default function Onboarding() {
               </p>
             </>
           )}
-          {step === 2 && (
+          {currentStep === "language" && (
             <>
               <h1 className="text-2xl font-bold text-stone-900 mb-1">Languages you speak</h1>
               <p className="text-base text-stone-500">
@@ -334,7 +421,7 @@ export default function Onboarding() {
               </p>
             </>
           )}
-          {step === 3 && (
+          {currentStep === "caregiving" && (
             <>
               <h1 className="text-2xl font-bold text-stone-900 mb-1">Your caregiving</h1>
               <p className="text-base text-stone-500">
@@ -344,8 +431,73 @@ export default function Onboarding() {
           )}
         </div>
 
-        {/* ── STEP 1 ──────────────────────────────────────────────── */}
-        {step === 1 && (
+        {/* ── STEP 0 — Contact ────────────────────────────────────── */}
+        {currentStep === "contact" && (
+          <div className="space-y-4">
+
+            <Section label="Mobile number" hint="Australian mobile number" error={errors.phone}>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setErrors((p) => ({ ...p, phone: "" }));
+                }}
+                placeholder="0412 345 678"
+                autoComplete="tel"
+                className={`block w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${
+                  errors.phone ? "border-red-300 bg-red-50" : "border-stone-300 bg-white"
+                }`}
+              />
+            </Section>
+
+            <Section label="Date of birth" error={errors.dob}>
+              <div className="grid grid-cols-3 gap-2">
+                <NativeSelect
+                  options={Array.from({ length: daysInMonth }, (_, i) => String(i + 1))}
+                  value={dobDay}
+                  placeholder="Day"
+                  onChange={(v) => { setDobDay(v); setErrors((p) => ({ ...p, dob: "" })); }}
+                />
+                <NativeSelect
+                  options={MONTHS}
+                  value={dobMonth ? MONTHS[Number(dobMonth) - 1] : ""}
+                  placeholder="Month"
+                  onChange={(v) => {
+                    setDobMonth(String(MONTHS.indexOf(v) + 1));
+                    setErrors((p) => ({ ...p, dob: "" }));
+                  }}
+                />
+                <NativeSelect
+                  options={YEARS.map(String)}
+                  value={dobYear}
+                  placeholder="Year"
+                  onChange={(v) => { setDobYear(v); setErrors((p) => ({ ...p, dob: "" })); }}
+                />
+              </div>
+            </Section>
+
+            <Section label="Postcode" hint="4-digit Australian postcode" error={errors.postcode}>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={postcode}
+                onChange={(e) => {
+                  setPostcode(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setErrors((p) => ({ ...p, postcode: "" }));
+                }}
+                placeholder="3000"
+                className={`block w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${
+                  errors.postcode ? "border-red-300 bg-red-50" : "border-stone-300 bg-white"
+                }`}
+              />
+            </Section>
+          </div>
+        )}
+
+        {/* ── STEP 1 — Work ───────────────────────────────────────── */}
+        {currentStep === "work" && (
           <div className="space-y-4">
 
             <Section label="Are you working at the moment?" error={errors.employmentStatus}>
@@ -424,8 +576,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ── STEP 2 ──────────────────────────────────────────────── */}
-        {step === 2 && (
+        {/* ── STEP 2 — Language ───────────────────────────────────── */}
+        {currentStep === "language" && (
           <div className="space-y-4">
 
             <Section
@@ -450,6 +602,7 @@ export default function Onboarding() {
                 <NativeSelect
                   options={LANGUAGE_OPTIONS}
                   value={primaryLanguage}
+                  placeholder="Select an option"
                   onChange={(v) => {
                     setPrimaryLanguage(v);
                     setErrors((p) => ({ ...p, primaryLanguage: "" }));
@@ -471,8 +624,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ── STEP 3 ──────────────────────────────────────────────── */}
-        {step === 3 && (
+        {/* ── STEP 3 — Caregiving ─────────────────────────────────── */}
+        {currentStep === "caregiving" && (
           <div className="space-y-4">
 
             <Section
@@ -482,6 +635,7 @@ export default function Onboarding() {
               <NativeSelect
                 options={HEARD_ABOUT_OPTIONS}
                 value={heardAboutFrom}
+                placeholder="Select an option"
                 onChange={(v) => {
                   setHeardAboutFrom(v);
                   setErrors((p) => ({ ...p, heardAboutFrom: "" }));
@@ -504,6 +658,7 @@ export default function Onboarding() {
               <NativeSelect
                 options={CARE_REASON_OPTIONS}
                 value={careReason}
+                placeholder="Select an option"
                 onChange={(v) => {
                   setCareReason(v);
                   setErrors((p) => ({ ...p, careReason: "" }));
@@ -529,6 +684,7 @@ export default function Onboarding() {
               <NativeSelect
                 options={RELATIONSHIP_OPTIONS}
                 value={careRecipientRelation}
+                placeholder="Select an option"
                 onChange={(v) => {
                   setCareRecipientRelation(v);
                   setErrors((p) => ({ ...p, careRecipientRelation: "" }));
@@ -554,6 +710,7 @@ export default function Onboarding() {
               <NativeSelect
                 options={AGE_BAND_OPTIONS}
                 value={careRecipientAgeBand}
+                placeholder="Select an option"
                 onChange={(v) => {
                   setCareRecipientAgeBand(v);
                   setErrors((p) => ({ ...p, careRecipientAgeBand: "" }));
@@ -603,6 +760,7 @@ export default function Onboarding() {
               <NativeSelect
                 options={DURATION_OPTIONS}
                 value={caregivingDuration}
+                placeholder="Select an option"
                 onChange={(v) => {
                   setCaregivingDuration(v);
                   setErrors((p) => ({ ...p, caregivingDuration: "" }));
@@ -616,7 +774,7 @@ export default function Onboarding() {
       {/* Fixed bottom nav */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
-          {step > 1 ? (
+          {stepIndex > 0 ? (
             <button
               onClick={handleBack}
               disabled={submitting}
@@ -629,13 +787,13 @@ export default function Onboarding() {
             </button>
           ) : (
             <div className="flex-shrink-0 text-xs text-stone-400 px-2">
-              Step {step} of {totalSteps}
+              Step {stepIndex + 1} of {totalSteps}
             </div>
           )}
 
           <div className="flex-1" />
 
-          {step < totalSteps ? (
+          {!isLastStep ? (
             <button
               onClick={handleNext}
               className="flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-sm"
@@ -771,7 +929,7 @@ function ChipToggle({ selected, onClick, label }) {
 }
 
 // ── Custom dropdown ────────────────────────────────────────────────
-function NativeSelect({ options, value, onChange }) {
+function NativeSelect({ options, value, onChange, placeholder = "Select an option" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -797,7 +955,7 @@ function NativeSelect({ options, value, onChange }) {
             : "border-stone-200 bg-white text-stone-400"
         } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
       >
-        <span>{selected || "Select an option"}</span>
+        <span>{selected || placeholder}</span>
         <svg
           className={`w-4 h-4 text-stone-400 transition-transform flex-shrink-0 ml-2 ${open ? "rotate-180" : ""}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}

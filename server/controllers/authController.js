@@ -934,18 +934,19 @@ const verifyOtp = asyncHandler(async (req, res) => {
   });
 });
 
+
 // ── completeOnboarding ─────────────────────────────────────────────
 /**
- * @desc    Save Appendix 2 carer onboarding answers and mark complete
+ * @desc    Save onboarding answers and mark complete
  * @route   PATCH /api/auth/onboarding
  * @access  Private
  *
- * Appendix 1 fields (name, phone, dob, postcode, terms)
- * are now collected at registration. This endpoint handles ONLY the
- * Appendix 2 carer-specific questions (employment, CALD, caregiving info).
+ * Appendix 1 fields (phone, dob, postcode) are normally collected at
+ * registration for EMAIL signups. GOOGLE signups skip the register form,
+ * so those fields arrive here instead (via Onboarding "Step 0").
  *
- * For employer-only users this endpoint shouldn't be called — they're
- * already onboarded at signup. Defensive: if hit, just mark complete.
+ * We only validate + persist Appendix 1 fields if the user is MISSING them.
+ * Appendix 2 (carer questions) are handled as before.
  */
 const completeOnboarding = asyncHandler(async (req, res) => {
   const user = req.user;
@@ -964,7 +965,49 @@ const completeOnboarding = asyncHandler(async (req, res) => {
     !user.roles.includes("carer") &&
     !user.roles.includes("admin");
 
-  // Employer-only somehow not marked complete — fix it
+  // ── Appendix 1 backfill (Google users) ───────────────────────────
+  // Only required/validated if the user doesn't already have them.
+  const needsPhone    = !user.phone;
+  const needsDob      = !user.dob;
+  const needsPostcode = !user.postcode;
+
+  const { phone, dob, postcode } = req.body;
+
+  if (needsPhone) {
+    if (!phone?.trim()) throw new ApiError(400, "Phone number is required.");
+    const phoneClean = phone.replace(/\s/g, "");
+    if (!/^(\+?61|0)[2-9]\d{8}$/.test(phoneClean)) {
+      throw new ApiError(
+        400,
+        "Please enter a valid Australian phone number (e.g. 0412 345 678)."
+      );
+    }
+    user.phone = phoneClean;
+  }
+
+  if (needsDob) {
+    if (!dob) throw new ApiError(400, "Date of birth is required.");
+    const dobDate = new Date(dob);
+    if (isNaN(dobDate.getTime())) {
+      throw new ApiError(400, "Invalid date of birth.");
+    }
+    const minAge = new Date();
+    minAge.setFullYear(minAge.getFullYear() - 16);
+    if (dobDate > minAge) {
+      throw new ApiError(400, "You must be at least 16 years old to use CareAble.");
+    }
+    user.dob = dobDate;
+  }
+
+  if (needsPostcode) {
+    if (!postcode?.trim()) throw new ApiError(400, "Postcode is required.");
+    if (!/^\d{4}$/.test(postcode.trim())) {
+      throw new ApiError(400, "Please enter a valid 4-digit Australian postcode.");
+    }
+    user.postcode = postcode.trim();
+  }
+
+  // Employer-only somehow not marked complete — fix it (after Appendix 1 backfill)
   if (isEmployerOnly) {
     user.onboardingComplete = true;
     await user.save();
@@ -977,17 +1020,14 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 
   // ── Appendix 2 — carer questions (all optional but should be sent) ──
   const {
-    // Hidden worker status
     employmentStatus,
     lookingForWork,
     appliedForJobRecently,
     industryInterests,
 
-    // CALD status
     speaksOtherLanguage,
     primaryLanguage,
 
-    // Caregiving information
     heardAboutFrom,
     careReason,
     careRecipientRelation,
@@ -996,13 +1036,11 @@ const completeOnboarding = asyncHandler(async (req, res) => {
     caregivingDuration,
   } = req.body;
 
-  // Light validation — enums where defined, types otherwise
   const VALID_EMPLOYMENT = ["full-time", "part-time", "casual", "none"];
   if (employmentStatus && !VALID_EMPLOYMENT.includes(employmentStatus)) {
     throw new ApiError(400, "Invalid employment status.");
   }
 
-  // Save fields — undefined fields are skipped (preserve nulls in DB)
   if (employmentStatus !== undefined)        user.employmentStatus = employmentStatus;
   if (lookingForWork !== undefined)          user.lookingForWork = !!lookingForWork;
   if (appliedForJobRecently !== undefined)   user.appliedForJobRecently = !!appliedForJobRecently;
@@ -1027,6 +1065,8 @@ const completeOnboarding = asyncHandler(async (req, res) => {
     data: { user },
   });
 });
+
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
