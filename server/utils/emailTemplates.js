@@ -293,9 +293,90 @@ function otpEmail({ name, otp, action }) {
   };
 }
 
+// =============================================================================
+// EMPLOYER INTEREST EMAIL (brokered contact)
+// =============================================================================
+/**
+ * Sent to a carer when an employer requests to connect via certificate verification.
+ * The carer's email is NEVER shared with the employer — CareAble brokers the intro.
+ * The employer's email is set as reply-to (handled in the controller), so the carer
+ * can choose to respond directly.
+ */
+function employerInterestEmail({ carerName, employerName, employerOrg, message }) {
+  const firstName = carerName?.split(" ")[0] || "there";
+
+  // Escape any user-supplied text to prevent HTML injection in the email body.
+  const esc = (s) =>
+    String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+
+  const safeEmployer = esc(employerName) || "An employer";
+  const safeOrg = employerOrg ? esc(employerOrg) : "";
+  const safeMessage = message ? esc(message) : "";
+
+  const messageBlock = safeMessage
+    ? `
+    <p style="margin: 0 0 8px 0; color: #78716c; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">
+      Their message
+    </p>
+    <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #f5f3ff; border-left: 4px solid #7c3aed; border-radius: 8px; margin: 0 0 24px 0;">
+      <tr>
+        <td style="padding: 16px 20px; color: #44403c; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${safeMessage}</td>
+      </tr>
+    </table>`
+    : "";
+
+  const content = `
+    <h2 style="margin: 0 0 16px 0; color: #1c1917; font-size: 26px; font-weight: 700; letter-spacing: -0.02em;">
+      An employer is interested 🤝
+    </h2>
+
+    <p style="margin: 0 0 16px 0; color: #44403c; font-size: 16px; line-height: 1.6;">
+      Hi ${esc(firstName)}, good news — <strong>${safeEmployer}</strong>${
+        safeOrg ? ` from <strong>${safeOrg}</strong>` : ""
+      } verified your ${BRAND.name} certificate and would like to connect with you about an opportunity.
+    </p>
+
+    ${messageBlock}
+
+    <p style="margin: 0 0 24px 0; color: #44403c; font-size: 16px; line-height: 1.6;">
+      If you're interested, simply <strong>reply to this email</strong> to reach them directly.
+      Your email address was not shared with the employer — you're in full control of whether
+      and how you respond.
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #e7e5e4; margin: 32px 0;">
+
+    <table cellpadding="0" cellspacing="0" border="0" style="background-color: #eef2ff; border-radius: 12px; padding: 16px;">
+      <tr>
+        <td>
+          <p style="margin: 0 0 6px 0; color: #3730a3; font-size: 14px; font-weight: 600;">
+            🛡️ Staying safe
+          </p>
+          <p style="margin: 0; color: #4338ca; font-size: 13px; line-height: 1.6;">
+            CareAble never shares your contact details without your action. Only reply if you're
+            comfortable. Never send money or sensitive personal documents to someone you haven't verified.
+          </p>
+        </td>
+      </tr>
+    </table>
+  `;
+
+  return {
+    subject: `${safeEmployer} is interested in connecting — ${BRAND.name}`,
+    html: emailWrapper(content),
+  };
+}
+
+
+
 module.exports = {
   welcomeEmail,
   passwordResetEmail,
   verifyEmailTemplate,
   otpEmail,
+  employerInterestEmail,
 };

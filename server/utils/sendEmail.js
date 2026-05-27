@@ -34,7 +34,7 @@ const FROM = process.env.EMAIL_FROM || "CareAble <onboarding@resend.dev>";
  * @param {string} [params.text]   - Plain text fallback (optional but recommended)
  * @returns {Promise<{ success: boolean, id?: string, error?: string }>}
  */
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   // Dev mode without API key — log to console instead of sending
   if (!resend) {
     console.log("\n📧 [EMAIL — dev mode, not actually sent]");
@@ -51,6 +51,7 @@ async function sendEmail({ to, subject, html, text }) {
       subject,
       html,
       text: text || stripHtml(html),
+      ...(replyTo ? { replyTo } : {}),
     });
 
     if (result.error) {

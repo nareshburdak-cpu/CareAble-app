@@ -3,9 +3,10 @@
 /**
  * Verify Routes
  * -------------
- *   GET /api/verify/:certificateId             (PUBLIC — no auth)
- *   GET /api/verify/employer/:certificateId    (protected — employer or admin)
- *   GET /api/verify/admin/:certificateId       (protected — admin only)
+ *   GET  /api/verify/:certificateId                    (PUBLIC — no auth)
+ *   GET  /api/verify/employer/:certificateId           (protected — employer)
+ *   POST /api/verify/employer/:certificateId/connect   (protected — employer)
+ *   GET  /api/verify/admin/:certificateId              (protected — admin only)
  */
 
 const express = require("express");
@@ -13,6 +14,7 @@ const {
   verifyCertificate,
   verifyCertificateEmployer,
   verifyCertificateAdmin,
+  requestCarerConnect,
 } = require("../controllers/verifyController");
 const { protect } = require("../middleware/authMiddleware");
 const requireEmployer = require("../middleware/requireEmployer");
@@ -26,6 +28,13 @@ router.get(
   protect,
   requireEmployer,
   verifyCertificateEmployer
+);
+
+router.post(
+  "/employer/:certificateId/connect",
+  protect,
+  requireEmployer,
+  requestCarerConnect
 );
 
 router.get(
