@@ -14,6 +14,9 @@ const {
   resendVerification,
   requestOtp,
   verifyOtp,
+  requestLoginOtp,
+  verifyLoginOtp,
+  googleAuth,
   completeOnboarding,
 } = require("../controllers/authController");
 
@@ -46,6 +49,53 @@ router.post(
   ],
   validate,
   login
+);
+router.post(
+  "/google",
+  [
+    body("credential")
+      .trim()
+      .notEmpty().withMessage("Google credential is required"),
+    body("roles")
+      .optional()
+      .isArray().withMessage("Roles must be an array"),
+    body("acceptedTerms")
+      .optional()
+      .isBoolean().withMessage("acceptedTerms must be true or false"),
+    body("consentToResearch")
+      .optional()
+      .isBoolean().withMessage("consentToResearch must be true or false"),
+  ],
+  validate,
+  googleAuth
+);
+router.post(
+  "/login-otp/request",
+  [
+    body("email")
+      .trim()
+      .notEmpty().withMessage("Email is required")
+      .isEmail().withMessage("Please provide a valid email")
+      .normalizeEmail(),
+  ],
+  validate,
+  requestLoginOtp
+);
+router.post(
+  "/login-otp/verify",
+  [
+    body("email")
+      .trim()
+      .notEmpty().withMessage("Email is required")
+      .isEmail().withMessage("Please provide a valid email")
+      .normalizeEmail(),
+    body("otp")
+      .trim()
+      .notEmpty().withMessage("Code is required")
+      .isLength({ min: 6, max: 6 }).withMessage("Code must be 6 digits"),
+  ],
+  validate,
+  verifyLoginOtp
 );
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);

@@ -1,124 +1,196 @@
 import { Link } from "react-router-dom";
 import BRAND from "../constants/brand";
 
-const LEFT_LINKS = [
-  { to: "/",         label: "Home"        },
-  { to: "/about",    label: "About"       },
+const PRODUCT_LINKS = [
+  { to: "/", label: "Home" },
+  { to: "/about", label: "About" },
   { to: "/register", label: "Get started" },
+  { to: "/login", label: "Log in" },
 ];
 
-const RIGHT_LINKS = [
-  { to: "/privacy",  label: "Privacy policy"  },
-  { to: "/terms",    label: "Terms of service" },
-  { to: "/contact",  label: "Contact"          },
+const RESOURCE_LINKS = [
+  { to: "/privacy", label: "Privacy policy" },
+  { to: "/terms", label: "Terms of service" },
+  { to: "/contact", label: "Contact" },
 ];
 
-function Footer() {
-  return (
-    <footer className="bg-gradient-to-b from-stone-50 to-stone-100 border-t border-stone-200 mt-auto">
-      <div className="max-w-6xl mx-auto px-4 pt-12 pb-6 md:pt-16 md:pb-8">
+const SUPPORT_LINKS = [
+  { to: "/help", label: "Help centre" },
+  { to: "/accessibility", label: "Accessibility" },
+];
 
-        {/* ── DESKTOP grid (md+) ── */}
-        <div className="hidden md:grid md:grid-cols-12 gap-8 mb-10">
+const EmailIcon = () => (
+  <svg
+    className="w-3.5 h-3.5 flex-shrink-0"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    strokeWidth={2}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="M2 7l10 7 10-7" />
+  </svg>
+);
 
-          {/* Brand block */}
-          <div className="col-span-5">
-            <Link to="/" className="inline-flex items-center gap-2.5 mb-4 group">
-              <img src="/logo-icon.png" alt="" className="w-9 h-9 object-contain group-hover:scale-110 transition-transform duration-200" aria-hidden="true" />
-              <span className="text-2xl font-bold text-stone-900">{BRAND.text}</span>
-            </Link>            
-            <p className="text-sm text-stone-500 leading-relaxed mb-5 max-w-xs">{BRAND.tagline}. Helping unpaid carers turn everyday caregiving into recognised, professional capability.</p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-stone-200 rounded-full shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-xs text-stone-600">In partnership with{" "}<span className="font-semibold text-stone-900">{BRAND.partnersLine}</span></span>
-            </div>
-          </div>
-
-          <div className="col-span-1" />
-
-          {/* Product */}
-          <div className="col-span-3">
-            <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-4">Product</h3>
-            <ul className="space-y-2.5">
-              <FooterLink to="/">Home</FooterLink>
-              <FooterLink to="/about">About</FooterLink>
-              <FooterLink to="/register">Get started</FooterLink>
-              <FooterLink to="/login">Log in</FooterLink>
-            </ul>
-          </div>
-
-          {/* Resources */}
-          <div className="col-span-3">
-            <h3 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest mb-4">Resources</h3>
-            <ul className="space-y-2.5">
-              <FooterLink to="/privacy">Privacy policy</FooterLink>
-              <FooterLink to="/terms">Terms of service</FooterLink>
-              <FooterLink to="/contact">Contact</FooterLink>
-              <li>
-                <a href={"mailto:" + BRAND.supportEmail} className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-indigo-600 transition group">
-                  <svg className="w-3.5 h-3.5 text-stone-400 group-hover:text-indigo-500 transition flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                  {BRAND.supportEmail}
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        {/* ── MOBILE layout (below md) ── */}
-        <div className="md:hidden mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <Link to="/" className="inline-flex items-center gap-2 group">
-              <img src="/logo-icon.png" alt="" className="w-8 h-8 object-contain group-hover:scale-110 transition-transform" aria-hidden="true" />
-              <span className="text-xl font-bold text-stone-900">{BRAND.text}</span>
-            </Link>
-           <span className="font-mono text-xs text-stone-400 bg-white border border-stone-200 px-2 py-0.5 rounded-md">{"v" + BRAND.version}</span>
-          </div>
-
-          <p className="text-sm text-stone-500 leading-relaxed mb-5">{BRAND.tagline}.</p>
-
-          <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-5">
-            <div className="flex flex-col gap-3">
-              {LEFT_LINKS.map(function(item) {
-                return <Link key={item.to} to={item.to} className="text-sm font-medium text-stone-600 hover:text-indigo-600 transition">{item.label}</Link>;
-              })}
-            </div>
-            <div className="flex flex-col gap-3">
-              {RIGHT_LINKS.map(function(item) {
-                return <Link key={item.to} to={item.to} className="text-sm font-medium text-stone-600 hover:text-indigo-600 transition">{item.label}</Link>;
-              })}
-            </div>
-          </div>
-
-          <a href={"mailto:" + BRAND.supportEmail} className="inline-flex items-center gap-1.5 text-sm text-stone-400 hover:text-indigo-600 transition">
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-            {BRAND.supportEmail}
-          </a>
-        </div>
-
-        {/* ── Bottom strip (both) ── */}
-        <div className="border-t border-stone-200 pt-6 flex flex-col-reverse sm:flex-row items-start sm:items-center justify-between gap-4">
-          <p className="text-xs text-stone-400">{BRAND.copyrightLine}. All rights reserved.</p>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="inline-flex items-center gap-1.5 text-stone-400">Made with care <span className="text-base">🫶</span></span>
-            <span className="text-stone-300">·</span>
-            <span className="font-mono text-stone-400 px-2 py-0.5 bg-white border border-stone-200 rounded-md">{"v" + BRAND.version}</span>
-          </div>
-        </div>
-
-      </div>
-    </footer>
-  );
-}
-
-function FooterLink({ to, children }) {
+function FooterLink({ to, label }) {
   return (
     <li>
-      <Link to={to} className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-indigo-600 transition group">
-        <span className="opacity-0 group-hover:opacity-100 -translate-x-1.5 group-hover:translate-x-0 transition-all duration-200 text-indigo-500 text-xs">→</span>
-        <span>{children}</span>
+      <Link
+        to={to}
+        className="group inline-flex items-center text-sm text-stone-500 hover:text-indigo-600 transition-colors duration-150"
+      >
+        {label}
+        <span className="ml-0 text-xs text-indigo-500 opacity-0 -translate-x-1 group-hover:translate-x-1 group-hover:opacity-100 transition-all duration-150">
+          {"->"}
+        </span>
       </Link>
     </li>
   );
 }
 
-export default Footer;
+function ColLabel({ children }) {
+  return (
+    <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-stone-500">
+      {children}
+    </p>
+  );
+}
+
+export default function Footer() {
+  return (
+    <footer className="mt-auto border-t border-stone-200 bg-gradient-to-b from-stone-50 to-[#f5f4f1]">
+      <div className="mx-auto max-w-6xl px-4 pt-10 pb-6">
+        <div className="mb-8 hidden gap-10 md:grid md:grid-cols-[1.8fr_1fr_1fr_1fr]">
+          <div>
+            <Link to="/" className="group mb-3 inline-flex items-center gap-2.5">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-gradient-to-br from-teal-50 to-blue-50 transition-transform duration-200 group-hover:scale-105">
+                <img
+                  src="/logo-icon.png"
+                  alt=""
+                  className="h-5 w-5 object-contain"
+                  aria-hidden="true"
+                />
+              </div>
+              <span className="text-xl font-bold text-stone-900">{BRAND.text}</span>
+            </Link>
+
+            <p className="mb-4 max-w-[220px] text-sm leading-relaxed text-stone-500">
+              Turning caregiving into recognised professional capability.
+            </p>
+
+            <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 shadow-sm">
+              <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs text-stone-600">
+                In partnership with{" "}
+                <span className="font-semibold text-stone-900">{BRAND.partnersLine}</span>
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <ColLabel>Product</ColLabel>
+            <ul className="space-y-2.5">
+              {PRODUCT_LINKS.map(({ to, label }) => (
+                <FooterLink key={to} to={to} label={label} />
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <ColLabel>Resources</ColLabel>
+            <ul className="space-y-2.5">
+              {RESOURCE_LINKS.map(({ to, label }) => (
+                <FooterLink key={to} to={to} label={label} />
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <ColLabel>Support</ColLabel>
+            <ul className="mb-4 space-y-2.5">
+              {SUPPORT_LINKS.map(({ to, label }) => (
+                <FooterLink key={to} to={to} label={label} />
+              ))}
+            </ul>
+
+            <a
+              href={`mailto:${BRAND.supportEmail}`}
+              className="inline-flex items-center gap-1.5 text-sm text-stone-500 transition-colors duration-150 hover:text-indigo-600"
+            >
+              <EmailIcon />
+              {BRAND.supportEmail}
+            </a>
+          </div>
+        </div>
+
+        <div className="mb-6 md:hidden">
+          <div className="mb-4 flex items-center justify-between">
+            <Link to="/" className="group inline-flex items-center gap-2">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-gradient-to-br from-teal-50 to-blue-50 transition-transform duration-200 group-hover:scale-105">
+                <img
+                  src="/logo-icon.png"
+                  alt=""
+                  className="h-5 w-5 object-contain"
+                  aria-hidden="true"
+                />
+              </div>
+              <span className="text-xl font-bold text-stone-900">{BRAND.text}</span>
+            </Link>
+            <span className="rounded-md border border-stone-200 bg-white px-2 py-0.5 font-mono text-xs text-stone-400">
+              {`v${BRAND.version}`}
+            </span>
+          </div>
+
+          <p className="mb-4 text-sm leading-relaxed text-stone-500">
+            Turning caregiving into recognised professional capability.
+          </p>
+
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 shadow-sm">
+            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs text-stone-600">
+              In partnership with{" "}
+              <span className="font-semibold text-stone-900">{BRAND.partnersLine}</span>
+            </span>
+          </div>
+
+          <div className="mb-4 grid grid-cols-2 gap-x-6 gap-y-3">
+            {[...PRODUCT_LINKS, ...RESOURCE_LINKS, ...SUPPORT_LINKS].map(({ to, label }) => (
+              <Link
+                key={to}
+                to={to}
+                className="text-sm font-medium text-stone-600 transition-colors duration-150 hover:text-indigo-600"
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          <a
+            href={`mailto:${BRAND.supportEmail}`}
+            className="inline-flex items-center gap-1.5 text-sm text-stone-500 transition-colors duration-150 hover:text-indigo-600"
+          >
+            <EmailIcon />
+            {BRAND.supportEmail}
+          </a>
+        </div>
+
+        <div className="flex flex-col-reverse items-start justify-between gap-3 border-t border-stone-200 pt-5 sm:flex-row sm:items-center">
+          <p className="text-xs text-stone-500">
+            {BRAND.copyrightLine}. All rights reserved.
+          </p>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-xs text-stone-500">
+              Made with care
+            </span>
+            <span className="text-stone-300">|</span>
+            <span className="rounded-md border border-stone-200 bg-white px-2 py-0.5 font-mono text-xs text-stone-400">
+              {`v${BRAND.version}`}
+            </span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

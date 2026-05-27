@@ -3,22 +3,12 @@
 /**
  * Certificate Generator — CareAble Brand Edition
  * ------------------------------------------------
- * Redesigned for Phase 12-A brief alignment:
- *   - Brand colours (teal #2BBFAA + blue #2B7FC0) replace gold/navy palette
- *   - CareAble logo PNG embedded top-left
- *   - QR code top-right for instant verification
- *   - Per-domain 1-5 scoring reflected in score line
- *   - Top capability areas (domains >= 4.0) listed if any exist
- *   - Brief-aligned level labels: Support | Growth | Strength
- *   - A4 landscape, clean geometric layout
- *
- * Logo dependency:
- *   server/assets/careable-logo.png  (400x400 PNG, transparent background)
- *   If missing, certificate renders without logo (graceful fallback).
- *
- * QR dependency:
- *   Encodes CLIENT_URL/verify/<certificateId>.
- *   Falls back to text-only if QR generation fails.
+ * v3 changes:
+ *   - ACAMI + La Trobe logos centred in the partner zone, no seal
+ *   - Logos sized by equal rendered area so both appear visually similar:
+ *       ACAMI   2004×465 (ratio 4.31) → rendered 139×32 pt
+ *       LaTrobe 1980×671 (ratio 2.95) → rendered 115×39 pt
+ *   - "In partnership with" label above the logo pair
  */
 
 const PDFDocument = require("pdfkit");
@@ -58,8 +48,18 @@ const LEVEL_META = {
   },
 };
 
-// ── Paths ─────────────────────────────────────────────────────────
-const LOGO_PATH = path.join(__dirname, "../assets/careable-logo.png");
+// ── Asset paths ───────────────────────────────────────────────────
+const LOGO_PATH    = path.join(__dirname, "../assets/careable-logo.png");
+const ACAMI_PATH   = path.join(__dirname, "../assets/acami.png");
+const LATROBE_PATH = path.join(__dirname, "../assets/latrobe.png");
+
+// ── Partner logo render dimensions (equal rendered area) ──────────
+// ACAMI   source 2004×465  (aspect 4.31 wide) → 139 × 32 pt
+// LaTrobe source 1980×671  (aspect 2.95 wide) → 115 × 39 pt
+// Both render to ≈ 4 482 pt² so they appear the same visual weight.
+const ACAMI_RW = 139, ACAMI_RH = 32;
+const LATROBE_RW = 115, LATROBE_RH = 39;
+const LOGO_GAP = 60; // space between the two logos
 
 // ── Helpers ───────────────────────────────────────────────────────
 function buildVerifyUrl(certificateId) {
@@ -73,19 +73,14 @@ async function generateQrBuffer(verifyUrl) {
     type: "png",
     margin: 1,
     width: 300,
-    color: {
-      dark: C.blue,
-      light: C.white,
-    },
+    color: { dark: C.blue, light: C.white },
   });
 }
 
 function formatDate(date) {
   if (!date) return "";
   return new Date(date).toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    day: "numeric", month: "long", year: "numeric",
   });
 }
 
@@ -98,32 +93,26 @@ async function generateCertificate(user, assessment) {
   try {
     qrBuffer = await generateQrBuffer(verifyUrl);
   } catch (err) {
-    console.error("[CERT] QR generation failed — continuing without QR:", err.message);
+    console.error("[CERT] QR generation failed:", err.message);
   }
 
-  // ── Logo ──────────────────────────────────────────────────────────
-  const logoExists = fs.existsSync(LOGO_PATH);
-  if (!logoExists) {
-    console.warn("[CERT] Logo not found at", LOGO_PATH, "— continuing without logo");
-  }
+  // ── Logo existence checks ─────────────────────────────────────────
+  const logoExists    = fs.existsSync(LOGO_PATH);
+  const acamiExists   = fs.existsSync(ACAMI_PATH);
+  const latrobeExists = fs.existsSync(LATROBE_PATH);
+  if (!logoExists)    console.warn("[CERT] CareAble logo missing:", LOGO_PATH);
+  if (!acamiExists)   console.warn("[CERT] ACAMI logo missing:", ACAMI_PATH);
+  if (!latrobeExists) console.warn("[CERT] La Trobe logo missing:", LATROBE_PATH);
 
-  // ── Category label map (FIX 1) ───────────────────────────────────
-  // Fetch all categories from the in-memory cache (no extra DB hit).
-  // Includes archived — so historical certs with archived domains still
-  // resolve their labels correctly.
-  let categoryLabelMap = {}; // { "communication-relational-care": "Communication & Relational Care", ... }
+  // ── Category label map ───────────────────────────────────────────
+  let categoryLabelMap = {};
   try {
     const allCats = await categoryCache.getAllCategoriesIncludingArchived();
-    for (const cat of allCats) {
-      categoryLabelMap[cat.key] = cat.label;
-    }
+    for (const cat of allCats) categoryLabelMap[cat.key] = cat.label;
   } catch (err) {
-    // Non-fatal — falls back to key-derived labels below
-    console.warn("[CERT] Could not load category labels from cache:", err.message);
+    console.warn("[CERT] Could not load category labels:", err.message);
   }
 
-  // Fallback: format raw key → readable label when cache lookup misses.
-  // e.g. "digital-literacy" → "Digital Literacy"
   function keyToLabel(key) {
     return categoryLabelMap[key] || key
       .split("-")
@@ -161,40 +150,27 @@ async function generateCertificate(user, assessment) {
       doc.on("end", () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      const W = doc.page.width;   // 842pt
-      const H = doc.page.height;  // 595pt
+      const W = doc.page.width;   // 842 pt
+      const H = doc.page.height;  // 595 pt
 
       // ── BACKGROUND ──────────────────────────────────────────────
       doc.rect(0, 0, W, H).fill(C.parchment);
 
-      // ── TOP COLOUR BAR ──────────────────────────────────────────
+      // ── COLOUR BARS ─────────────────────────────────────────────
       const barH = 8;
       doc.rect(0, 0, W / 2, barH).fill(C.teal);
       doc.rect(W / 2, 0, W / 2, barH).fill(C.blue);
-
-      // ── BOTTOM COLOUR BAR ───────────────────────────────────────
       doc.rect(0, H - barH, W / 2, barH).fill(C.teal);
       doc.rect(W / 2, H - barH, W / 2, barH).fill(C.blue);
 
-      // ── OUTER BORDER ────────────────────────────────────────────
-      const bm = 18;
-      doc.rect(bm, bm, W - bm * 2, H - bm * 2)
-        .lineWidth(1.2)
-        .stroke(C.teal);
+      // ── BORDERS ─────────────────────────────────────────────────
+      const bm = 18, bm2 = 24;
+      doc.rect(bm, bm, W - bm * 2, H - bm * 2).lineWidth(1.2).stroke(C.teal);
+      doc.rect(bm2, bm2, W - bm2 * 2, H - bm2 * 2).lineWidth(0.4).stroke(C.rule);
 
-      const bm2 = 24;
-      doc.rect(bm2, bm2, W - bm2 * 2, H - bm2 * 2)
-        .lineWidth(0.4)
-        .stroke(C.rule);
-
-      // ── HEADER ZONE ─────────────────────────────────────────────
-      const headerY = 36;
-      const headerH = 90;
-
-      // ---- Logo ----
-      const logoSize = 68;
-      const logoX = 46;
-      const logoY = headerY;
+      // ── HEADER ──────────────────────────────────────────────────
+      const headerY = 36, headerH = 90;
+      const logoSize = 68, logoX = 46, logoY = headerY;
 
       if (logoExists) {
         doc.image(LOGO_PATH, logoX, logoY, { width: logoSize, height: logoSize });
@@ -204,56 +180,25 @@ async function generateCertificate(user, assessment) {
           .text("C", logoX, logoY + logoSize / 2 - 16, { width: logoSize, align: "center" });
       }
 
-      // ---- Brand wordmark ----
-      const wordmarkX = logoX + logoSize + 12;
-      const wordmarkY = logoY + 8;
-
+      const wordmarkX = logoX + logoSize + 12, wordmarkY = logoY + 8;
       doc.fontSize(26).font("Helvetica-Bold");
       const careWidth = doc.widthOfString("Care");
+      doc.fillColor(C.teal).text("Care", wordmarkX, wordmarkY, { continued: false, lineBreak: false });
+      doc.fillColor(C.blue).text("Able", wordmarkX + careWidth, wordmarkY, { lineBreak: false });
+      doc.fontSize(9).fillColor(C.inkSoft).font("Helvetica")
+        .text("Caregiver Capability Certificate", wordmarkX, wordmarkY + 32, { characterSpacing: 1.5 });
+      doc.fontSize(7.5).fillColor(C.inkSoft)
+        .text("La Trobe University · Capstone 2026 · Team NEXA", wordmarkX, wordmarkY + 48, { characterSpacing: 0.5 });
 
-      doc.fillColor(C.teal)
-        .text("Care", wordmarkX, wordmarkY, { continued: false, lineBreak: false });
-      doc.fillColor(C.blue)
-        .text("Able", wordmarkX + careWidth, wordmarkY, { lineBreak: false });
-
-      doc.fontSize(9)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text("Caregiver Capability Certificate", wordmarkX, wordmarkY + 32, {
-          characterSpacing: 1.5,
-        });
-
-      doc.fontSize(7.5)
-        .fillColor(C.inkSoft)
-        .text("La Trobe University · Capstone 2026 · Team NEXA", wordmarkX, wordmarkY + 48, {
-          characterSpacing: 0.5,
-        });
-
-      // ---- QR Code ----
-      const qrSize = 72;
-      const qrX = W - 46 - qrSize;
-      const qrY = headerY;
-
+      const qrSize = 72, qrX = W - 46 - qrSize, qrY = headerY;
       if (qrBuffer) {
         doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6).fill(C.white);
         doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
-        doc.fontSize(7)
-          .fillColor(C.inkSoft)
-          .font("Helvetica")
-          .text("Scan to verify", qrX - 3, qrY + qrSize + 5, {
-            width: qrSize + 6,
-            align: "center",
-          });
-      } else {
         doc.fontSize(7).fillColor(C.inkSoft).font("Helvetica")
-          .text(
-            `Verify at careable.site/verify/${assessment.certificateId || ""}`,
-            qrX, qrY + qrSize / 2,
-            { width: qrSize + 6, align: "center" }
-          );
+          .text("Scan to verify", qrX - 3, qrY + qrSize + 5, { width: qrSize + 6, align: "center" });
       }
 
-      // ── DIVIDER RULE 1 ───────────────────────────────────────────
+      // ── RULE 1 ───────────────────────────────────────────────────
       const ruleY = headerY + headerH;
       doc.moveTo(bm2 + 4, ruleY).lineTo(W / 2, ruleY).lineWidth(1).stroke(C.teal);
       doc.moveTo(W / 2, ruleY).lineTo(W - bm2 - 4, ruleY).lineWidth(1).stroke(C.blue);
@@ -261,195 +206,141 @@ async function generateCertificate(user, assessment) {
       // ── BODY ─────────────────────────────────────────────────────
       let y = ruleY + 20;
 
-      // "This certifies that"
-      doc.fontSize(10)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text("This certifies that", 0, y, {
-          align: "center",
-          width: W,
-          characterSpacing: 1,
-        });
-
+      doc.fontSize(10).fillColor(C.inkSoft).font("Helvetica")
+        .text("This certifies that", 0, y, { align: "center", width: W, characterSpacing: 1 });
       y += 20;
 
-      // Carer name
-      doc.fontSize(34)
-        .fillColor(C.blueDark)
-        .font("Helvetica-Bold")
+      doc.fontSize(34).fillColor(C.blueDark).font("Helvetica-Bold")
         .text(user.name, 0, y, { align: "center", width: W });
-
       y += 44;
 
-      // Name underline
-      const nameLineLen = 220;
-      const nameCX = W / 2;
-      doc.moveTo(nameCX - nameLineLen / 2, y - 6)
-        .lineTo(nameCX, y - 6).lineWidth(0.8).stroke(C.teal);
-      doc.moveTo(nameCX, y - 6)
-        .lineTo(nameCX + nameLineLen / 2, y - 6).lineWidth(0.8).stroke(C.blue);
+      const nameLineLen = 220, nameCX = W / 2;
+      doc.moveTo(nameCX - nameLineLen / 2, y - 6).lineTo(nameCX, y - 6).lineWidth(0.8).stroke(C.teal);
+      doc.moveTo(nameCX, y - 6).lineTo(nameCX + nameLineLen / 2, y - 6).lineWidth(0.8).stroke(C.blue);
 
-      // Descriptor lines
       const levelMeta = LEVEL_META[assessment.level] || LEVEL_META.Growth;
-
-      doc.fontSize(10)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text(
-          "has successfully completed the CareAble Self-Assessment,",
-          0, y,
-          { align: "center", width: W }
-        );
-
+      doc.fontSize(10).fillColor(C.inkSoft).font("Helvetica")
+        .text("has successfully completed the CareAble Self-Assessment,", 0, y, { align: "center", width: W });
       y += 16;
-
       doc.text(levelMeta.descriptor, 0, y, { align: "center", width: W });
-
       y += 24;
 
-      // Level honorific
-      doc.fontSize(19)
-        .fillColor(C.tealDark)
-        .font("Helvetica-Bold")
-        .text(levelMeta.honorific, 0, y, {
-          align: "center",
-          width: W,
-          characterSpacing: 0.5,
-        });
-
+      doc.fontSize(19).fillColor(C.tealDark).font("Helvetica-Bold")
+        .text(levelMeta.honorific, 0, y, { align: "center", width: W, characterSpacing: 0.5 });
       y += 30;
 
-      // Overall score
       const scoreStr = assessment.overallScore != null
         ? `Overall capability score: ${assessment.overallScore.toFixed(2)} / 5.00`
         : "Overall capability score: —";
-
-      doc.fontSize(9.5)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text(scoreStr, 0, y, {
-          align: "center",
-          width: W,
-          characterSpacing: 0.5,
-        });
-
+      doc.fontSize(9.5).fillColor(C.inkSoft).font("Helvetica")
+        .text(scoreStr, 0, y, { align: "center", width: W, characterSpacing: 0.5 });
       y += 18;
 
-      // ── TOP CAPABILITY AREAS ─────────────────────────────────────
+      // ── TOP CAPABILITY CHIPS ─────────────────────────────────────
       if (topAreas.length > 0) {
-        doc.fontSize(8.5)
-          .fillColor(C.inkSoft)
-          .font("Helvetica")
+        doc.fontSize(8.5).fillColor(C.inkSoft).font("Helvetica")
           .text("Top capability areas:", 0, y, { align: "center", width: W });
-
         y += 14;
 
-        const chipPadX = 10;
-        const chipPadY = 4;
-        const chipFontSize = 7.5;
-        const chipGap = 8;
+        const chipPadX = 10, chipPadY = 4, chipFontSize = 7.5, chipGap = 8;
         const chipH = chipFontSize + chipPadY * 2 + 2;
 
-        // Measure chips using real labels from categoryCache (FIX 1)
         doc.fontSize(chipFontSize).font("Helvetica-Bold");
         const chipData = topAreas.map(([key, score]) => {
-          const label = keyToLabel(key);           // ← real label now
+          const label = keyToLabel(key);
           const scoreLabel = `  ${score.toFixed(2)}`;
-          // Measure label bold + score regular separately for accuracy
           const labelW = doc.widthOfString(label);
           doc.font("Helvetica");
           const scoreW = doc.widthOfString(scoreLabel);
           doc.font("Helvetica-Bold");
-          return {
-            label,
-            scoreLabel,
-            width: labelW + scoreW + chipPadX * 2,
-          };
+          return { label, scoreLabel, width: labelW + scoreW + chipPadX * 2 };
         });
 
-        // Centre the chip row
-        const totalChipW = chipData.reduce((s, c) => s + c.width, 0)
-          + chipGap * (chipData.length - 1);
-
-        // If chips would overflow the safe width, scale gap down gracefully
+        const totalChipW = chipData.reduce((s, c) => s + c.width, 0) + chipGap * (chipData.length - 1);
         const safeW = W - bm2 * 2 - 16;
         const effectiveGap = totalChipW > safeW
           ? Math.max(2, chipGap - Math.ceil((totalChipW - safeW) / chipData.length))
           : chipGap;
-
-        const adjustedTotalW = chipData.reduce((s, c) => s + c.width, 0)
-          + effectiveGap * (chipData.length - 1);
+        const adjustedTotalW = chipData.reduce((s, c) => s + c.width, 0) + effectiveGap * (chipData.length - 1);
         let chipX = (W - adjustedTotalW) / 2;
 
         for (const chip of chipData) {
-          // Chip background (rounded rect)
           doc.roundedRect(chipX, y, chip.width, chipH, 4).fill(C.chipBg);
-
-          // Label — bold teal
-          doc.fontSize(chipFontSize)
-            .fillColor(C.chipText)
-            .font("Helvetica-Bold")
+          doc.fontSize(chipFontSize).fillColor(C.chipText).font("Helvetica-Bold")
             .text(chip.label, chipX + chipPadX, y + chipPadY + 1, { lineBreak: false });
-
-          // Score — regular, muted
           const labelW = doc.widthOfString(chip.label);
-          doc.font("Helvetica")
-            .fillColor(C.inkSoft)
-            .text(chip.scoreLabel, chipX + chipPadX + labelW, y + chipPadY + 1, {
-              lineBreak: false,
-            });
-
+          doc.font("Helvetica").fillColor(C.inkSoft)
+            .text(chip.scoreLabel, chipX + chipPadX + labelW, y + chipPadY + 1, { lineBreak: false });
           chipX += chip.width + effectiveGap;
         }
-
         y += chipH + 8;
       }
 
-      // ── DIVIDER RULE 2 (FIX 2 — dynamic position) ───────────────
-      // Sits 28pt below last body content, but never above the
-      // footer zone (footer needs ~75pt from bottom).
+      // ── RULE 2 ───────────────────────────────────────────────────
       const footerZoneTop = H - 75;
-      const rule2Y = Math.min(y + 28, footerZoneTop);
-
+      const rule2Y = Math.min(y + 10, footerZoneTop - 70);
       doc.moveTo(bm2 + 4, rule2Y).lineTo(W / 2, rule2Y).lineWidth(0.8).stroke(C.teal);
       doc.moveTo(W / 2, rule2Y).lineTo(W - bm2 - 4, rule2Y).lineWidth(0.8).stroke(C.blue);
+
+      // ── PARTNER LOGO ZONE ────────────────────────────────────────
+      const pzt = rule2Y + 8;
+      const pzb = footerZoneTop - 6;
+      const pzh = pzb - pzt;
+
+      // "In partnership with" label
+      doc.fontSize(7).fillColor(C.inkSoft).font("Helvetica")
+        .text("In partnership with", 0, pzt + 4, {
+          align: "center", width: W, characterSpacing: 1.2,
+        });
+
+      // Vertical centre of logo row (below label)
+      const logoRowCY = pzt + 16 + Math.max(ACAMI_RH, LATROBE_RH) / 2;
+
+      // Horizontal layout: centre both logos as a unit
+      const totalLogoW = ACAMI_RW + LOGO_GAP + LATROBE_RW;
+      const startX = (W - totalLogoW) / 2;
+
+      // ACAMI (left)
+      const acamiX = startX;
+      const acamiY = logoRowCY - ACAMI_RH / 2;
+      if (acamiExists) {
+        doc.image(ACAMI_PATH, acamiX, acamiY, { width: ACAMI_RW, height: ACAMI_RH });
+      } else {
+        doc.fontSize(8).fillColor(C.blue).font("Helvetica-Bold")
+          .text("ACAMI", acamiX, logoRowCY - 5, { width: ACAMI_RW, align: "center" });
+        doc.fontSize(6).fillColor(C.inkSoft).font("Helvetica")
+          .text("Australian Centre for AI in Medical Innovation", acamiX, logoRowCY + 5, {
+            width: ACAMI_RW, align: "center",
+          });
+      }
+
+      // La Trobe (right)
+      const latrobeX = startX + ACAMI_RW + LOGO_GAP;
+      const latrobeY = logoRowCY - LATROBE_RH / 2;
+      if (latrobeExists) {
+        doc.image(LATROBE_PATH, latrobeX, latrobeY, { width: LATROBE_RW, height: LATROBE_RH });
+      } else {
+        doc.fontSize(8).fillColor("#CC0000").font("Helvetica-Bold")
+          .text("LA TROBE UNIVERSITY", latrobeX, logoRowCY - 5, {
+            width: LATROBE_RW, align: "center",
+          });
+      }
 
       // ── FOOTER ───────────────────────────────────────────────────
       const footerY = H - 62;
 
-      // Date of issue — left
-      const leftFootX = 46;
-      doc.fontSize(7.5)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text("DATE OF ISSUE", leftFootX, footerY, { characterSpacing: 1 });
+      doc.fontSize(7.5).fillColor(C.inkSoft).font("Helvetica")
+        .text("DATE OF ISSUE", 46, footerY, { characterSpacing: 1 });
+      doc.fontSize(11).fillColor(C.ink).font("Helvetica-Bold")
+        .text(formatDate(assessment.submittedAt), 46, footerY + 11);
 
-      doc.fontSize(11)
-        .fillColor(C.ink)
-        .font("Helvetica-Bold")
-        .text(formatDate(assessment.submittedAt), leftFootX, footerY + 11);
-
-      // Certificate ID — right
       const certIdStr = assessment.certificateId || "CA-UNKNOWN";
-      const rightFootX = W - 46 - 160;
-      doc.fontSize(7.5)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
-        .text("CERTIFICATE ID", rightFootX, footerY, {
-          width: 160,
-          align: "right",
-          characterSpacing: 1,
-        });
+      doc.fontSize(7.5).fillColor(C.inkSoft).font("Helvetica")
+        .text("CERTIFICATE ID", W - 46 - 160, footerY, { width: 160, align: "right", characterSpacing: 1 });
+      doc.fontSize(11).fillColor(C.ink).font("Courier-Bold")
+        .text(certIdStr, W - 46 - 160, footerY + 11, { width: 160, align: "right" });
 
-      doc.fontSize(11)
-        .fillColor(C.ink)
-        .font("Courier-Bold")
-        .text(certIdStr, rightFootX, footerY + 11, { width: 160, align: "right" });
-
-      // Fine print — centred
-      doc.fontSize(6.5)
-        .fillColor(C.inkSoft)
-        .font("Helvetica")
+      doc.fontSize(6.5).fillColor(C.inkSoft).font("Helvetica")
         .text(
           "Aligned with the Australian Skills Classification · Care and Support Economy Strategy (2023–2033)",
           0, footerY + 28,

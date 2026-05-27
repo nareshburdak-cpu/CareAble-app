@@ -1,18 +1,36 @@
+// client/src/components/CooldownBanner.jsx
+
 /**
  * CooldownBanner — Shown on Dashboard when user is in retake cooldown.
- * Displays a friendly "X days until you can retake" message.
+ * Handles both sub-24h (hours) and multi-day display.
  */
-
 function CooldownBanner({ cooldown }) {
   if (!cooldown?.active) return null;
 
-  const { daysRemaining, nextAvailableAt, cooldownDays } = cooldown;
+  const { hoursRemaining, daysRemaining, nextAvailableAt, cooldownHours } = cooldown;
 
-  const nextDate = new Date(nextAvailableAt).toLocaleDateString("en-AU", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
+  // Prefer hours display when under 24h remaining, days otherwise
+  const showHours = hoursRemaining != null && hoursRemaining <= 24;
+
+  const waitLabel = showHours
+    ? `${hoursRemaining} hour${hoursRemaining === 1 ? "" : "s"}`
+    : `${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`;
+
+  const cooldownLabel = cooldownHours != null && cooldownHours < 24
+    ? `${cooldownHours} hour${cooldownHours === 1 ? "" : "s"}`
+    : daysRemaining != null
+      ? `${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`
+      : `${Math.round((cooldownHours ?? 24) / 24)} day${Math.round((cooldownHours ?? 24) / 24) === 1 ? "" : "s"}`;
+
+  const nextDate = nextAvailableAt
+    ? new Date(nextAvailableAt).toLocaleString("en-AU", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: showHours ? "numeric" : undefined,
+        minute: showHours ? "2-digit" : undefined,
+      })
+    : null;
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-2xl p-5 md:p-6">
@@ -22,17 +40,19 @@ function CooldownBanner({ cooldown }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-blue-900 mb-1">
-            Retake available in {daysRemaining} {daysRemaining === 1 ? "day" : "days"}
+            Retake available in {waitLabel}
           </h3>
           <p className="text-sm text-blue-800 leading-relaxed">
-            You recently completed an assessment. To keep results meaningful, we ask you to wait <strong>{cooldownDays} days</strong> between attempts.
+            You recently completed an assessment. To keep results meaningful, we ask you to wait{" "}
+            <strong>{cooldownLabel}</strong> between attempts.
           </p>
-          <p className="text-sm text-blue-700 mt-2">
-            Next retake: <strong>{nextDate}</strong>
-          </p>
+          {nextDate && (
+            <p className="text-sm text-blue-700 mt-2">
+              Next retake: <strong>{nextDate}</strong>
+            </p>
+          )}
         </div>
       </div>
     </div>

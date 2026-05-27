@@ -84,7 +84,7 @@ export default function VerifyCertificate() {
       <div className="max-w-xl mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-          <p className="mt-6 text-slate-600 text-sm">Verifying certificate…</p>
+          <p className="mt-6 text-stone-600 text-base">Verifying certificate...</p>
         </div>
       </div>
     );
@@ -94,7 +94,7 @@ export default function VerifyCertificate() {
   if (status === "error") {
     return (
       <div className="max-w-xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 sm:p-12 text-center">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-8 sm:p-12 text-center">
           {/* Red X icon */}
           <div className="mx-auto w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
             <svg
@@ -109,18 +109,18 @@ export default function VerifyCertificate() {
             </svg>
           </div>
 
-          <h1 className="mt-6 text-2xl font-bold text-slate-900">
+          <h1 className="mt-6 font-serif text-2xl md:text-3xl font-bold text-stone-900">
             Certificate Not Verified
           </h1>
-          <p className="mt-3 text-slate-600 max-w-md mx-auto">{errorMessage}</p>
+          <p className="mt-3 text-base text-stone-600 max-w-md mx-auto">{errorMessage}</p>
 
           {certificateId && (
-            <p className="mt-4 text-xs text-slate-400 font-mono">
+            <p className="mt-4 text-xs text-stone-400 font-mono">
               ID: {certificateId}
             </p>
           )}
 
-          <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="mt-8 pt-6 border-t border-stone-100">
             <Link
               to="/"
               className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
@@ -144,7 +144,7 @@ export default function VerifyCertificate() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-12">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
         {/* Top banner with verified state */}
         <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 px-6 sm:px-12 py-10 text-center border-b border-emerald-200">
           {/* Green check icon */}
@@ -166,7 +166,7 @@ export default function VerifyCertificate() {
             Verified Authentic
           </div>
 
-          <h1 className="mt-4 text-xl sm:text-2xl font-semibold text-slate-700">
+          <h1 className="mt-4 font-serif text-2xl sm:text-3xl font-semibold text-stone-700">
             CareAble Certificate of Capability
           </h1>
         </div>
@@ -175,57 +175,57 @@ export default function VerifyCertificate() {
         <div className="px-6 sm:px-12 py-10">
           {/* Recipient name */}
           <div className="text-center mb-8">
-            <p className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+            <p className="text-sm uppercase tracking-widest text-stone-400 font-medium">
               Issued to
             </p>
-            <p className="mt-2 text-3xl sm:text-4xl font-bold text-slate-900">
+            <p className="mt-2 text-3xl sm:text-4xl font-bold text-stone-900">
               {data.name}
             </p>
           </div>
 
           {/* Level — the prestige line */}
-          <div className="bg-slate-50 rounded-xl p-6 text-center mb-8">
-            <p className="text-xs uppercase tracking-widest text-slate-500 font-medium">
+          <div className="bg-stone-50 rounded-xl p-6 text-center mb-8">
+            <p className="text-sm uppercase tracking-widest text-stone-500 font-medium">
               Recognition Level
             </p>
             <p className="mt-2 text-2xl font-bold text-indigo-700">
               {data.level} Carer
             </p>
             {LEVEL_DESCRIPTIONS[data.level] && (
-              <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto">
+              <p className="mt-2 text-sm text-stone-600 max-w-md mx-auto">
                 {LEVEL_DESCRIPTIONS[data.level]}
               </p>
             )}
           </div>
 
           {/* Metadata grid */}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-base">
             <div>
-              <dt className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+              <dt className="text-sm uppercase tracking-widest text-stone-400 font-medium">
                 Date of Issue
               </dt>
-              <dd className="mt-1 text-slate-900 font-medium">{issuedDate}</dd>
+              <dd className="mt-1 text-stone-900 font-medium">{issuedDate}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+              <dt className="text-sm uppercase tracking-widest text-stone-400 font-medium">
                 Certificate ID
               </dt>
-              <dd className="mt-1 text-slate-900 font-mono text-xs sm:text-sm">
+              <dd className="mt-1 text-stone-900 font-mono text-sm sm:text-base">
                 {data.certificateId}
               </dd>
             </div>
             <div className="sm:col-span-2">
-              <dt className="text-xs uppercase tracking-widest text-slate-400 font-medium">
+              <dt className="text-sm uppercase tracking-widest text-stone-400 font-medium">
                 Issued by
               </dt>
-              <dd className="mt-1 text-slate-900 font-medium">{data.issuer}</dd>
+              <dd className="mt-1 text-stone-900 font-medium">{data.issuer}</dd>
             </div>
           </dl>
         </div>
 
         {/* Footer — anti-fraud note */}
-        <div className="bg-slate-50 px-6 sm:px-12 py-6 border-t border-slate-100">
-          <p className="text-xs text-slate-500 text-center leading-relaxed">
+        <div className="bg-stone-50 px-6 sm:px-12 py-6 border-t border-stone-100">
+          <p className="text-sm text-stone-500 text-center leading-relaxed">
             This page confirms the authenticity of a CareAble certificate. Only certificates
             issued by CareAble can be verified through this service.
           </p>

@@ -1,30 +1,18 @@
-// client/src/components/admin/UserDetailDrawer.jsx
-
-/**
- * UserDetailDrawer
- * ----------------
- * Slide-in panel showing user details + admin actions.
- * Phase 12-A: Multi-role — shows roles array, add/remove per role.
- */
-
-/* eslint-disable react-hooks/set-state-in-effect */
-
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../../api/axios";
 import toast from "../../utils/toast";
 import { useAuth } from "../../hooks/useAuth";
 
-// All roles an admin can assign/remove
 const MANAGEABLE_ROLES = [
-  { key: "carer",    label: "Carer",    color: "emerald" },
-  { key: "employer", label: "Employer", color: "blue"    },
-  { key: "admin",    label: "Admin",    color: "purple"  },
+  { key: "carer", label: "Carer" },
+  { key: "employer", label: "Employer" },
+  { key: "admin", label: "Admin" },
 ];
 
 const ROLE_COLORS = {
-  carer:    "bg-emerald-100 text-emerald-700",
+  carer: "bg-emerald-100 text-emerald-700",
   employer: "bg-blue-100 text-blue-700",
-  admin:    "bg-purple-100 text-purple-700",
+  admin: "bg-purple-100 text-purple-700",
 };
 
 function UserDetailDrawer({ userId, onClose, onUpdate }) {
@@ -56,11 +44,21 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
 
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !actionLoading) onClose();
     };
+
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  }, [actionLoading, onClose]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const handleAction = async (updates, confirmMessage) => {
     if (confirmMessage && !window.confirm(confirmMessage)) return;
@@ -79,174 +77,179 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
   };
 
   const handleAddRole = (roleKey) => {
-    const label = MANAGEABLE_ROLES.find((r) => r.key === roleKey)?.label || roleKey;
-    const confirm = roleKey === "admin"
-      ? `Grant admin access to this user? They will gain full admin privileges.`
-      : `Add the ${label} role to this user?`;
-    handleAction({ addRole: roleKey }, confirm);
+    const label = MANAGEABLE_ROLES.find((role) => role.key === roleKey)?.label || roleKey;
+    const confirmMessage =
+      roleKey === "admin"
+        ? "Grant admin access to this user? They will gain full admin privileges."
+        : `Add the ${label} role to this user?`;
+    handleAction({ addRole: roleKey }, confirmMessage);
   };
 
   const handleRemoveRole = (roleKey) => {
-    const label = MANAGEABLE_ROLES.find((r) => r.key === roleKey)?.label || roleKey;
-    handleAction(
-      { removeRole: roleKey },
-      `Remove the ${label} role from this user?`
-    );
+    const label = MANAGEABLE_ROLES.find((role) => role.key === roleKey)?.label || roleKey;
+    handleAction({ removeRole: roleKey }, `Remove the ${label} role from this user?`);
   };
 
   const userRoles = user?.roles || [];
+  const submittedCount = assessments.filter((assessment) => assessment.status === "submitted").length;
+  const latestAssessment = assessments[0];
 
   return (
     <>
       <div
-        className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 animate-fade-in"
-        onClick={onClose}
+        className="fixed inset-0 z-40 bg-stone-900/45 backdrop-blur-sm"
+        onClick={() => {
+          if (!actionLoading) onClose();
+        }}
       />
 
-      <div className="fixed top-0 right-0 bottom-0 w-full md:w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
-          <h2 className="font-semibold text-stone-900">User Details</h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-stone-100 rounded-md transition"
-            aria-label="Close"
-          >
-            <svg className="w-5 h-5 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
+      <div
+        className="fixed inset-0 z-50 overflow-hidden bg-stone-50 shadow-[0_28px_90px_rgba(15,23,42,0.22)] md:inset-y-6 md:right-6 md:left-auto md:w-[min(860px,calc(100vw-3rem))] md:rounded-[1.5rem] md:border md:border-white/70"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-drawer-title"
+      >
+        <div className="flex h-full flex-col">
+          <div className="border-b border-stone-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#faf7ff_100%)] px-4 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6 md:py-3.5 md:pt-3.5">
+            <div className="flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-600">Admin panel</p>
+              <h2 id="user-drawer-title" className="mt-0.5 text-lg font-semibold text-stone-900 md:mt-1 md:text-xl">
+                User details
+              </h2>
+              {!loading && user && <p className="mt-0.5 text-[11px] text-stone-400">Account control</p>}
+            </div>
+            <button
+              onClick={onClose}
+              disabled={actionLoading}
+              className="rounded-full border border-stone-200 bg-white p-1.5 text-stone-500 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 md:p-2"
+              aria-label="Close"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            </div>
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {loading || !user ? (
-            <p className="text-sm text-stone-500">Loading...</p>
-          ) : (
-            <>
-              {/* Profile */}
-              <div className="text-center mb-6">
-                <div className="inline-flex w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 items-center justify-center text-white text-xl font-bold mb-3">
-                  {user.name?.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()}
-                </div>
-                <h3 className="text-lg font-semibold text-stone-900">{user.name}</h3>
-                <p className="text-sm text-stone-500">{user.email}</p>
-
-                {/* Role badges — shows all roles */}
-                <div className="flex flex-wrap gap-1 justify-center mt-3">
-                  {userRoles.map((r) => (
-                    <span
-                      key={r}
-                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${ROLE_COLORS[r] || "bg-stone-100 text-stone-700"}`}
-                    >
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
-                    </span>
-                  ))}
-                  {user.emailVerified ? (
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-emerald-100 text-emerald-700">
-                      Verified
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
-                      Unverified
-                    </span>
-                  )}
-                  {user.isActive === false && (
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
-                      Deactivated
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick info */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <InfoCell label="Joined" value={formatDate(user.createdAt)} />
-                <InfoCell label="Last login" value={formatDate(user.lastLoginAt)} />
-                <InfoCell label="Assessments" value={assessments.length} />
-                <InfoCell label="Submitted" value={assessments.filter((a) => a.status === "submitted").length} />
-              </div>
-
-              {/* Assessment history */}
-              {assessments.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-2">
-                    Assessment History
-                  </h4>
-                  <div className="space-y-2">
-                    {assessments.slice(0, 5).map((a) => (
-                      <div key={a._id} className="flex items-center justify-between p-3 bg-stone-50 rounded-lg text-sm">
-                        <div>
-                          <p className="font-medium text-stone-900">
-                            {a.status === "submitted"
-                              ? `${a.level} · ${a.overallScore != null ? a.overallScore.toFixed(2) : "—"} / 5`
-                              : "In progress"}
-                          </p>
-                          <p className="text-xs text-stone-500">
-                            {formatDate(a.submittedAt || a.updatedAt)}
-                          </p>
-                        </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          a.status === "submitted"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}>
-                          {a.status}
-                        </span>
+          <div className="flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-5">
+            {loading || !user ? (
+              <p className="text-sm text-stone-500">Loading...</p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+                <section className="space-y-4">
+                  <div className="rounded-[1.35rem] border border-stone-200 bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.12),_transparent_35%),linear-gradient(135deg,_#ffffff_0%,_#faf7ff_100%)] p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-lg font-bold text-white">
+                        {user.name?.split(" ").map((name) => name[0]).slice(0, 2).join("").toUpperCase()}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Admin actions */}
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-3">
-                  Admin Actions
-                </h4>
-                <div className="space-y-3">
-
-                  {/* Email verification */}
-                  {!user.emailVerified && (
-                    <ActionButton
-                      onClick={() => handleAction({ emailVerified: true })}
-                      disabled={actionLoading}
-                      icon="✓"
-                      label="Force-verify email"
-                      hint="Skip email verification for this user"
-                    />
-                  )}
-
-                  {/* Role management */}
-                  <div className="border border-stone-200 rounded-lg overflow-hidden">
-                    <div className="px-4 py-2 bg-stone-50 border-b border-stone-200">
-                      <p className="text-xs font-medium text-stone-600 uppercase tracking-wider">
-                        Role management
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-xl font-semibold leading-tight text-stone-900">{user.name}</h3>
+                        <p className="truncate text-sm text-stone-500">{user.email}</p>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {userRoles.map((role) => (
+                            <span
+                              key={role}
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[role] || "bg-stone-100 text-stone-700"}`}
+                            >
+                              {role.charAt(0).toUpperCase() + role.slice(1)}
+                            </span>
+                          ))}
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                              user.emailVerified ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {user.emailVerified ? "Verified" : "Unverified"}
+                          </span>
+                          {user.isActive === false && (
+                            <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                              Deactivated
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="divide-y divide-stone-100">
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <StatTile label="Joined" value={formatDate(user.createdAt)} />
+                    <StatTile label="Last login" value={formatDate(user.lastLoginAt)} />
+                    <StatTile label="Assessments" value={assessments.length} />
+                    <StatTile label="Submitted" value={submittedCount} />
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {!user.emailVerified && (
+                      <ActionTile
+                        label="Force-verify email"
+                        hint="Skip email verification"
+                        onClick={() => handleAction({ emailVerified: true })}
+                        disabled={actionLoading}
+                      />
+                    )}
+
+                    {!isSelf &&
+                      (user.isActive === false ? (
+                        <ActionTile
+                          label="Reactivate account"
+                          hint="Allow login again"
+                          onClick={() => handleAction({ isActive: true })}
+                          disabled={actionLoading}
+                          variant="success"
+                        />
+                      ) : (
+                        <ActionTile
+                          label="Deactivate account"
+                          hint="Block sign-in"
+                          onClick={() =>
+                            handleAction(
+                              { isActive: false },
+                              "Deactivate this account? The user will not be able to log in, but their data will be preserved."
+                            )
+                          }
+                          disabled={actionLoading}
+                          variant="danger"
+                        />
+                      ))}
+                  </div>
+
+                  {isSelf && (
+                    <p className="rounded-xl bg-stone-50 px-3 py-2.5 text-xs italic text-stone-500">
+                      You cannot deactivate your own account or remove your own admin role.
+                    </p>
+                  )}
+                </section>
+
+                <section className="space-y-4">
+                  <div className="overflow-hidden rounded-[1.25rem] border border-stone-200 bg-white shadow-sm">
+                    <div className="border-b border-stone-200 bg-stone-50 px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Role management</p>
+                    </div>
+                    <div className="grid gap-px bg-stone-100">
                       {MANAGEABLE_ROLES.map((roleObj) => {
                         const hasThisRole = userRoles.includes(roleObj.key);
                         const isSelfAdmin = isSelf && roleObj.key === "admin";
 
                         return (
-                          <div key={roleObj.key} className="flex items-center justify-between px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${ROLE_COLORS[roleObj.key] || ""}`}>
-                                {roleObj.label}
-                              </span>
-                              {hasThisRole && (
-                                <span className="text-xs text-stone-400">active</span>
-                              )}
+                          <div key={roleObj.key} className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${ROLE_COLORS[roleObj.key] || ""}`}>
+                                  {roleObj.label}
+                                </span>
+                                <span className="text-xs text-stone-400">{hasThisRole ? "Active" : "Available"}</span>
+                              </div>
                             </div>
+
                             {isSelfAdmin ? (
-                              <span className="text-xs text-stone-400 italic">Can't modify own</span>
+                              <span className="text-[11px] italic text-stone-400">Locked</span>
                             ) : hasThisRole ? (
                               <button
                                 onClick={() => handleRemoveRole(roleObj.key)}
                                 disabled={actionLoading || userRoles.length === 1}
-                                className="text-xs px-3 py-1 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
-                                title={userRoles.length === 1 ? "Can't remove last role" : `Remove ${roleObj.label} role`}
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                title={userRoles.length === 1 ? "Cannot remove the last role" : `Remove ${roleObj.label} role`}
                               >
                                 Remove
                               </button>
@@ -254,7 +257,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                               <button
                                 onClick={() => handleAddRole(roleObj.key)}
                                 disabled={actionLoading}
-                                className="text-xs px-3 py-1 border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="rounded-lg border border-indigo-200 px-3 py-1.5 text-xs font-medium text-indigo-600 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
                               >
                                 Add
                               </button>
@@ -265,85 +268,97 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                     </div>
                   </div>
 
-                  {/* Account status */}
-                  {!isSelf && (
-                    user.isActive === false ? (
-                      <ActionButton
-                        onClick={() => handleAction({ isActive: true })}
-                        disabled={actionLoading}
-                        icon="↻"
-                        label="Reactivate account"
-                        hint="Allow login again"
-                        variant="success"
-                      />
-                    ) : (
-                      <ActionButton
-                        onClick={() => handleAction(
-                          { isActive: false },
-                          "Deactivate this account? The user will not be able to log in. Their data will be preserved."
-                        )}
-                        disabled={actionLoading}
-                        icon="✕"
-                        label="Deactivate account"
-                        hint="Block this user from logging in"
-                        variant="danger"
-                      />
-                    )
-                  )}
+                  <div className="rounded-[1.25rem] border border-stone-200 bg-white p-4 shadow-sm">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Latest assessment</p>
+                      <span className="text-[11px] text-stone-400">{assessments.length} total</span>
+                    </div>
 
-                  {isSelf && (
-                    <p className="text-xs text-stone-500 italic px-3 py-2 bg-stone-50 rounded-lg">
-                      You can't deactivate your own account or remove your admin role.
-                    </p>
-                  )}
-                </div>
+                    {latestAssessment ? (
+                      <div className="space-y-3">
+                        <div className="rounded-xl bg-stone-50 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-stone-900">
+                                {latestAssessment.status === "submitted"
+                                  ? latestAssessment.level || "Submitted"
+                                  : "In progress"}
+                              </p>
+                              <p className="mt-1 text-xs text-stone-500">
+                                {formatDate(latestAssessment.submittedAt || latestAssessment.updatedAt)}
+                              </p>
+                            </div>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                                latestAssessment.status === "submitted"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {latestAssessment.status}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <MiniStat label="Score" value={latestAssessment.overallScore != null ? `${latestAssessment.overallScore.toFixed(2)} / 5` : "-"} />
+                            <MiniStat label="Certificate" value={latestAssessment.certificateId || "-"} mono />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-stone-50 px-3 py-4 text-sm text-stone-500">No assessments yet.</div>
+                    )}
+                  </div>
+                </section>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </>
   );
 }
 
-function InfoCell({ label, value }) {
+function StatTile({ label, value }) {
   return (
-    <div className="bg-stone-50 rounded-lg p-3">
-      <p className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-1">
-        {label}
-      </p>
-      <p className="text-sm font-medium text-stone-900">{value}</p>
+    <div className="rounded-[1rem] border border-stone-200 bg-white p-3 shadow-sm">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">{label}</p>
+      <p className="mt-1.5 text-sm font-semibold text-stone-900">{value}</p>
     </div>
   );
 }
 
-function ActionButton({ onClick, disabled, icon, label, hint, variant = "default" }) {
+function MiniStat({ label, value, mono = false }) {
+  return (
+    <div className="rounded-lg border border-stone-200 bg-white px-2.5 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{label}</p>
+      <p className={`mt-1 truncate text-xs font-medium text-stone-800 ${mono ? "font-mono" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function ActionTile({ label, hint, onClick, disabled, variant = "default" }) {
   const variants = {
-    default: "border-stone-200 hover:border-indigo-300 hover:bg-indigo-50",
-    success: "border-emerald-200 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700",
-    danger:  "border-red-200 hover:border-red-400 hover:bg-red-50 text-red-700",
+    default: "border-stone-200 bg-white hover:border-indigo-300 hover:bg-indigo-50",
+    success: "border-emerald-200 bg-emerald-50/60 text-emerald-800 hover:border-emerald-400",
+    danger: "border-red-200 bg-red-50/60 text-red-800 hover:border-red-400",
   };
 
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`w-full text-left px-4 py-3 border rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]}`}
+      className={`rounded-[1rem] border p-3 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant] || variants.default}`}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-lg">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-stone-500">{hint}</p>
-        </div>
-      </div>
+      <p className="text-sm font-semibold">{label}</p>
+      <p className="mt-1 text-xs text-stone-500">{hint}</p>
     </button>
   );
 }
 
-function formatDate(d) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-AU", {
+function formatDate(date) {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("en-AU", {
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -23,8 +23,13 @@ import LoadingSpinner from "./LoadingSpinner";
  *   </ProtectedRoute>
  */
 function ProtectedRoute({ children, allowedRoles }) {
-  const { isAuthenticated, loading, activeRole, roleDestination } = useAuth();
+  const { isAuthenticated, loading, activeRole, roleDestination, user } = useAuth();
   const location = useLocation();
+  const effectiveRole = activeRole || (
+    user?.roles?.includes("admin") ? "admin"
+    : user?.roles?.includes("employer") ? "employer"
+    : "carer"
+  );
 
   if (loading) {
     return <LoadingSpinner message="Checking your session..." />;
@@ -32,13 +37,19 @@ function ProtectedRoute({ children, allowedRoles }) {
 
   // Not logged in → go to login
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location.pathname + location.search + location.hash }}
+        replace
+      />
+    );
   }
 
   // Role restriction check
-  if (allowedRoles && !allowedRoles.includes(activeRole)) {
+  if (allowedRoles && !allowedRoles.includes(effectiveRole)) {
     // Redirect them to their correct home — not a 404, just wrong door
-    return <Navigate to={roleDestination(activeRole)} replace />;
+    return <Navigate to={roleDestination(effectiveRole)} replace />;
   }
 
   return children;

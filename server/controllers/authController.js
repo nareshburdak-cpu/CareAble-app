@@ -13,6 +13,7 @@ const User = require("../models/User");
 const Assessment = require("../models/Assessment");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");
@@ -25,6 +26,41 @@ const {
   verifyEmailTemplate,
   otpEmail,
 } = require("../utils/emailTemplates");
+
+const googleClient = process.env.GOOGLE_CLIENT_ID
+  ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+  : null;
+
+function issueAuthResponse(res, user, status = 200, message = "Logged in successfully.") {
+  const token = generateToken(user._id);
+
+  res.status(status).json({
+    success: true,
+    message,
+    data: { user, token },
+  });
+}
+
+async function verifyGoogleCredential(credential) {
+  if (!googleClient || !process.env.GOOGLE_CLIENT_ID) {
+    throw new ApiError(500, "Google sign-in is not configured yet.");
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+  if (!payload?.email) {
+    throw new ApiError(400, "Google account email is missing.");
+  }
+  if (!payload.email_verified) {
+    throw new ApiError(400, "Please use a Google account with a verified email.");
+  }
+
+  return payload;
+}
 
 // =============================================================================
 // OTP CHALLENGE HELPERS
@@ -242,6 +278,10 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(403, "This account has been deactivated. Please contact support.");
   }
 
+  if (!user.password) {
+    throw new ApiError(400, "This account uses Google sign-in. Please continue with Google.");
+  }
+
   const isMatch = await user.matchPassword(password);
   if (!isMatch) {
     throw new ApiError(401, "Invalid email or password");
@@ -255,6 +295,208 @@ const login = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Logged in successfully 👋",
+    data: { user, token },
+  });
+});
+
+/**
+ * @desc    Authenticate with Google Identity token
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+const googleAuth = asyncHandler(async (req, res) => {
+  const { credential, roles, acceptedTerms, consentToResearch } = req.body;
+
+  if (!credential) {
+    throw new ApiError(400, "Google credential is required.");
+  }
+
+  const payload = await verifyGoogleCredential(credential);
+  const email = payload.email.toLowerCase();
+  const googleId = payload.sub;
+  const firstName = (payload.given_name || "").trim();
+  const lastName = (payload.family_name || "").trim();
+  const displayName =
+    (payload.name || `${firstName} ${lastName}`.trim() || email.split("@")[0]).trim();
+
+  let user = await User.findOne({ email });
+
+  if (user) {
+    if (user.isActive === false) {
+      throw new ApiError(403, "This account has been deactivated. Please contact support.");
+    }
+
+    user.googleId = user.googleId || googleId;
+    user.googleAvatar = payload.picture || user.googleAvatar;
+    user.emailVerified = true;
+
+    if (!user.name) user.name = displayName;
+    if (!user.firstName && firstName) user.firstName = firstName;
+    if (!user.lastName && lastName) user.lastName = lastName;
+    if (!user.authProviders?.includes("google")) {
+      user.authProviders = [...new Set([...(user.authProviders || []), "google"])];
+    }
+
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+
+    const token = generateToken(user._id);
+    return res.status(200).json({
+      success: true,
+      message: "Logged in successfully.",
+      data: { user, token },
+    });
+  }
+
+  if (!acceptedTerms) {
+    throw new ApiError(400, "Please accept the Terms of Service to continue with Google.");
+  }
+
+  const ALLOWED_SIGNUP_ROLES = ["carer", "employer"];
+  const requestedRoles = Array.isArray(roles)
+    ? roles.filter((role) => ALLOWED_SIGNUP_ROLES.includes(role))
+    : [];
+  const assignedRoles = requestedRoles.length > 0 ? requestedRoles : ["carer"];
+  const isEmployerOnly =
+    assignedRoles.includes("employer") &&
+    !assignedRoles.includes("carer");
+
+  user = await User.create({
+    name: displayName,
+    firstName: firstName || displayName,
+    lastName,
+    useSingleName: !lastName,
+    email,
+    emailVerified: true,
+    googleId,
+    googleAvatar: payload.picture || "",
+    authProviders: ["google"],
+    acceptedTerms: true,
+    consentToResearch: !!consentToResearch,
+    onboardingComplete: isEmployerOnly,
+    roles: assignedRoles,
+    role: isEmployerOnly ? "employer" : "user",
+    lastLoginAt: new Date(),
+  });
+
+  const token = generateToken(user._id);
+  res.status(201).json({
+    success: true,
+    message: "Account created successfully.",
+    data: { user, token },
+  });
+});
+
+/**
+ * @desc    Request a login OTP by email
+ * @route   POST /api/auth/login-otp/request
+ * @access  Public
+ */
+const requestLoginOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email?.trim()) {
+    throw new ApiError(400, "Email is required");
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail });
+
+  const successResponse = {
+    success: true,
+    message: "If an account with that email exists, we've sent a login code.",
+  };
+
+  if (!user || user.isActive === false) {
+    return res.status(200).json(successResponse);
+  }
+
+  await checkEmailRateLimit(user._id, "login-otp");
+  const otp = user.createOtp("login");
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    const emailContent = otpEmail({ name: user.name, otp, action: "login" });
+    await sendEmail({
+      to: user.email,
+      subject: emailContent.subject,
+      html: emailContent.html,
+    });
+  await logEmailSent(user._id, "login-otp");
+  } catch (err) {
+    console.error("Login OTP email failed:", err.message);
+    throw new ApiError(500, "Could not send login code. Please try again.");
+  }
+
+  return res.status(200).json(successResponse);
+});
+
+/**
+ * @desc    Verify login OTP and issue JWT
+ * @route   POST /api/auth/login-otp/verify
+ * @access  Public
+ */
+const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email?.trim() || !otp?.trim()) {
+    throw new ApiError(400, "Email and code are required");
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    "+otpHash +otpAction +otpExpires +otpAttempts"
+  );
+
+  if (!user) {
+    throw new ApiError(401, "Invalid email or code");
+  }
+
+  if (user.isActive === false) {
+    throw new ApiError(403, "This account has been deactivated. Please contact support.");
+  }
+
+  if (!user.otpHash || !user.otpExpires || user.otpAction !== "login") {
+    throw new ApiError(400, "No active login code. Request a new one.");
+  }
+
+  if (user.otpExpires < Date.now()) {
+    user.otpHash = undefined;
+    user.otpAction = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(400, "Code has expired. Request a new one.");
+  }
+
+  if (user.otpAttempts >= 5) {
+    user.otpHash = undefined;
+    user.otpAction = undefined;
+    user.otpExpires = undefined;
+    user.otpAttempts = 0;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(429, "Too many attempts. Request a new code.");
+  }
+
+  const otpHash = crypto.createHash("sha256").update(otp.trim()).digest("hex");
+  if (otpHash !== user.otpHash) {
+    user.otpAttempts += 1;
+    await user.save({ validateBeforeSave: false });
+    throw new ApiError(400, "Incorrect code.");
+  }
+
+  user.otpHash = undefined;
+  user.otpAction = undefined;
+  user.otpExpires = undefined;
+  user.otpAttempts = 0;
+  user.lastLoginAt = new Date();
+  await user.save({ validateBeforeSave: false });
+
+  const token = generateToken(user._id);
+
+  res.status(200).json({
+    success: true,
+    message: "Logged in successfully.",
     data: { user, token },
   });
 });
@@ -792,6 +1034,9 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
+  googleAuth,
+  requestLoginOtp,
+  verifyLoginOtp,
   getMe,
   updateProfile,
   changePassword,

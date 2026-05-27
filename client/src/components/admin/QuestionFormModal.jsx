@@ -1,22 +1,10 @@
-// client/src/components/admin/QuestionFormModal.jsx
-
-/**
- * QuestionFormModal
- * -----------------
- * Modal for creating or editing a question.
- *
- * Pass `question` prop:
- *   - {} (empty object) = new question
- *   - { ...existing } = edit existing
- */
-
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import api from "../../api/axios";
 import toast from "../../utils/toast";
 
 const TYPES = [
   { value: "likert", label: "Likert (1-5 agreement scale)" },
-  { value: "frequency", label: "Frequency (never → always)" },
+  { value: "frequency", label: "Frequency (never to always)" },
   { value: "multi", label: "Multi-select (custom options)" },
 ];
 
@@ -30,13 +18,15 @@ function QuestionFormModal({ question, onClose, onSaved }) {
     helper: question?.helper || "",
     options: question?.options || [],
   });
-
   const [submitting, setSubmitting] = useState(false);
-  const [categoryOptions, setCategoryOptions] = useState([]); // [{ key, label, icon }]
+  const [categoryOptions, setCategoryOptions] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+  const categoryMenuRef = useRef(null);
+  const typeMenuRef = useRef(null);
 
-  // Fetch categories from /admin/categories — full metadata, only active ones.
   useEffect(() => {
     const loadCategories = async () => {
       setCategoriesLoading(true);
@@ -48,12 +38,8 @@ function QuestionFormModal({ question, onClose, onSaved }) {
           .map((c) => ({ key: c.key, label: c.label, icon: c.icon }));
         setCategoryOptions(cats);
 
-        // If creating a new question and no category selected yet, default
-        // to the first active category. (Edit mode keeps the existing one.)
         if (isNew && cats.length > 0) {
-          setFormData((prev) =>
-            prev.category ? prev : { ...prev, category: cats[0].key }
-          );
+          setFormData((prev) => (prev.category ? prev : { ...prev, category: cats[0].key }));
         }
       } catch {
         setCategoriesError(true);
@@ -64,18 +50,50 @@ function QuestionFormModal({ question, onClose, onSaved }) {
     loadCategories();
   }, [isNew]);
 
-  // Close on ESC
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && categoryMenuOpen) {
+        setCategoryMenuOpen(false);
+        return;
+      }
+      if (e.key === "Escape" && typeMenuOpen) {
+        setTypeMenuOpen(false);
+        return;
+      }
+      if (e.key === "Escape" && !submitting) onClose();
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  }, [categoryMenuOpen, onClose, submitting, typeMenuOpen]);
+
+  useEffect(() => {
+    if (!categoryMenuOpen) return;
+    const handlePointerDown = (event) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target)) {
+        setCategoryMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [categoryMenuOpen]);
+
+  useEffect(() => {
+    if (!typeMenuOpen) return;
+    const handlePointerDown = (event) => {
+      if (typeMenuRef.current && !typeMenuRef.current.contains(event.target)) {
+        setTypeMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [typeMenuOpen]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const selectedCategory = categoryOptions.find((cat) => cat.key === formData.category);
+  const selectedType = TYPES.find((type) => type.value === formData.type);
 
   const addOption = () => {
     setFormData((prev) => ({
@@ -87,9 +105,7 @@ function QuestionFormModal({ question, onClose, onSaved }) {
   const updateOption = (idx, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      options: prev.options.map((opt, i) =>
-        i === idx ? { ...opt, [field]: value } : opt
-      ),
+      options: prev.options.map((opt, i) => (i === idx ? { ...opt, [field]: value } : opt)),
     }));
   };
 
@@ -100,139 +116,244 @@ function QuestionFormModal({ question, onClose, onSaved }) {
     }));
   };
 
-    const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.text.trim()) {
-        toast.error("Question text is required");
-        return;
-    }
-    if (!formData.category) {
-        toast.error("Please select a category");
-        return;
+      toast.error("Question text is required");
+      return;
     }
 
-    // Build the payload — don't mutate formData
-    const payload = { ...formData };
+    if (!formData.category) {
+      toast.error("Please select a category");
+      return;
+    }
+
+    const payload = {
+      category: formData.category,
+      type: formData.type,
+      text: formData.text.trim(),
+      helper: formData.helper.trim(),
+    };
 
     if (formData.type === "multi") {
-        const validOptions = formData.options.filter((o) => o.value && o.label);
-        if (validOptions.length === 0) {
+      const trimmedOptions = formData.options
+        .map((option) => ({
+          value: option.value.trim(),
+          label: option.label.trim(),
+        }))
+        .filter((option) => option.value && option.label);
+
+      if (trimmedOptions.length === 0) {
         toast.error("Multi-select questions need at least one option");
         return;
-        }
-        payload.options = validOptions;
-    } else {
-        // Non-multi-select: don't send options at all
-        delete payload.options;
+      }
+
+      const duplicateValue = trimmedOptions.find(
+        (option, index) => trimmedOptions.findIndex((item) => item.value === option.value) !== index
+      );
+      if (duplicateValue) {
+        toast.error("Option values must be unique");
+        return;
+      }
+
+      payload.options = trimmedOptions;
     }
 
     setSubmitting(true);
     try {
-        if (isNew) {
+      if (isNew) {
         await api.post("/admin/questions", payload);
         toast.success("Question created.");
-        } else {
+      } else {
         await api.patch(`/admin/questions/${question._id}`, payload);
         toast.success("Question updated.");
-        }
-        onSaved?.();
+      }
+      onSaved?.();
     } catch (err) {
-        toast.error(err.message || "Save failed");
+      toast.error(err.message || "Save failed");
     } finally {
-        setSubmitting(false);
+      setSubmitting(false);
     }
-    };
+  };
+
   return (
     <>
       <div
-        className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-40 animate-fade-in"
-        onClick={onClose}
+        className="fixed inset-0 z-40 bg-stone-900/40 backdrop-blur-sm animate-fade-in"
+        onClick={() => {
+          if (!submitting) onClose();
+        }}
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto pointer-events-auto animate-dropdown">
-          <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between sticky top-0 bg-white">
-            <h2 className="font-semibold text-stone-900">
+        <div
+          className="pointer-events-auto max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white shadow-2xl animate-dropdown"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="question-modal-title"
+        >
+          <div className="sticky top-0 flex items-center justify-between border-b border-stone-200 bg-white px-6 py-4">
+            <h2 id="question-modal-title" className="text-lg font-semibold text-stone-900">
               {isNew ? "New question" : "Edit question"}
             </h2>
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-stone-100 rounded-md transition"
+              disabled={submitting}
+              className="rounded-md p-1.5 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Close"
             >
-              <svg className="w-5 h-5 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <svg className="h-5 w-5 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
-            {/* Category */}
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
             <div>
-              <label className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
                 Category
               </label>
-              <select
-                value={formData.category}
-                onChange={(e) => handleChange("category", e.target.value)}
-                disabled={!isNew || categoriesLoading || categoriesError}
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-stone-50"
-              >
-                {categoriesLoading && <option value="">Loading categories...</option>}
-                {categoriesError && <option value="">Could not load categories</option>}
-                {!categoriesLoading && !categoriesError && categoryOptions.length === 0 && (
-                  <option value="">No active categories</option>
-                )}
-                {!categoriesLoading && !categoriesError && categoryOptions.map((cat) => (
-                  <option key={cat.key} value={cat.key}>
-                    {cat.icon ? `${cat.icon} ${cat.label}` : cat.label}
-                  </option>
-                ))}
-                {/* Edit mode: if the question's category is archived/missing from the
-                    active list, render it as a fallback option so it stays selected */}
-                {!isNew && formData.category && !categoryOptions.find((c) => c.key === formData.category) && (
-                  <option value={formData.category}>{formData.category} (archived)</option>
-                )}
-              </select>
-              {!isNew && (
-                <p className="text-xs text-stone-500 mt-1">Category cannot be changed after creation.</p>
+              {isNew && !categoriesLoading && !categoriesError && categoryOptions.length > 0 ? (
+                <div className="relative" ref={categoryMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setCategoryMenuOpen((open) => !open)}
+                    className="flex w-full items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-left text-sm shadow-sm transition hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    aria-haspopup="listbox"
+                    aria-expanded={categoryMenuOpen}
+                  >
+                    <span className="min-w-0 truncate text-stone-900">
+                      {selectedCategory ? (
+                        <>
+                          {selectedCategory.icon ? `${selectedCategory.icon} ` : ""}
+                          {selectedCategory.label}
+                        </>
+                      ) : "Select a category"}
+                    </span>
+                    <svg className={`h-4 w-4 flex-shrink-0 text-stone-400 transition ${categoryMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {categoryMenuOpen && (
+                    <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">
+                      <div className="max-h-64 overflow-y-auto py-1">
+                        {categoryOptions.map((cat) => {
+                          const active = cat.key === formData.category;
+                          return (
+                            <button
+                              key={cat.key}
+                              type="button"
+                              onClick={() => {
+                                handleChange("category", cat.key);
+                                setCategoryMenuOpen(false);
+                              }}
+                              className={`flex w-full items-start gap-2 px-3 py-2.5 text-left text-sm transition ${
+                                active ? "bg-indigo-50 text-indigo-700" : "text-stone-700 hover:bg-stone-50"
+                              }`}
+                            >
+                              <span className="mt-0.5 flex-shrink-0">{cat.icon || "•"}</span>
+                              <span className="min-w-0 leading-snug">{cat.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleChange("category", e.target.value)}
+                  disabled={!isNew || categoriesLoading || categoriesError}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-stone-50"
+                >
+                  {categoriesLoading && <option value="">Loading categories...</option>}
+                  {categoriesError && <option value="">Could not load categories</option>}
+                  {!categoriesLoading && !categoriesError && categoryOptions.length === 0 && <option value="">No active categories</option>}
+                  {!categoriesLoading && !categoriesError && categoryOptions.map((cat) => (
+                    <option key={cat.key} value={cat.key}>
+                      {cat.icon ? `${cat.icon} ${cat.label}` : cat.label}
+                    </option>
+                  ))}
+                  {!isNew && formData.category && !categoryOptions.find((c) => c.key === formData.category) && (
+                    <option value={formData.category}>{formData.category} (archived)</option>
+                  )}
+                </select>
               )}
-              {categoriesError && (
-                <p className="text-xs text-red-600 mt-1">Failed to load categories. Refresh the page.</p>
-              )}
+              {!isNew && <p className="mt-1 text-sm text-stone-500">Category cannot be changed after creation.</p>}
+              {categoriesError && <p className="mt-1 text-sm text-red-600">Failed to load categories. Refresh the page.</p>}
               {!categoriesLoading && !categoriesError && categoryOptions.length === 0 && (
-                <p className="text-xs text-amber-700 mt-1">
-                  No active categories. Create one in the Categories page first.
-                </p>
+                <p className="mt-1 text-sm text-amber-700">No active categories. Create one in Categories first.</p>
               )}
             </div>
 
-            {/* Type */}
             <div>
-              <label className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
                 Question type
               </label>
-              <select
-                value={formData.type}
-                onChange={(e) => handleChange("type", e.target.value)}
-                disabled={!isNew}
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-stone-50"
-              >
-                {TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              {!isNew && (
-                <p className="text-xs text-stone-500 mt-1">Type cannot be changed after creation.</p>
+              {isNew ? (
+                <div className="relative" ref={typeMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setTypeMenuOpen((open) => !open)}
+                    className="flex w-full items-center justify-between rounded-lg border border-stone-200 px-3 py-2.5 text-left text-sm shadow-sm transition hover:border-indigo-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    aria-haspopup="listbox"
+                    aria-expanded={typeMenuOpen}
+                  >
+                    <span className="min-w-0 truncate text-stone-900">
+                      {selectedType?.label || "Select a question type"}
+                    </span>
+                    <svg className={`h-4 w-4 flex-shrink-0 text-stone-400 transition ${typeMenuOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {typeMenuOpen && (
+                    <div className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl">
+                      <div className="max-h-56 overflow-y-auto py-1">
+                        {TYPES.map((type) => {
+                          const active = type.value === formData.type;
+                          return (
+                            <button
+                              key={type.value}
+                              type="button"
+                              onClick={() => {
+                                handleChange("type", type.value);
+                                setTypeMenuOpen(false);
+                              }}
+                              className={`block w-full px-3 py-2.5 text-left text-sm transition ${
+                                active ? "bg-indigo-50 text-indigo-700" : "text-stone-700 hover:bg-stone-50"
+                              }`}
+                            >
+                              <span className="block leading-snug">{type.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <select
+                  value={formData.type}
+                  onChange={(e) => handleChange("type", e.target.value)}
+                  disabled
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-stone-50"
+                >
+                  {TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
               )}
+              {!isNew && <p className="mt-1 text-sm text-stone-500">Type cannot be changed after creation.</p>}
             </div>
 
-            {/* Text */}
             <div>
-              <label className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
                 Question text *
               </label>
               <textarea
@@ -240,13 +361,12 @@ function QuestionFormModal({ question, onClose, onSaved }) {
                 onChange={(e) => handleChange("text", e.target.value)}
                 rows={3}
                 placeholder="e.g., How confident do you feel administering medications?"
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 resize-none"
+                className="w-full resize-none rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
 
-            {/* Help text */}
             <div>
-              <label className="block text-xs font-medium text-stone-700 uppercase tracking-wider mb-1.5">
+              <label className="mb-1.5 block text-sm font-medium text-stone-700">
                 Help text (optional)
               </label>
               <input
@@ -254,53 +374,50 @@ function QuestionFormModal({ question, onClose, onSaved }) {
                 value={formData.helper}
                 onChange={(e) => handleChange("helper", e.target.value)}
                 placeholder="e.g., Think about routine medications, not just emergencies"
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full rounded-lg border border-stone-200 px-3 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
             </div>
 
-            {/* Options (only for multi-select) */}
             {formData.type === "multi" && (
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium text-stone-700 uppercase tracking-wider">
-                    Options
-                  </label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium text-stone-700">Options</label>
                   <button
                     type="button"
                     onClick={addOption}
-                    className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
                   >
                     + Add option
                   </button>
                 </div>
 
                 {formData.options.length === 0 ? (
-                  <p className="text-sm text-stone-500 italic">No options yet. Click "Add option" to start.</p>
+                  <p className="text-sm italic text-stone-500">No options yet. Click "Add option" to start.</p>
                 ) : (
                   <div className="space-y-2">
-                    {formData.options.map((opt, idx) => (
+                    {formData.options.map((option, idx) => (
                       <div key={idx} className="flex items-center gap-2">
                         <input
                           type="text"
-                          value={opt.value}
+                          value={option.value}
                           onChange={(e) => updateOption(idx, "value", e.target.value)}
                           placeholder="value (e.g., bathing)"
-                          className="flex-1 px-2 py-1.5 border border-stone-200 rounded text-sm focus:border-indigo-500 focus:outline-none"
+                          className="flex-1 rounded border border-stone-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
                         />
                         <input
                           type="text"
-                          value={opt.label}
+                          value={option.label}
                           onChange={(e) => updateOption(idx, "label", e.target.value)}
                           placeholder="label (e.g., Bathing)"
-                          className="flex-1 px-2 py-1.5 border border-stone-200 rounded text-sm focus:border-indigo-500 focus:outline-none"
+                          className="flex-1 rounded border border-stone-200 px-2 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
                         />
                         <button
                           type="button"
                           onClick={() => removeOption(idx)}
-                          className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded transition"
+                          className="rounded p-1.5 text-stone-400 transition hover:bg-red-50 hover:text-red-600"
                           aria-label="Remove"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
@@ -311,20 +428,19 @@ function QuestionFormModal({ question, onClose, onSaved }) {
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-2 pt-4 border-t border-stone-100">
+            <div className="flex justify-end gap-2 border-t border-stone-100 pt-4">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={submitting}
-                className="px-4 py-2 text-sm text-stone-600 hover:text-stone-800 transition"
+                className="px-4 py-2 text-sm text-stone-600 transition hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition"
+                className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
               >
                 {submitting ? "Saving..." : isNew ? "Create question" : "Save changes"}
               </button>

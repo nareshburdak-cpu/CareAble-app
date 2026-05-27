@@ -21,6 +21,7 @@ const COOLDOWNS = {
   "welcome": 0,
   "verify-email": 60,
   "password-reset": 60,
+  "login-otp": 60,
   "otp": 30,
 };
 

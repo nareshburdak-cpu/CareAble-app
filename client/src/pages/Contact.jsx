@@ -171,7 +171,7 @@ function Contact() {
               <h2 className="font-serif text-2xl font-bold text-stone-900 mb-1 leading-tight">
                 Reach us directly
               </h2>
-              <p className="text-sm text-stone-500 leading-relaxed">
+              <p className="text-base text-stone-500 leading-relaxed">
                 This is an active research project. Every message helps us improve CareAble for carers across Australia.
               </p>
             </div>
@@ -207,8 +207,8 @@ function Contact() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <div>
-                <p className="text-xs font-semibold text-indigo-800 mb-0.5">Response time</p>
-                <p className="text-xs text-indigo-700 leading-snug">
+                <p className="text-sm font-semibold text-indigo-800 mb-0.5">Response time</p>
+                <p className="text-sm text-indigo-700 leading-snug">
                   Usually within 2–3 business days. For urgent matters, email us directly at{" "}
                   <a href={`mailto:${BRAND.supportEmail}`} className="underline hover:text-indigo-900">
                     {BRAND.supportEmail}
@@ -246,7 +246,7 @@ function Contact() {
                 <>
                   <div className="mb-6">
                     <h2 className="font-serif text-xl font-bold text-stone-900 mb-1">Send us a message</h2>
-                    <p className="text-sm text-stone-500">All fields marked with * are required.</p>
+                    <p className="text-base text-stone-500">All fields marked with * are required.</p>
                   </div>
 
                   <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -346,7 +346,7 @@ function Contact() {
                       )}
                     </button>
 
-                    <p className="text-xs text-stone-400 text-center leading-relaxed">
+                    <p className="text-sm text-stone-400 text-center leading-relaxed">
                       By sending a message you agree to our{" "}
                       <a href="/privacy" className="text-indigo-500 hover:underline">Privacy Policy</a>.
                       We never share your details with third parties.

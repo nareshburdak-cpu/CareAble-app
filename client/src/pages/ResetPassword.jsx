@@ -68,12 +68,12 @@ function ResetPassword() {
           <h1 className="font-serif text-2xl font-bold text-stone-900 mb-2">
             Invalid reset link
           </h1>
-          <p className="text-stone-600 mb-6">
+          <p className="text-base text-stone-600 mb-6">
             This link is missing or malformed. Please request a new one.
           </p>
           <Link
             to="/forgot-password"
-            className="inline-block px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition"
+            className="inline-block px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 transition"
           >
             Request new link
           </Link>
@@ -94,7 +94,7 @@ function ResetPassword() {
           <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-900 mb-2">
             Set a new password
           </h1>
-          <p className="text-sm text-stone-500">
+          <p className="text-base text-stone-500">
             Choose a strong password (at least 8 characters).
           </p>
         </div>
@@ -123,7 +123,7 @@ function ResetPassword() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition shadow-sm"
+            className="w-full px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 disabled:bg-indigo-300 transition shadow-sm"
           >
             {submitting ? "Resetting..." : "Reset password"}
           </button>

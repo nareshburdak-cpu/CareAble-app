@@ -63,7 +63,7 @@ useEffect(() => {
             <h1 className="font-serif text-2xl font-bold text-stone-900 mb-2">
               Verifying your email...
             </h1>
-            <p className="text-stone-500">Hang tight, this only takes a second.</p>
+            <p className="text-base text-stone-500">Hang tight, this only takes a second.</p>
           </>
         )}
 
@@ -77,10 +77,10 @@ useEffect(() => {
             <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-900 mb-2">
               {status === "success" ? "You're all set! 🎉" : "Already verified ✓"}
             </h1>
-            <p className="text-stone-600 mb-6">{message}</p>
+            <p className="text-base text-stone-600 mb-6">{message}</p>
             <Link
               to="/dashboard"
-              className="inline-block px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm"
+              className="inline-block px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 transition shadow-sm"
             >
               Go to dashboard →
             </Link>
@@ -97,7 +97,7 @@ useEffect(() => {
             <h1 className="font-serif text-2xl font-bold text-stone-900 mb-2">
               Verification failed
             </h1>
-            <p className="text-stone-600 mb-6">{message}</p>
+            <p className="text-base text-stone-600 mb-6">{message}</p>
             <Link
               to="/dashboard"
               className="inline-block px-6 py-2.5 border-2 border-stone-200 text-stone-700 font-medium rounded-lg hover:border-indigo-300 hover:text-indigo-700 transition"

@@ -45,7 +45,7 @@ function ForgotPassword() {
               <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-900 mb-2">
                 Forgot your password?
               </h1>
-              <p className="text-sm text-stone-500">
+              <p className="text-base text-stone-500">
                 No worries — enter your email and we'll send you a reset link.
               </p>
             </div>
@@ -64,7 +64,7 @@ function ForgotPassword() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 transition shadow-sm"
+                className="w-full px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 disabled:bg-indigo-300 transition shadow-sm"
               >
                 {submitting ? "Sending..." : "Send reset link"}
               </button>
@@ -89,7 +89,7 @@ function ForgotPassword() {
             <p className="text-stone-600 leading-relaxed mb-6">
               If an account exists for <strong>{email}</strong>, we've sent a password reset link to it. Check your inbox (and spam folder, just in case).
             </p>
-            <p className="text-sm text-stone-500 mb-6">
+            <p className="text-base text-stone-500 mb-6">
               The link expires in 30 minutes.
             </p>
             <Link

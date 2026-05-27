@@ -572,13 +572,19 @@ const getAuditLogs = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const limit = Math.min(200, parseInt(req.query.limit) || 50);
   const skip = (page - 1) * limit;
-  const { action, actorId } = req.query;
+  const { action, actorId, group } = req.query;
 
   const query = {};
   if (action) query.action = action;
+  if (group && group !== "all") {
+    query.action = new RegExp(`^${String(group).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.`);
+  }
   if (actorId) query.actor = actorId;
 
-  const [logs, total] = await Promise.all([
+  const countBaseQuery = {};
+  if (actorId) countBaseQuery.actor = actorId;
+
+  const [logs, total, allCount, userCount, questionCount, categoryCount, settingCount] = await Promise.all([
     AuditLog.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -586,6 +592,11 @@ const getAuditLogs = asyncHandler(async (req, res) => {
       .populate("actor", "name email")
       .lean(),
     AuditLog.countDocuments(query),
+    AuditLog.countDocuments(countBaseQuery),
+    AuditLog.countDocuments({ ...countBaseQuery, action: /^user\./ }),
+    AuditLog.countDocuments({ ...countBaseQuery, action: /^question\./ }),
+    AuditLog.countDocuments({ ...countBaseQuery, action: /^category\./ }),
+    AuditLog.countDocuments({ ...countBaseQuery, action: /^setting\./ }),
   ]);
 
   res.status(200).json({
@@ -597,6 +608,13 @@ const getAuditLogs = asyncHandler(async (req, res) => {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+      counts: {
+        all: allCount,
+        user: userCount,
+        question: questionCount,
+        category: categoryCount,
+        setting: settingCount,
       },
     },
   });

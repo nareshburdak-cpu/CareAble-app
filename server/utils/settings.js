@@ -22,8 +22,6 @@
 const Setting = require("../models/Setting");
 
 // ── Setting definitions ────────────────────────────────────────────
-// Each setting has: default, type, description, optional validator.
-// Validator throws an ApiError-compatible message string on bad input.
 const SETTING_SCHEMA = {
   questionsPerCategory: {
     default: 3,
@@ -34,6 +32,18 @@ const SETTING_SCHEMA = {
       if (!Number.isInteger(v)) return "Must be a whole number";
       if (v < 1) return "Must be at least 1";
       if (v > 10) return "Maximum is 10 per category";
+      return null;
+    },
+  },
+  assessmentCooldownHours: {
+    default: 24,
+    type: "number",
+    description:
+      "How long carers must wait before retaking an assessment (in hours). Default is 24 hours (1 day). Set to 1 for testing, up to 720 (30 days).",
+    validate: (v) => {
+      if (!Number.isInteger(v)) return "Must be a whole number";
+      if (v < 1) return "Must be at least 1 hour";
+      if (v > 720) return "Maximum is 720 hours (30 days)";
       return null;
     },
   },
@@ -135,5 +145,5 @@ module.exports = {
   getAllSettings,
   setSetting,
   invalidate,
-  SETTING_SCHEMA, // exposed for tests/debug only
+  SETTING_SCHEMA,
 };

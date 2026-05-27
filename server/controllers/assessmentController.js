@@ -1,3 +1,5 @@
+// server/controllers/assessmentController.js
+
 /**
  * Assessment Controller
  * ---------------------
@@ -17,6 +19,12 @@
  *     the global question pool.
  *   - All endpoints expose `questionTotal` so the frontend can drop
  *     hardcoded "30 questions" strings.
+ *
+ * Task B (cooldown):
+ *   - Cooldown duration is now driven by `assessmentCooldownHours`
+ *     setting (admin-configurable). Default: 24h.
+ *   - Response includes both hoursRemaining and daysRemaining so
+ *     CooldownBanner can display sub-24h times accurately.
  */
 
 const Assessment = require("../models/Assessment");
@@ -34,14 +42,11 @@ const { getSetting } = require("../utils/settings");
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nanoid = customAlphabet(ID_ALPHABET, 10);
 
-const COOLDOWN_DAYS = 1;
-
 // ── Helpers ────────────────────────────────────────────────────────
 
 /**
  * Count the number of questions LOCKED into a specific assessment's
- * question order. Falls back to 0 if the assessment has no locked order
- * (shouldn't happen after startAssessment, but defensive).
+ * question order. Falls back to 0 if the assessment has no locked order.
  */
 function lockedQuestionCount(assessment) {
   if (!assessment?.questionOrder) return 0;
@@ -64,6 +69,27 @@ function lockedQuestionIds(assessment) {
   return ids;
 }
 
+/**
+ * Build the cooldown payload from a submitted assessment + cooldown hours.
+ * Centralised here so startAssessment and getCooldownStatus stay in sync.
+ */
+function buildCooldownPayload(submittedAt, cooldownHours) {
+  const cooldownMs = cooldownHours * 60 * 60 * 1000;
+  const nextAvailable = new Date(submittedAt.getTime() + cooldownMs);
+  const msRemaining = nextAvailable - Date.now();
+  const hoursRemaining = Math.ceil(msRemaining / (60 * 60 * 1000));
+  const daysRemaining = Math.ceil(msRemaining / (24 * 60 * 60 * 1000));
+
+  return {
+    active: true,
+    cooldownHours,
+    lastSubmittedAt: submittedAt.toISOString(),
+    nextAvailableAt: nextAvailable.toISOString(),
+    hoursRemaining,
+    daysRemaining,
+  };
+}
+
 // ── Endpoints ──────────────────────────────────────────────────────
 
 /**
@@ -79,7 +105,8 @@ const startAssessment = asyncHandler(async (req, res) => {
   });
 
   if (!hasInProgress) {
-    const cooldownMs = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+    const cooldownHours = await getSetting("assessmentCooldownHours");
+    const cooldownMs = cooldownHours * 60 * 60 * 1000;
     const cooldownStart = new Date(Date.now() - cooldownMs);
 
     const recentSubmission = await Assessment.findOne({
@@ -91,24 +118,14 @@ const startAssessment = asyncHandler(async (req, res) => {
       .lean();
 
     if (recentSubmission) {
-      const submittedAt = new Date(recentSubmission.submittedAt);
-      const nextAvailable = new Date(submittedAt.getTime() + cooldownMs);
-      const daysRemaining = Math.ceil(
-        (nextAvailable - Date.now()) / (24 * 60 * 60 * 1000)
+      const payload = buildCooldownPayload(
+        new Date(recentSubmission.submittedAt),
+        cooldownHours
       );
-
       throw new ApiError(
         429,
-        `Please wait ${daysRemaining} more day(s) before retaking. This helps keep results meaningful.`,
-        {
-          cooldown: {
-            active: true,
-            cooldownDays: COOLDOWN_DAYS,
-            lastSubmittedAt: submittedAt.toISOString(),
-            nextAvailableAt: nextAvailable.toISOString(),
-            daysRemaining,
-          },
-        }
+        `Please wait ${payload.hoursRemaining} more hour${payload.hoursRemaining === 1 ? "" : "s"} before retaking. This helps keep results meaningful.`,
+        { cooldown: payload }
       );
     }
   }
@@ -154,10 +171,6 @@ const startAssessment = asyncHandler(async (req, res) => {
   }
 
   // STEP 3: Lock question set if not already locked.
-  // Sampling: N questions per active domain (admin-configurable).
-  // Multi-select questions are NOT excluded from sampling here —
-  // they are excluded from SCORING (see scoring.js). Including them
-  // in the sample preserves demographic context capture.
   if (assessment.categoryOrder.length === 0) {
     const questionsPerCategory = await getSetting("questionsPerCategory");
 
@@ -169,21 +182,18 @@ const startAssessment = asyncHandler(async (req, res) => {
       category: { $in: activeKeys },
     }).lean();
 
-    // Bucket questions by category
     const byCategory = {};
     for (const q of allQuestions) {
       if (!byCategory[q.category]) byCategory[q.category] = [];
       byCategory[q.category].push(q);
     }
 
-    // Sample N from each category. If a category has fewer than N
-    // available questions, take all of them — don't skip the category.
     const questionOrderMap = {};
     const populatedCategories = [];
 
     for (const cat of activeKeys) {
       const pool = byCategory[cat] || [];
-      if (pool.length === 0) continue; // category exists but has no questions yet
+      if (pool.length === 0) continue;
 
       const shuffledPool = shuffle(pool);
       const sampleSize = Math.min(questionsPerCategory, pool.length);
@@ -193,8 +203,6 @@ const startAssessment = asyncHandler(async (req, res) => {
       populatedCategories.push(cat);
     }
 
-    // Shuffle the category order too (used for grouped views like
-    // the existing /questions endpoint and the Results page).
     const shuffledCategoryOrder = shuffle(populatedCategories);
 
     assessment.categoryOrder = shuffledCategoryOrder;
@@ -270,8 +278,6 @@ const saveAnswer = asyncHandler(async (req, res) => {
     throw new ApiError(400, "This assessment has already been submitted");
   }
 
-  // Reject answers for questions not in this assessment's locked set —
-  // prevents tampering and keeps the answer map clean for scoring.
   const lockedIds = new Set(lockedQuestionIds(assessment));
   if (!lockedIds.has(questionId)) {
     throw new ApiError(400, "This question is not part of your current assessment");
@@ -331,7 +337,6 @@ const submitAssessment = asyncHandler(async (req, res) => {
     );
   }
 
-  // Validate against the LOCKED question set, not the global pool
   const lockedIds = lockedQuestionIds(assessment);
   const totalLocked = lockedIds.length;
 
@@ -346,7 +351,6 @@ const submitAssessment = asyncHandler(async (req, res) => {
     );
   }
 
-  // Fetch only the locked questions for scoring
   const questions = await Question.find({
     _id: { $in: lockedIds },
   }).lean();
@@ -356,7 +360,6 @@ const submitAssessment = asyncHandler(async (req, res) => {
     questions
   );
 
-  // Generate unique certificate ID
   const year = new Date().getFullYear();
   let certificateId;
   let isUnique = false;
@@ -381,7 +384,6 @@ const submitAssessment = asyncHandler(async (req, res) => {
   assessment.level = level;
   assessment.certificateId = certificateId;
 
-  // Completion time + rushed flag
   const answersArray = Array.from(assessment.answers.values());
   if (answersArray.length >= 2) {
     const timestamps = answersArray
@@ -440,14 +442,11 @@ const listMyAssessments = asyncHandler(async (req, res) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  // Compute answerCount and questionTotal per row, drop heavy fields
   const assessments = docs.map((a) => {
     const answerCount = a.answers ? Object.keys(a.answers).length : 0;
 
-    // Total locked questions for this assessment
     let questionTotal = 0;
     if (a.questionOrder) {
-      // .lean() returns plain object, not Map
       for (const arr of Object.values(a.questionOrder)) {
         if (Array.isArray(arr)) questionTotal += arr.length;
       }
@@ -563,7 +562,8 @@ const deleteAssessment = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getCooldownStatus = asyncHandler(async (req, res) => {
-  const cooldownMs = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  const cooldownHours = await getSetting("assessmentCooldownHours");
+  const cooldownMs = cooldownHours * 60 * 60 * 1000;
   const cooldownStart = new Date(Date.now() - cooldownMs);
 
   const hasInProgress = await Assessment.exists({
@@ -577,7 +577,7 @@ const getCooldownStatus = asyncHandler(async (req, res) => {
       data: {
         cooldown: {
           active: false,
-          cooldownDays: COOLDOWN_DAYS,
+          cooldownHours,
           hasInProgress: true,
         },
       },
@@ -598,29 +598,20 @@ const getCooldownStatus = asyncHandler(async (req, res) => {
       data: {
         cooldown: {
           active: false,
-          cooldownDays: COOLDOWN_DAYS,
+          cooldownHours,
         },
       },
     });
   }
 
-  const submittedAt = new Date(recentSubmission.submittedAt);
-  const nextAvailable = new Date(submittedAt.getTime() + cooldownMs);
-  const daysRemaining = Math.ceil(
-    (nextAvailable - Date.now()) / (24 * 60 * 60 * 1000)
+  const payload = buildCooldownPayload(
+    new Date(recentSubmission.submittedAt),
+    cooldownHours
   );
 
   res.status(200).json({
     success: true,
-    data: {
-      cooldown: {
-        active: true,
-        cooldownDays: COOLDOWN_DAYS,
-        lastSubmittedAt: submittedAt.toISOString(),
-        nextAvailableAt: nextAvailable.toISOString(),
-        daysRemaining,
-      },
-    },
+    data: { cooldown: payload },
   });
 });
 

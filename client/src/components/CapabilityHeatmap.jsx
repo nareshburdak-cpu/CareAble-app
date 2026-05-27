@@ -66,7 +66,7 @@ function CapabilityHeatmap({ categoryScores, categoryMeta }) {
         ].map((l) => (
           <div key={l.label} className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: l.color }} />
-            <span className="text-[10px] text-gray-500">{l.label}</span>
+            <span className="text-xs text-gray-500">{l.label}</span>
           </div>
         ))}
       </div>
@@ -130,8 +130,8 @@ function BarView({ data }) {
             <span className="text-sm flex-shrink-0 w-5 text-center">{item.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] font-medium text-gray-700 truncate pr-2">{item.category}</p>
-                <span className="text-[10px] font-bold flex-shrink-0" style={{ color: c.bar }}>{item.score.toFixed(1)}</span>
+                <p className="text-xs font-medium text-gray-700 truncate pr-2">{item.category}</p>
+                <span className="text-xs font-bold flex-shrink-0" style={{ color: c.bar }}>{item.score.toFixed(1)}</span>
               </div>
               <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full rounded-full transition-all duration-500" style={{ width: pct + "%", backgroundColor: c.bar }} />
@@ -157,10 +157,10 @@ function HeatView({ data }) {
               className="relative aspect-square rounded-lg flex flex-col items-center justify-center p-1.5 cursor-default group transition-transform hover:scale-105"
               style={{ backgroundColor: bg }}>
               <span className="text-xl mb-0.5">{item.icon}</span>
-              <p className="text-white text-[9px] font-semibold text-center leading-tight px-0.5 line-clamp-2">{item.short}</p>
+              <p className="text-white text-xs font-semibold text-center leading-tight px-0.5 line-clamp-2">{item.short}</p>
               <p className="text-white text-sm font-bold mt-0.5">{item.score.toFixed(1)}</p>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 pointer-events-none">
-                <div className="bg-gray-900 text-white text-[10px] rounded-md px-2 py-1 whitespace-nowrap shadow-lg">{item.category}: {item.score.toFixed(2)} / 5</div>
+                <div className="bg-gray-900 text-white text-xs rounded-md px-2 py-1 whitespace-nowrap shadow-lg">{item.category}: {item.score.toFixed(2)} / 5</div>
                 <div className="w-2 h-2 bg-gray-900 rotate-45 mx-auto -mt-1" />
               </div>
             </div>
@@ -168,9 +168,9 @@ function HeatView({ data }) {
         })}
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <span className="text-[10px] text-gray-400">Low</span>
+        <span className="text-xs text-gray-400">Low</span>
         <div className="flex-1 h-2 rounded-full" style={{ background: "linear-gradient(to right, rgb(190,18,60), rgb(245,158,11), rgb(79,70,229), rgb(4,120,87))" }} />
-        <span className="text-[10px] text-gray-400">High</span>
+        <span className="text-xs text-gray-400">High</span>
       </div>
     </div>
   );

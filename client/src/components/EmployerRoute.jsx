@@ -11,7 +11,13 @@ function EmployerRoute({ children }) {
   if (loading) return <LoadingSpinner message="Checking your session..." />;
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location.pathname + location.search + location.hash }}
+        replace
+      />
+    );
   }
 
   // Only employer or admin can access employer routes

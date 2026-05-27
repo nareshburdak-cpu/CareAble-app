@@ -10,23 +10,16 @@
  * That's it. Kept intentionally minimal to avoid annoying real users.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 function AssessmentSecurityShell({ children, showNotice = true }) {
   const [dismissed, setDismissed] = useState(false);
 
-  // Disable right-click context menu within this shell
-  useEffect(() => {
-    const blockContextMenu = (e) => e.preventDefault();
-    document.addEventListener("contextmenu", blockContextMenu);
-    return () => document.removeEventListener("contextmenu", blockContextMenu);
-  }, []);
-
   return (
-    <>
+    <div onContextMenu={(e) => e.preventDefault()}>
       {showNotice && !dismissed && (
         <div className="bg-blue-50 border-b border-blue-100">
-          <div className="max-w-6xl mx-auto px-4 py-2 flex items-center gap-2 text-xs">
+          <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center gap-2 text-sm">
             <svg
               className="w-4 h-4 text-blue-600 flex-shrink-0"
               fill="none"
@@ -53,7 +46,7 @@ function AssessmentSecurityShell({ children, showNotice = true }) {
       )}
 
       {children}
-    </>
+    </div>
   );
 }
 

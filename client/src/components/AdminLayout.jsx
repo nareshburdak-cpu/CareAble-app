@@ -23,7 +23,7 @@ const NAV_ITEMS = [
 ];
 
 function AdminLayout() {
-  const { user, switchRole, hasRole } = useAuth();
+  const { user, switchRole, hasRole, activeRole } = useAuth();
   const navigate = useNavigate();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -33,7 +33,9 @@ function AdminLayout() {
   }, [drawerOpen]);
 
   const initials = user?.name?.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "A";
-  const roleLabel = user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1).toLowerCase() : "Admin";
+  const roleLabel = activeRole
+    ? activeRole.charAt(0).toUpperCase() + activeRole.slice(1).toLowerCase()
+    : "Admin";
 
   const handleSwitchToCarer = () => {
     switchRole("carer");
@@ -51,7 +53,7 @@ function AdminLayout() {
             <img src="/logo-icon.png" alt="CareAble" className="w-full h-full object-contain" />
           </div>
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>
+            <p className="text-xs uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>
             <p className="text-sm font-bold text-stone-800 leading-none">Admin Panel</p>
           </div>
         </Link>
@@ -70,7 +72,7 @@ function AdminLayout() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-stone-800 truncate leading-tight">{user?.name}</p>
-              <p className="text-[10px] text-stone-400 leading-tight">{roleLabel}</p>
+              <p className="text-xs text-stone-400 leading-tight">{roleLabel}</p>
             </div>
           </div>
 
@@ -79,7 +81,7 @@ function AdminLayout() {
             {hasRole("carer") && (
               <button
                 onClick={handleSwitchToCarer}
-                className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition"
+                className="flex items-center justify-center gap-1.5 w-full px-3 py-2.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -139,7 +141,7 @@ function AdminLayout() {
               <img src="/logo-icon.png" alt="CareAble" className="w-full h-full object-contain" />
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>
+              <p className="text-xs uppercase tracking-widest text-stone-400 font-semibold leading-none mb-0.5">CareAble</p>
               <p className="text-sm font-bold text-stone-800 leading-none">Admin Panel</p>
             </div>
           </div>

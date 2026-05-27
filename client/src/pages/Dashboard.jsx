@@ -1,15 +1,13 @@
 // client/src/pages/Dashboard.jsx
 
 /**
- * Dashboard — User's home base (v3 — compact + above-the-fold CTA)
+ * Dashboard — User's home base (v4 — inline emoji + taller action chips)
  * ----------------------------------------------------------------
- * Mobile overflow fixes:
- *  - StatStrip: clamped font sizes, min-w-0 on all cells
- *  - HistoryCard: certificate ID truncated, overflow-hidden on row
- *  - TopAreasCard: badge text truncates correctly
- *  - PrimaryActionCard chips: text truncates instead of overflowing
- *  - HeroCard: score number won't push layout on tiny screens
- *  - All containers: max-w-full + overflow-hidden guards added
+ * Changes from v3:
+ *  - PrimaryActionCard: emoji now inline with title text
+ *  - Bottom chips (View Results / Certificate): taller flex-col cards
+ *  - CTA card: removed min-h so it naturally matches HeroCard height
+ *  - Locked state: same inline emoji treatment
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -141,7 +139,7 @@ function Dashboard() {
         {isLocked && <CooldownBanner cooldown={cooldown} />}
 
         {/* ROW 1 */}
-        <div className="grid lg:grid-cols-5 gap-4">
+        <div className="grid lg:grid-cols-5 gap-4 lg:items-stretch">
           <div className="lg:col-span-3 min-w-0">
             <HeroCard user={user} latest={latest} inProgress={inProgress} />
           </div>
@@ -213,24 +211,22 @@ function HeroCard({ user, latest, inProgress }) {
 
       <div className="relative flex flex-col h-full gap-4">
         <div className="flex items-start justify-between gap-3">
-          {/* FIX: min-w-0 ensures text can truncate */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               {meta ? (
-                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badge}`}>
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${meta.badge}`}>
                   {meta.emoji} {meta.label} Level
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
                   ✨ New Carer
                 </span>
               )}
             </div>
-            {/* FIX: truncate long names */}
-            <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight truncate">
+            <h1 className="text-2xl md:text-3xl font-bold text-stone-900 leading-tight">
               Welcome back, {firstName} 👋
             </h1>
-            <p className="text-xs md:text-sm text-gray-500 mt-1 line-clamp-2">{tagline}</p>
+            <p className="text-sm md:text-base text-stone-500 mt-1 line-clamp-2">{tagline}</p>
           </div>
           <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-xs md:text-sm flex-shrink-0">
             {initials}
@@ -240,11 +236,9 @@ function HeroCard({ user, latest, inProgress }) {
         {latest ? (
           <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
             <ScoreRingInline score={latest.overallScore ?? 0} level={latest.level} />
-            {/* FIX: min-w-0 prevents score section from overflowing */}
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Latest Score</p>
-              {/* FIX: score number sized so it never wraps on mobile */}
-              <p className="text-2xl font-bold text-gray-900 leading-none">
+              <p className="text-sm font-semibold text-stone-400 uppercase tracking-wider mb-1">Latest Score</p>
+              <p className="text-3xl md:text-4xl font-bold text-stone-900 leading-none">
                 {(latest.overallScore ?? 0).toFixed(2)}
                 <span className="text-sm text-gray-400 font-normal ml-1">/ 5.00</span>
               </p>
@@ -331,25 +325,29 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
 
   return (
     <div className="h-full flex flex-col gap-3">
+      {/* ── MAIN CTA ── */}
       {mainCta.type === "locked" ? (
-        <div className="flex-1 bg-gray-100 border border-gray-200 rounded-2xl p-5 flex flex-col justify-between min-h-[140px]">
+        <div className="flex-1 bg-gray-100 border border-gray-200 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <span className="text-2xl">{mainCta.icon}</span>
-            <p className="font-bold text-gray-800 text-base mt-2">{mainCta.title}</p>
-            <p className="text-xs text-gray-500 mt-1">{mainCta.sub}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl leading-none flex-shrink-0">{mainCta.icon}</span>
+              <p className="font-bold text-stone-800 text-lg truncate">{mainCta.title}</p>
+            </div>
+            <p className="text-xs text-gray-500 mt-1.5">{mainCta.sub}</p>
           </div>
-          <p className="text-[11px] text-gray-400 mt-3">This helps keep your results meaningful</p>
+          <p className="text-xs text-gray-400 mt-3">This helps keep your results meaningful</p>
         </div>
       ) : (
         <Link
           to={mainCta.to}
-          className="group flex-1 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between min-h-[140px] hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
+          className="group flex-1 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
         >
           <div className="min-w-0">
-            <span className="text-2xl">{mainCta.icon}</span>
-            {/* FIX: truncate so title never breaks layout */}
-            <p className="font-bold text-white text-base mt-2 truncate">{mainCta.title}</p>
-            <p className="text-xs text-indigo-100 mt-1 truncate">{mainCta.sub}</p>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl leading-none flex-shrink-0">{mainCta.icon}</span>
+              <p className="font-bold text-white text-lg truncate">{mainCta.title}</p>
+            </div>
+            <p className="text-sm text-indigo-100 mt-1.5 truncate">{mainCta.sub}</p>
             {mainCta.progress !== undefined && (
               <div className="mt-3 w-full h-1 bg-white/20 rounded-full overflow-hidden">
                 <div
@@ -365,31 +363,30 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
         </Link>
       )}
 
-      {/* FIX: chips use overflow-hidden + truncate to prevent blowout */}
+      {/* ── BOTTOM CHIPS — taller flex-col cards ── */}
       <div className="grid grid-cols-2 gap-3">
         {latest ? (
           <Link
             to={`/results/${latest._id}`}
-            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition-all overflow-hidden"
+            className="group bg-white border border-gray-100 rounded-xl px-4 py-4 hover:border-indigo-200 hover:shadow-sm transition-all overflow-hidden flex flex-col gap-1.5"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base flex-shrink-0">📊</span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-800 truncate">View Results</p>
-                <p className="text-[10px] text-gray-400 truncate">
-                  {latest.overallScore?.toFixed(2)} · {latest.level}
-                </p>
-              </div>
+            <span className="text-2xl leading-none">📊</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gray-800 truncate">View Results</p>
+              <p className="text-xs text-gray-400 truncate mt-0.5">
+                {latest.overallScore?.toFixed(2)} · {latest.level}
+              </p>
             </div>
+            <span className="text-xs text-gray-300 group-hover:text-indigo-400 transition-colors mt-auto">
+              Open →
+            </span>
           </Link>
         ) : (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50 overflow-hidden">
-            <div className="flex items-center gap-2">
-              <span className="text-base flex-shrink-0">📊</span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-600 truncate">View Results</p>
-                <p className="text-[10px] text-gray-400 truncate">After your first</p>
-              </div>
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-4 py-4 opacity-50 overflow-hidden flex flex-col gap-1.5">
+            <span className="text-2xl leading-none">📊</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-600 truncate">View Results</p>
+              <p className="text-xs text-gray-400 truncate mt-0.5">After your first</p>
             </div>
           </div>
         )}
@@ -398,28 +395,29 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
           <button
             onClick={() => onDownload(latest._id, latest.certificateId, latest.level)}
             disabled={downloading}
-            className="group bg-white border border-gray-100 rounded-xl px-3 py-2.5 hover:border-emerald-200 hover:shadow-sm transition-all text-left disabled:opacity-60 disabled:cursor-wait overflow-hidden w-full"
+            className="group bg-white border border-gray-100 rounded-xl px-4 py-4 hover:border-emerald-200 hover:shadow-sm transition-all text-left disabled:opacity-60 disabled:cursor-wait overflow-hidden w-full flex flex-col gap-1.5"
           >
-            <div className="flex items-center gap-2">
-              <span className="text-base flex-shrink-0">{downloading ? "⏳" : "🏅"}</span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-800 truncate">
-                  {downloading ? "Preparing…" : "Certificate"}
-                </p>
-                <p className="text-[10px] text-emerald-600 truncate font-medium">
-                  {downloading ? "Just a moment" : "Download PDF →"}
-                </p>
-              </div>
+            <span className="text-2xl leading-none">{downloading ? "⏳" : "🏅"}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-gray-800 truncate">
+                {downloading ? "Preparing…" : "Certificate"}
+              </p>
+              <p className="text-xs text-emerald-600 truncate font-medium mt-0.5">
+                {downloading ? "Just a moment" : "Download PDF →"}
+              </p>
             </div>
+            {!downloading && (
+              <span className="text-xs text-gray-300 group-hover:text-emerald-500 transition-colors mt-auto">
+                PDF →
+              </span>
+            )}
           </button>
         ) : (
-          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-3 py-2.5 opacity-50 overflow-hidden">
-            <div className="flex items-center gap-2">
-              <span className="text-base flex-shrink-0">🏅</span>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-600 truncate">Certificate</p>
-                <p className="text-[10px] text-gray-400 truncate">After your first</p>
-              </div>
+          <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl px-4 py-4 opacity-50 overflow-hidden flex flex-col gap-1.5">
+            <span className="text-2xl leading-none">🏅</span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-600 truncate">Certificate</p>
+              <p className="text-xs text-gray-400 truncate mt-0.5">After your first</p>
             </div>
           </div>
         )}
@@ -442,14 +440,12 @@ function StatStrip({ submitted, avgScore, bestScore, topAreas }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
       {stats.map((s) => (
-        /* FIX: overflow-hidden + min-w-0 prevents any child from blowing out the cell */
         <div key={s.label} className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 overflow-hidden min-w-0">
-          <p className="text-[10px] font-medium text-gray-400 mb-0.5 uppercase tracking-wide truncate">{s.label}</p>
-          {/* FIX: numeric stats use fixed size; domain name is small + truncated */}
+          <p className="text-sm font-medium text-stone-400 mb-0.5 uppercase tracking-wide truncate">{s.label}</p>
           <p className={`font-bold leading-tight truncate ${
             s.small
-              ? "text-xs"                  // domain name — always small, always truncates
-              : "text-xl md:text-2xl"      // numbers — large on desktop, still fits mobile
+              ? "text-sm"
+              : "text-2xl md:text-3xl"
           } ${s.color}`}>
             {s.value}
           </p>
@@ -483,7 +479,6 @@ function TopAreasCard({ topAreas, categoryScores }) {
       ) : (
         <div className="space-y-1.5">
           {topAreas.map(([key, score]) => (
-            /* FIX: row is overflow-hidden, badge is min-w-0 + truncate */
             <div key={key} className="flex items-center justify-between gap-3 overflow-hidden">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full text-xs font-medium text-emerald-800 min-w-0 flex-1 overflow-hidden">
                 <span className="flex-shrink-0">🏅</span>
@@ -493,7 +488,7 @@ function TopAreasCard({ topAreas, categoryScores }) {
             </div>
           ))}
           {belowStrength.length > 0 && (
-            <p className="text-[11px] text-gray-400 pt-1.5">
+            <p className="text-xs text-gray-400 pt-1.5">
               +{belowStrength.length} other domain{belowStrength.length !== 1 ? "s" : ""} scored below 4.0
             </p>
           )}
@@ -512,7 +507,7 @@ function AiResourcesCard({ resources, assessmentId }) {
           <span className="text-base flex-shrink-0">📚</span>
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-gray-900">Recommended Resources</h2>
-            <p className="text-[11px] text-gray-400 truncate">From your AI Insights · tailored to your profile</p>
+            <p className="text-xs text-gray-400 truncate">From your AI Insights · tailored to your profile</p>
           </div>
         </div>
         <Link
@@ -531,7 +526,7 @@ function AiResourcesCard({ resources, assessmentId }) {
           return (
             <a key={i} href={searchUrl} target="_blank" rel="noopener noreferrer"
               className="flex items-start gap-3 px-5 py-3 hover:bg-indigo-50 transition group">
-              <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-[11px] flex-shrink-0 group-hover:bg-indigo-200 transition">
+              <div className="w-6 h-6 rounded-md bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0 group-hover:bg-indigo-200 transition">
                 {i + 1}
               </div>
               <div className="min-w-0 flex-1">
@@ -540,11 +535,11 @@ function AiResourcesCard({ resources, assessmentId }) {
                     {r.program || r.title}
                   </p>
                   {r.type && (
-                    <span className="flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{r.type}</span>
+                    <span className="flex-shrink-0 text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">{r.type}</span>
                   )}
                 </div>
                 {r.organisation && (
-                  <p className="text-[11px] font-medium text-indigo-600 mt-0.5 truncate">{r.organisation}</p>
+                  <p className="text-xs font-medium text-indigo-600 mt-0.5 truncate">{r.organisation}</p>
                 )}
                 <p className="text-xs text-gray-500 mt-0.5 leading-relaxed line-clamp-2">{r.description}</p>
               </div>
@@ -577,7 +572,7 @@ function HistorySection({ assessments, onDelete }) {
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900">Assessment History</h2>
-        <span className="text-[11px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
           {assessments.length} {assessments.length === 1 ? "record" : "records"}
         </span>
       </div>
@@ -615,11 +610,9 @@ function HistoryCard({ assessment, isLatest, onDelete }) {
   };
 
   return (
-    /* FIX: overflow-hidden on the row stops any child from breaking the card width */
     <div className={`flex items-stretch group border-l-4 overflow-hidden ${meta ? meta.border : "border-l-gray-200"} hover:bg-gray-50 transition-colors`}>
       <Link to={isSubmitted ? `/results/${assessment._id}` : "/assessment"} className="flex-1 px-4 py-3 min-w-0 overflow-hidden">
         <div className="flex items-center justify-between gap-2">
-          {/* FIX: left side is min-w-0 so it shrinks before the right side is pushed out */}
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <span className="text-lg flex-shrink-0">{isSubmitted ? (meta?.emoji ?? "📋") : "⏳"}</span>
             <div className="min-w-0">
@@ -629,30 +622,28 @@ function HistoryCard({ assessment, isLatest, onDelete }) {
                   <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide flex-shrink-0">Latest</span>
                 )}
                 {isSubmitted && meta && (
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.badge}`}>{meta.label}</span>
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.badge}`}>{meta.label}</span>
                 )}
                 {!isSubmitted && (
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">In progress</span>
+                  <span className="text-xs font-medium px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">In progress</span>
                 )}
               </div>
               {isSubmitted ? (
-                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                <p className="text-xs text-gray-400 mt-0.5 truncate">
                   Score <span className="font-semibold text-gray-600">{assessment.overallScore?.toFixed(2) ?? "—"} / 5.00</span>
-                  {/* FIX: certificate ID truncated, not allowed to overflow */}
                   {assessment.certificateId && (
                     <><span className="mx-1">·</span>
                     <span className="font-mono">{assessment.certificateId}</span></>
                   )}
                 </p>
               ) : (
-                <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                <p className="text-xs text-gray-400 mt-0.5 truncate">
                   {assessment.answerCount ?? 0} of {total} answered · {relativeTime(dateSource)}
                 </p>
               )}
             </div>
           </div>
-          {/* FIX: action text is flex-shrink-0 so it never disappears */}
-          <span className="text-[11px] text-gray-300 flex-shrink-0 group-hover:text-indigo-400 transition-colors whitespace-nowrap">
+          <span className="text-xs text-gray-300 flex-shrink-0 group-hover:text-indigo-400 transition-colors whitespace-nowrap">
             {isSubmitted ? "View →" : "Continue →"}
           </span>
         </div>

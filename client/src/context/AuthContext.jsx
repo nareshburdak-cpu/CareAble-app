@@ -34,6 +34,19 @@ export function AuthProvider({ children }) {
     return localStorage.getItem("activeRole") || null;
   });
 
+  const applyAuthenticatedUser = useCallback((u) => {
+    localStorage.setItem("user", JSON.stringify(u));
+
+    const saved = localStorage.getItem("activeRole");
+    const defaultRole = (saved && u.roles?.includes(saved))
+      ? saved
+      : computeDefaultRole(u.roles);
+
+    localStorage.setItem("activeRole", defaultRole);
+    setActiveRoleState(defaultRole);
+    setUser(u);
+  }, []);
+
   // Bootstrap: validate saved token on app load
   useEffect(() => {
     const bootstrapAuth = async () => {
@@ -109,16 +122,28 @@ export function AuthProvider({ children }) {
     const res = await api.post("/auth/login", { email, password });
     const { token, user: u } = res.data.data;
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(u));
+    applyAuthenticatedUser(u);
+    return u;
+  };
 
-    // Set default active role on login
-    const saved = localStorage.getItem("activeRole");
-    const defaultRole = (saved && u.roles?.includes(saved))
-      ? saved
-      : computeDefaultRole(u.roles);
-    localStorage.setItem("activeRole", defaultRole);
-    setActiveRoleState(defaultRole);
-    setUser(u);
+  const requestLoginOtp = async (email) => {
+    const res = await api.post("/auth/login-otp/request", { email });
+    return res.data;
+  };
+
+  const loginWithOtp = async (email, otp) => {
+    const res = await api.post("/auth/login-otp/verify", { email, otp });
+    const { token, user: u } = res.data.data;
+    localStorage.setItem("token", token);
+    applyAuthenticatedUser(u);
+    return u;
+  };
+
+  const authenticateWithGoogle = async (credential, payload = {}) => {
+    const res = await api.post("/auth/google", { credential, ...payload });
+    const { token, user: u } = res.data.data;
+    localStorage.setItem("token", token);
+    applyAuthenticatedUser(u);
     return u;
   };
 
@@ -126,11 +151,7 @@ export function AuthProvider({ children }) {
     const res = await api.post("/auth/register", payload);
     const { token, user: u } = res.data.data;
     localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(u));
-    const defaultRole = computeDefaultRole(u.roles);
-    localStorage.setItem("activeRole", defaultRole);
-    setActiveRoleState(defaultRole);
-    setUser(u);
+    applyAuthenticatedUser(u);
     return u;
   };
 
@@ -176,6 +197,9 @@ export function AuthProvider({ children }) {
     switchRole,
     roleDestination,
     login,
+    requestLoginOtp,
+    loginWithOtp,
+    authenticateWithGoogle,
     register,
     logout,
     refreshUser,

@@ -54,7 +54,7 @@ function Navbar() {
     `px-3 py-2 rounded-md font-medium transition ${
       isActive
         ? "text-indigo-600 bg-indigo-50"
-        : "text-gray-700 hover:text-indigo-600 hover:bg-gray-50"
+        : "text-stone-700 hover:text-indigo-600 hover:bg-stone-50"
     }`;
 
   // Defensive: use activeRole from context, fall back to first role if null
@@ -75,7 +75,7 @@ function Navbar() {
           {/* Logo */}
           <Link to="/" onClick={closeMenu} className="flex items-center gap-2 hover:opacity-80 transition" aria-label="CareAble home">
             <img src="/logo-icon.png" alt="" className="w-8 h-8 object-contain" aria-hidden="true" />
-            <span className="text-xl font-bold text-gray-900">{BRAND.text}</span>
+            <span className="text-xl font-bold text-stone-900">{BRAND.text}</span>
           </Link>
           {/* Desktop nav links — role-aware */}
           <div className="hidden md:flex items-center gap-2">
@@ -117,13 +117,13 @@ function Navbar() {
               <>
                 <Link
                   to="/login"
-                  className="px-4 py-2 text-gray-700 font-medium hover:text-indigo-600 transition"
+                  className="px-4 py-2 text-stone-700 font-medium hover:text-indigo-600 transition"
                 >
                   Log in
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm"
+                  className="px-4 py-2 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 transition shadow-sm"
                 >
                   Sign up
                 </Link>
@@ -135,7 +135,7 @@ function Navbar() {
           <button
             onClick={() => setMenuOpen(!menuOpen)}
             className={`md:hidden p-2 rounded-md transition ${
-              menuOpen ? "bg-gray-100 text-gray-900" : "text-gray-700 hover:bg-gray-100"
+              menuOpen ? "bg-stone-100 text-stone-900" : "text-stone-700 hover:bg-stone-100"
             }`}
             aria-label="Toggle menu"
             aria-expanded={menuOpen}
@@ -157,7 +157,7 @@ function Navbar() {
       {menuOpen && (
         <>
           <div
-            className="fixed inset-0 top-16 bg-gray-900/40 backdrop-blur-sm z-40 md:hidden"
+            className="fixed inset-0 top-16 bg-stone-900/40 backdrop-blur-sm z-40 md:hidden"
             onClick={closeMenu}
             aria-hidden="true"
           />
@@ -184,7 +184,7 @@ function Navbar() {
 
               {/* Role switcher in drawer */}
               {isAuthenticated && (
-                <div className="pb-2 mb-2 border-b border-gray-100">
+                <div className="pb-2 mb-2 border-b border-stone-100">
                   <RoleSwitcher mode="drawer" onNavigate={closeMenu} />
                 </div>
               )}
@@ -215,7 +215,7 @@ function Navbar() {
               )}
 
               {/* Auth actions */}
-              <div className="pt-3 mt-3 border-t border-gray-100">
+              <div className="pt-3 mt-3 border-t border-stone-100">
                 {isAuthenticated ? (
                   <button
                     onClick={handleMobileLogout}
@@ -230,10 +230,10 @@ function Navbar() {
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <Link to="/login" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center text-gray-700 font-medium hover:bg-gray-50 rounded-lg transition border border-gray-200">
+                    <Link to="/login" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center text-stone-700 font-medium hover:bg-stone-50 rounded-lg transition border border-stone-200">
                       Log in
                     </Link>
-                    <Link to="/register" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm">
+                    <Link to="/register" onClick={closeMenu} className="block w-full px-4 py-2.5 text-center bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 transition shadow-sm">
                       Sign up
                     </Link>
                   </div>
@@ -252,13 +252,13 @@ function MobileNavItem({ to, end, label, description, icon, onClick }) {
   return (
     <NavLink to={to} end={end} onClick={onClick}>
       {({ isActive }) => (
-        <div className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? "bg-indigo-50" : "hover:bg-gray-50"}`}>
-          <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition ${isActive ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30" : "bg-gray-100 text-gray-600"}`}>
+        <div className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${isActive ? "bg-indigo-50" : "hover:bg-stone-50"}`}>
+          <span className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition ${isActive ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30" : "bg-stone-100 text-stone-600"}`}>
             <NavIcon name={icon} />
           </span>
           <div className="flex-1 min-w-0">
-            <p className={`text-sm font-medium ${isActive ? "text-indigo-700" : "text-gray-900"}`}>{label}</p>
-            <p className={`text-xs truncate ${isActive ? "text-indigo-500" : "text-gray-500"}`}>{description}</p>
+            <p className={`text-sm font-medium ${isActive ? "text-indigo-700" : "text-stone-900"}`}>{label}</p>
+            <p className={`text-xs truncate ${isActive ? "text-indigo-500" : "text-stone-500"}`}>{description}</p>
           </div>
           {isActive && (
             <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>

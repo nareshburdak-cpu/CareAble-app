@@ -16,7 +16,10 @@ export default function RoleSwitcher({ mode = "navbar", onNavigate }) {
 
   const roles = user?.roles || [];
   const isMultiRole = roles.length > 1;
-  const meta = ROLE_META[activeRole] || ROLE_META.carer;
+  const effectiveRole = activeRole || (
+    roles.includes("admin") ? "admin" : roles.includes("employer") ? "employer" : "carer"
+  );
+  const meta = ROLE_META[effectiveRole] || ROLE_META.carer;
 
   useEffect(() => {
     if (!open) return;
@@ -44,11 +47,11 @@ export default function RoleSwitcher({ mode = "navbar", onNavigate }) {
     if (!isMultiRole) return null;
     return (
       <div className="px-3 py-2">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Switch role</p>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Switch role</p>
         <div className="flex gap-1.5 flex-wrap">
           {roles.map((role) => {
             const m = ROLE_META[role];
-            const isActive = role === activeRole;
+            const isActive = role === effectiveRole;
             return (
               <button key={role} onClick={() => handleSwitch(role)}
                 className={"flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all " + (isActive ? m.activePill : m.pill + " hover:opacity-80")}>
@@ -81,19 +84,19 @@ export default function RoleSwitcher({ mode = "navbar", onNavigate }) {
       {open && isMultiRole && (
         <div className="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-50">
           <div className="px-4 py-2.5 border-b border-gray-100">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Switch role</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Switch role</p>
           </div>
           <div className="p-1.5">
             {roles.map((role) => {
               const m = ROLE_META[role];
-              const isActive = role === activeRole;
+              const isActive = role === effectiveRole;
               return (
                 <button key={role} onClick={() => handleSwitch(role)}
                   className={"w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left transition-all " + (isActive ? "bg-indigo-50 text-indigo-700" : "hover:bg-gray-50 text-gray-700")}>
                   <span className={"w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0 " + (isActive ? "bg-indigo-600" : "bg-gray-100")}>{m?.icon}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold leading-tight">{m?.label}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{m?.description}</p>
+                    <p className="text-xs text-gray-400 truncate">{m?.description}</p>
                   </div>
                   {isActive && <svg className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                 </button>

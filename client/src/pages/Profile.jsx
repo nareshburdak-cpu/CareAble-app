@@ -70,7 +70,7 @@ function Profile() {
                   {user.roles.map((role) => (
                     <span
                       key={role}
-                      className="text-[9px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700"
+                      className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-indigo-100 text-indigo-700"
                     >
                       {role}
                     </span>
@@ -110,8 +110,8 @@ function Profile() {
 function InlineStat({ label, value }) {
   return (
     <div className="text-center">
-      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium">{label}</p>
-      <p className="text-sm font-bold text-gray-900 mt-0.5 truncate">{value}</p>
+      <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">{label}</p>
+      <p className="text-sm md:text-base font-bold text-gray-900 mt-0.5 truncate">{value}</p>
     </div>
   );
 }
@@ -129,7 +129,7 @@ function Card({ title, subtitle, children, danger = false }) {
           {title}
         </h2>
         {subtitle && (
-          <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>
+          <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>
         )}
       </div>
       {children}
@@ -240,7 +240,7 @@ function EditNameCard() {
             disabled
             readOnly
           />
-          <p className="text-[11px] text-gray-400 -mt-2">
+          <p className="text-xs text-gray-400 -mt-2">
             Email cannot be changed
           </p>
         </div>
@@ -330,7 +330,7 @@ function ChangePasswordCard() {
             </div>
             <div>
               <p className="text-sm md:text-base font-semibold text-gray-900">Change Password</p>
-              <p className="text-xs text-gray-500">Update your account password</p>
+              <p className="text-sm text-gray-500">Update your account password</p>
             </div>
           </div>
           <svg
@@ -445,7 +445,7 @@ function DeleteAccountCard({ onDeleted }) {
             </div>
             <div>
               <p className="text-sm md:text-base font-semibold text-red-600">Delete Account</p>
-              <p className="text-xs text-gray-500">Permanently remove your account</p>
+              <p className="text-sm text-gray-500">Permanently remove your account</p>
             </div>
           </div>
           <svg
@@ -459,7 +459,7 @@ function DeleteAccountCard({ onDeleted }) {
         {expanded && (
           <div className="px-4 pb-4 md:px-6 md:pb-6 border-t border-red-100">
             <div className="bg-red-50 rounded-xl p-3 mt-4 mb-3">
-              <p className="text-xs text-red-800 leading-relaxed">
+              <p className="text-sm text-red-800 leading-relaxed">
                 ⚠️ <strong>This is permanent.</strong> All your data — assessments, certificates, and account info — will be deleted forever.
               </p>
             </div>

@@ -24,6 +24,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
   const [otp, setOtp] = useState("");
   const inputRef = useRef(null);
   const hasSent = useRef(false);
+  const isBusy = step === "sending" || step === "verifying";
 
   // Send OTP on open
   useEffect(() => {
@@ -47,11 +48,11 @@ function OtpModal({ action, title, onVerified, onClose }) {
   // Close on ESC
   useEffect(() => {
     const handleEsc = (e) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !isBusy) onClose();
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, [onClose]);
+  }, [isBusy, onClose]);
 
   const handleVerify = async (e) => {
     e.preventDefault();
@@ -93,22 +94,29 @@ function OtpModal({ action, title, onVerified, onClose }) {
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 animate-fade-in"
-        onClick={onClose}
+        onClick={() => {
+          if (!isBusy) onClose();
+        }}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 pointer-events-auto animate-dropdown">
+        <div
+          className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 md:p-8 pointer-events-auto animate-dropdown"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="otp-modal-title"
+        >
           <div className="text-center mb-6">
             <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-50 rounded-full mb-4">
               <svg className="w-7 h-7 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
-            <h2 className="font-serif text-2xl font-bold text-stone-900 mb-2">
+            <h2 id="otp-modal-title" className="font-serif text-2xl font-bold text-stone-900 mb-2">
               {title}
             </h2>
-            <p className="text-sm text-stone-500">
+            <p className="text-base text-stone-500">
               For your security, we've sent a 6-digit code to your email.
             </p>
           </div>
@@ -119,7 +127,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
                 <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <p className="text-sm text-stone-500">Sending code...</p>
+              <p className="text-base text-stone-500">Sending code...</p>
             </div>
           )}
 
@@ -142,7 +150,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
               <button
                 type="submit"
                 disabled={step === "verifying" || otp.length !== 6}
-                className="w-full px-6 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition shadow-sm"
+                className="w-full px-6 py-3.5 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition shadow-sm"
               >
                 {step === "verifying" ? "Verifying..." : "Confirm"}
               </button>
@@ -151,6 +159,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
                 <button
                   type="button"
                   onClick={onClose}
+                  disabled={isBusy}
                   className="text-stone-500 hover:text-stone-700 transition"
                 >
                   Cancel
@@ -158,6 +167,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
                 <button
                   type="button"
                   onClick={handleResend}
+                  disabled={isBusy}
                   className="text-indigo-600 hover:text-indigo-700 font-medium transition"
                 >
                   Resend code
@@ -166,7 +176,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
             </form>
           )}
 
-          <p className="text-xs text-stone-400 text-center mt-6">
+          <p className="text-sm text-stone-400 text-center mt-6">
             Code expires in 10 minutes. Up to 5 attempts allowed.
           </p>
         </div>

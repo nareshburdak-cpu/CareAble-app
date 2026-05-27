@@ -18,6 +18,9 @@ function UserMenu() {
 
   const roles = user?.roles || [];
   const isMultiRole = roles.length > 1;
+  const effectiveRole = activeRole || (
+    roles.includes("admin") ? "admin" : roles.includes("employer") ? "employer" : "carer"
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -53,9 +56,9 @@ function UserMenu() {
     : "?";
 
   const isActive = (path) => location.pathname === path;
-  const isCarerContext    = activeRole === "carer";
-  const isEmployerContext = activeRole === "employer";
-  const isAdminContext    = activeRole === "admin";
+  const isCarerContext    = effectiveRole === "carer";
+  const isEmployerContext = effectiveRole === "employer";
+  const isAdminContext    = effectiveRole === "admin";
 
   return (
     <div className="relative" ref={menuRef}>
@@ -92,7 +95,7 @@ function UserMenu() {
                 <div className="mt-3 flex gap-1.5 flex-wrap">
                   {roles.map((role) => {
                     const m = ROLE_META[role];
-                    const isRoleActive = role === activeRole;
+                    const isRoleActive = role === effectiveRole;
                     return (
                       <button key={role} onClick={() => handleRoleSwitch(role)}
                         className={"flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all " + (isRoleActive ? "bg-white text-indigo-700 border-white shadow-sm" : "bg-white/15 text-white border-white/20 hover:bg-white/25")}>
@@ -109,8 +112,8 @@ function UserMenu() {
               {!isMultiRole && (
                 <div className="mt-2">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 text-white text-xs font-medium">
-                    <span>{ROLE_META[activeRole]?.icon}</span>
-                    <span>{ROLE_META[activeRole]?.label}</span>
+                    <span>{ROLE_META[effectiveRole]?.icon}</span>
+                    <span>{ROLE_META[effectiveRole]?.label}</span>
                   </span>
                 </div>
               )}

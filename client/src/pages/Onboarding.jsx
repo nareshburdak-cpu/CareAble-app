@@ -8,6 +8,10 @@
  * "Other" selections reveal a text input.
  * Dropdowns show options only (no re-selectable placeholder).
  * Each step validates before allowing Continue.
+ *
+ * Fixes:
+ *   ✓ Sticky header now has bg-white + backdrop-blur so content doesn't bleed through
+ *   ✓ Header height reduced (tighter py, smaller progress bar area)
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -264,34 +268,42 @@ export default function Onboarding() {
 
   // ── Render ───────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
 
-      {/* Sticky top bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+      {/* ── Sticky top bar ──────────────────────────────────────────
+          bg-white + border-b ensures content never bleeds through.
+          Tighter py-2 reduces total header height.                  */}
+      <div className="sticky top-0 z-10 bg-white border-b border-stone-200 shadow-sm px-4 py-2">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-between mb-2.5">
+
+          {/* Brand + step counter — single compact row */}
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <span className="text-lg">🤲</span>
-              <span className="font-bold text-gray-900 text-sm">CareAble</span>
+              <span className="font-bold text-stone-900 text-base">CareAble</span>
             </div>
-            <span className="text-xs font-medium text-gray-400">
+            <span className="text-xs font-medium text-stone-400">
               Step {step} of {totalSteps}
             </span>
           </div>
-          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+
+          {/* Progress bar */}
+          <div className="h-1 bg-stone-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-indigo-600 rounded-full transition-all duration-500"
               style={{ width: `${(step / totalSteps) * 100}%` }}
             />
           </div>
-          <div className="flex justify-between mt-1.5">
+
+          {/* Step labels */}
+          <div className="flex justify-between mt-1">
             {["Work", "Language", "Caregiving"].map((label, i) => (
               <span
                 key={label}
-                className={`text-[10px] font-medium transition ${
+                className={`text-[11px] font-medium transition ${
                   i + 1 === step ? "text-indigo-600" :
                   i + 1 < step  ? "text-emerald-500" :
-                                  "text-gray-300"
+                                  "text-stone-300"
                 }`}
               >
                 {i + 1 < step ? "✓ " : ""}{label}
@@ -308,24 +320,24 @@ export default function Onboarding() {
         <div className="mb-5">
           {step === 1 && (
             <>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Your work situation</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-stone-900 mb-1">Your work situation</h1>
+              <p className="text-base text-stone-500">
                 Caregiving often happens alongside work. Help us understand your context.
               </p>
             </>
           )}
           {step === 2 && (
             <>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Languages you speak</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-stone-900 mb-1">Languages you speak</h1>
+              <p className="text-base text-stone-500">
                 Helps us support carers from culturally diverse backgrounds.
               </p>
             </>
           )}
           {step === 3 && (
             <>
-              <h1 className="text-xl font-bold text-gray-900 mb-1">Your caregiving</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-stone-900 mb-1">Your caregiving</h1>
+              <p className="text-base text-stone-500">
                 Tell us about who you care for and how you found CareAble.
               </p>
             </>
@@ -602,13 +614,13 @@ export default function Onboarding() {
       </div>
 
       {/* Fixed bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-stone-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           {step > 1 ? (
             <button
               onClick={handleBack}
               disabled={submitting}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition disabled:opacity-50 flex-shrink-0"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-stone-200 text-sm font-medium text-stone-600 hover:bg-stone-50 transition disabled:opacity-50 flex-shrink-0"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -616,7 +628,7 @@ export default function Onboarding() {
               Back
             </button>
           ) : (
-            <div className="flex-shrink-0 text-xs text-gray-400 px-2">
+            <div className="flex-shrink-0 text-xs text-stone-400 px-2">
               Step {step} of {totalSteps}
             </div>
           )}
@@ -664,15 +676,17 @@ export default function Onboarding() {
 }
 
 // ── Section wrapper ────────────────────────────────────────────────
-function Section({ label, hint, error, children }) {
+function Section({ label, hint, error, required = true, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-      <p className="text-sm font-semibold text-gray-800 mb-0.5">{label}</p>
-      {hint && <p className="text-xs text-gray-400 mb-3">{hint}</p>}
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-4">
+      <p className="text-sm font-semibold text-stone-800 mb-0.5">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </p>
+      {hint && <p className="text-sm text-stone-400 mb-3">{hint}</p>}
       {!hint && <div className="mb-3" />}
       {children}
       {error && (
-        <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
+        <p className="text-sm text-red-600 mt-2 flex items-center gap-1">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -693,7 +707,7 @@ function YesNo({ value, onChange }) {
         className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
           value === true
             ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-            : "border-gray-200 bg-white text-gray-700 hover:border-indigo-300"
+            : "border-stone-200 bg-white text-stone-700 hover:border-indigo-300"
         }`}
       >
         Yes
@@ -704,7 +718,7 @@ function YesNo({ value, onChange }) {
         className={`py-2.5 rounded-xl border-2 text-sm font-semibold transition ${
           value === false
             ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-            : "border-gray-200 bg-white text-gray-700 hover:border-indigo-300"
+            : "border-stone-200 bg-white text-stone-700 hover:border-indigo-300"
         }`}
       >
         No
@@ -722,7 +736,7 @@ function ChipButton({ selected, onClick, label }) {
       className={`px-3.5 py-2 rounded-xl border-2 text-sm font-medium transition active:scale-95 ${
         selected
           ? "border-indigo-500 bg-indigo-600 text-white shadow-sm"
-          : "border-gray-200 bg-white text-gray-700 hover:border-indigo-300 hover:bg-indigo-50"
+          : "border-stone-200 bg-white text-stone-700 hover:border-indigo-300 hover:bg-indigo-50"
       }`}
     >
       {label}
@@ -739,11 +753,11 @@ function ChipToggle({ selected, onClick, label }) {
       className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border-2 text-sm font-medium transition active:scale-95 ${
         selected
           ? "border-indigo-500 bg-indigo-50 text-indigo-700"
-          : "border-gray-200 bg-white text-gray-600 hover:border-indigo-200"
+          : "border-stone-200 bg-white text-stone-600 hover:border-indigo-200"
       }`}
     >
       <span className={`w-3.5 h-3.5 rounded flex-shrink-0 border-2 flex items-center justify-center transition ${
-        selected ? "bg-indigo-600 border-indigo-600" : "border-gray-300"
+        selected ? "bg-indigo-600 border-indigo-600" : "border-stone-300"
       }`}>
         {selected && (
           <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
@@ -756,12 +770,11 @@ function ChipToggle({ selected, onClick, label }) {
   );
 }
 
-// ── Custom dropdown — fully styled, no native select ───────────────
+// ── Custom dropdown ────────────────────────────────────────────────
 function NativeSelect({ options, value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
@@ -775,31 +788,26 @@ function NativeSelect({ options, value, onChange }) {
 
   return (
     <div className="relative" ref={ref}>
-      {/* Trigger */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition ${
           selected
-            ? "border-indigo-300 bg-white text-gray-800"
-            : "border-gray-200 bg-white text-gray-400"
+            ? "border-indigo-300 bg-white text-stone-800"
+            : "border-stone-200 bg-white text-stone-400"
         } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
       >
         <span>{selected || "Select an option"}</span>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ml-2 ${open ? "rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
+          className={`w-4 h-4 text-stone-400 transition-transform flex-shrink-0 ml-2 ${open ? "rotate-180" : ""}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
-      {/* Dropdown list */}
       {open && (
-        <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+        <div className="absolute z-50 w-full mt-1.5 bg-white border border-stone-200 rounded-xl shadow-lg overflow-hidden">
           <ul className="max-h-56 overflow-y-auto py-1">
             {options.map((opt) => {
               const isSelected = opt === selected;
@@ -807,14 +815,11 @@ function NativeSelect({ options, value, onChange }) {
                 <li key={opt}>
                   <button
                     type="button"
-                    onClick={() => {
-                      onChange(opt);
-                      setOpen(false);
-                    }}
+                    onClick={() => { onChange(opt); setOpen(false); }}
                     className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition ${
                       isSelected
                         ? "bg-indigo-50 text-indigo-700 font-semibold"
-                        : "text-gray-700 hover:bg-gray-50"
+                        : "text-stone-700 hover:bg-stone-50"
                     }`}
                   >
                     <span>{opt}</span>
@@ -844,7 +849,7 @@ function OtherInput({ value, onChange, error, placeholder }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={`block w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition ${
-          error ? "border-red-300 bg-red-50" : "border-gray-300 bg-white"
+          error ? "border-red-300 bg-red-50" : "border-stone-300 bg-white"
         }`}
       />
       {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

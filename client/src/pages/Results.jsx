@@ -1,4 +1,4 @@
-// client/src/pages/Results.jsx
+﻿// client/src/pages/Results.jsx
 
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -29,9 +29,6 @@ function Results() {
   const [downloading, setDownloading] = useState(false);
   const [activeTab, setActiveTab]     = useState("overview");
 
-  // ── Lifted AI insights state ───────────────────────────────────
-  // Kept here so switching tabs never unmounts/resets it.
-  // Initialised from localStorage so a page refresh restores last result.
   const storageKey = `ai-insights-${id}`;
   const [insights, setInsights]     = useState(() => {
     try {
@@ -66,7 +63,6 @@ function Results() {
       setAiLoading(false);
     }
   };
-  // ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const fetchData = async () => {
@@ -141,28 +137,74 @@ function Results() {
   return (
     <section className="flex-1 bg-gray-50 min-h-screen">
 
-      {/* Hero */}
+      {/* ── Hero ──────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white">
         <div className="max-w-5xl mx-auto px-4 pt-5 pb-6">
+
+          {/* Title row — date left, dashboard button right */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               <p className="text-indigo-300 text-xs mb-1">Submitted {submittedDate}</p>
-              <h1 className="text-lg md:text-2xl font-bold leading-snug">Caregiving Capability Report</h1>
+              <h1 className="text-2xl md:text-3xl font-bold leading-snug">Caregiving Capability Report</h1>
             </div>
-            <Link to="/dashboard" className="flex-shrink-0 text-xs px-3 py-1.5 bg-black/20 hover:bg-black/30 rounded-lg transition border border-white/10 whitespace-nowrap text-white/80">← Dashboard</Link>
+            <Link
+              to="/dashboard"
+              className="flex-shrink-0 text-xs px-3 py-1.5 bg-black/20 hover:bg-black/30 rounded-lg transition border border-white/10 whitespace-nowrap text-white/80"
+            >
+              ← Dashboard
+            </Link>
           </div>
 
-          <div className="flex items-center gap-4 bg-black/20 rounded-xl px-5 py-4 border border-white/10">
-            <div className="pr-4" style={{ borderRight: "1px solid rgba(255,255,255,0.15)" }}>
-              <p className="text-3xl font-bold leading-none">{assessment.overallScore != null ? assessment.overallScore.toFixed(2) : "—"}</p>
-              <p className="text-[10px] text-indigo-300 mt-1">/ 5.00</p>
+          {/* Stats card */}
+          <div className="bg-black/20 rounded-xl px-4 py-4 border border-white/10">
+
+            {/* ── Mobile layout: 3-col top row + description below ── */}
+            {/*    Score (left) · Areas (centre) · Level (right)       */}
+            <div className="sm:hidden">
+              <div className="grid grid-cols-3 items-center mb-3">
+                {/* Score */}
+                <div>
+                  <span className="text-2xl font-bold leading-none">
+                    {assessment.overallScore != null ? assessment.overallScore.toFixed(2) : "—"}
+                  </span>
+                  <span className="text-xs text-indigo-300 ml-1">/ 5.00</span>
+                </div>
+
+                {/* Areas — centred */}
+                <div className="text-center">
+                  <p className="text-sm font-semibold leading-none">{areaCount}</p>
+                  <p className="text-xs text-indigo-300 mt-0.5">areas</p>
+                </div>
+
+                {/* Level — right-aligned */}
+                <div className="text-right">
+                  <p className="text-[10px] text-indigo-300 uppercase tracking-wider mb-0.5">Level</p>
+                  <p className="font-bold text-sm leading-none">{meta.emoji} {assessment.level}</p>
+                </div>
+              </div>
+
+              {/* Description */}
+              <p className="text-sm text-indigo-100 leading-relaxed border-t border-white/10 pt-3">
+                {meta.description}
+              </p>
             </div>
-            <div className="pr-4" style={{ borderRight: "1px solid rgba(255,255,255,0.15)" }}>
-              <p className="text-[10px] text-indigo-300 mb-0.5 uppercase tracking-wide">Level</p>
-              <p className="font-bold text-sm">{meta.emoji} {assessment.level}</p>
+
+            {/* ── Desktop layout: single flex row ───────────────── */}
+            <div className="hidden sm:flex sm:items-center sm:gap-4">
+              <div className="pr-4 border-r border-white/15 flex-shrink-0">
+                <p className="text-2xl font-bold leading-none">
+                  {assessment.overallScore != null ? assessment.overallScore.toFixed(2) : "—"}
+                </p>
+                <p className="text-xs text-indigo-300 mt-1">/ 5.00</p>
+              </div>
+              <div className="pr-4 border-r border-white/15 flex-shrink-0">
+                <p className="text-xs text-indigo-300 mb-0.5 uppercase tracking-wide">Level</p>
+                <p className="font-bold text-base">{meta.emoji} {assessment.level}</p>
+              </div>
+              <p className="text-sm text-indigo-100 flex-1 leading-relaxed">{meta.description}</p>
+              <p className="text-xs text-indigo-300 ml-auto flex-shrink-0">{areaCount} areas</p>
             </div>
-            <p className="text-xs text-indigo-200 hidden sm:block flex-1 leading-relaxed">{meta.description}</p>
-            <p className="text-xs text-indigo-300 ml-auto flex-shrink-0">{areaCount} areas</p>
+
           </div>
         </div>
       </div>
@@ -176,7 +218,6 @@ function Results() {
                 className={"flex items-center gap-1.5 px-3 sm:px-5 py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 transition-colors duration-150 " + (activeTab === tab.key ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500 hover:text-gray-800")}>
                 <span className="text-sm">{tab.icon}</span>
                 <span>{tab.label}</span>
-                {/* Dot indicator when insights are loaded */}
                 {tab.key === "ai-insights" && insights && !aiLoading && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
                 )}
@@ -194,7 +235,7 @@ function Results() {
           <div className="space-y-4">
             {topAreas.length > 0 && (
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Top Capability Areas</p>
+                <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Top Capability Areas</p>
                 <div className="flex flex-wrap gap-2">
                   {topAreas.map((cat) => (
                     <span key={cat.key} className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-medium text-emerald-800">
@@ -208,13 +249,13 @@ function Results() {
             )}
 
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Insights</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Insights</p>
               <ResultsSummary categoryScores={assessment.categoryScores || {}} categoryMeta={categories} />
             </div>
 
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Capability Heatmap</p>
-              <p className="text-xs text-gray-400 mb-4">Switch views to explore your {categories.length} capability areas</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">Capability Heatmap</p>
+              <p className="text-sm text-gray-400 mb-4">Switch views to explore your {categories.length} capability areas</p>
               <CapabilityHeatmap categoryScores={assessment.categoryScores || {}} categoryMeta={categories} />
             </div>
 
@@ -245,8 +286,8 @@ function Results() {
         {activeTab === "breakdown" && (
           <div>
             <div className="mb-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Detailed Breakdown</p>
-              <p className="text-xs text-gray-400 mt-0.5">Score and tier for each of your {categories.length} capability domains</p>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Detailed Breakdown</p>
+              <p className="text-sm text-gray-400 mt-0.5">Score and tier for each of your {categories.length} capability domains</p>
             </div>
             <div className="space-y-2 md:grid md:grid-cols-2 md:gap-3 md:space-y-0">
               {categories.map((cat) => (
@@ -256,7 +297,6 @@ function Results() {
           </div>
         )}
 
-        {/* AI INSIGHTS — state lives in parent, passed as props */}
         {activeTab === "ai-insights" && (
           <AiInsightsTab
             insights={insights}
@@ -311,10 +351,8 @@ function Results() {
 }
 
 // ── AI Insights tab ────────────────────────────────────────────────
-// State is owned by Results — this component is purely presentational.
 function AiInsightsTab({ insights, loading, error, onGenerate }) {
 
-  // Loading state — shown when generating (including on first generate)
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -332,7 +370,6 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
     );
   }
 
-  // Not yet generated — show the prompt card
   if (!insights) {
     return (
       <div className="space-y-4">
@@ -389,11 +426,8 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
     );
   }
 
-  // Results
   return (
     <div className="space-y-4">
-
-      {/* Summary */}
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">💬</span>
@@ -402,7 +436,6 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
         <p className="text-sm text-gray-700 leading-relaxed">{insights.summary}</p>
       </div>
 
-      {/* Strengths + Growth */}
       <div className="grid md:grid-cols-2 gap-4">
         <div className="bg-white border border-emerald-100 rounded-xl p-4 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
@@ -420,7 +453,6 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
         </div>
       </div>
 
-      {/* Resources */}
       {Array.isArray(insights.resources) && insights.resources.length > 0 && (
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -446,18 +478,14 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
                         {r.program}
                       </p>
                       {r.type && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
+                        <span className="text-xs font-medium px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full">
                           {r.type}
                         </span>
                       )}
                     </div>
-                    <p className="text-xs font-medium text-indigo-600 mt-0.5">
-                      {r.organisation}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      {r.description}
-                    </p>
-                    <p className="text-[10px] text-gray-400 mt-1.5 flex items-center gap-1">
+                    <p className="text-xs font-medium text-indigo-600 mt-0.5">{r.organisation}</p>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{r.description}</p>
+                    <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
@@ -474,7 +502,6 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
         </div>
       )}
 
-      {/* Next step */}
       {insights.nextStep && (
         <div className="bg-indigo-600 rounded-xl p-5 text-white">
           <div className="flex items-center gap-2 mb-2">
@@ -485,7 +512,6 @@ function AiInsightsTab({ insights, loading, error, onGenerate }) {
         </div>
       )}
 
-      {/* Regenerate */}
       <div className="flex items-center justify-between pt-1">
         <p className="text-xs text-gray-400">Generated by ChatGPT · Results may vary</p>
         <button
@@ -520,7 +546,7 @@ function CompactScoreCard({ category, score }) {
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm font-semibold text-gray-900 truncate">{category.label}</p>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                {tier && <span className={"text-[10px] font-semibold px-1.5 py-0.5 rounded-full border " + tierColor}>{tier}</span>}
+                {tier && <span className={"text-xs font-semibold px-1.5 py-0.5 rounded-full border " + tierColor}>{tier}</span>}
                 <svg className={"w-3.5 h-3.5 text-gray-400 transition-transform duration-200 " + (expanded ? "rotate-180" : "")} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
               </div>
             </div>
@@ -532,7 +558,7 @@ function CompactScoreCard({ category, score }) {
             <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
               <div className="h-full rounded-full transition-all duration-700" style={{ width: barWidth + "%", backgroundColor: barColor }} />
             </div>
-            <span className="text-[10px] text-gray-400 flex-shrink-0">/ 5</span>
+            <span className="text-xs text-gray-400 flex-shrink-0">/ 5</span>
           </div>
         )}
       </button>

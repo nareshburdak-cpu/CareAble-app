@@ -17,24 +17,31 @@
  *   </Route>
  */
 
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import LoadingSpinner from "./LoadingSpinner";
 
 function AdminRoute() {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, hasRole, activeRole, roleDestination } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <LoadingSpinner message="Loading..." />;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location.pathname + location.search + location.hash }}
+        replace
+      />
+    );
   }
 
-  if (user?.role !== "admin") {
+  if (!hasRole("admin")) {
     // Silently redirect — don't tell them this URL exists
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={roleDestination(activeRole)} replace />;
   }
 
   return <Outlet />;

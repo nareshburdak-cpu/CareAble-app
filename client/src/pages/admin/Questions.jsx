@@ -268,11 +268,11 @@ function Questions() {
   const allCollapsed = allKnownKeys.every((k) => collapsedCategories[k]);
 
   return (
-    <div className="p-6 md:p-10">
+    <div className="mx-auto max-w-[1360px] p-4 md:p-8 xl:p-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
+          <h1 className="mb-2 font-serif text-3xl font-bold text-stone-900">
             Questions
           </h1>
           <p className="text-stone-600">
@@ -281,9 +281,9 @@ function Questions() {
         </div>
         <button
           onClick={() => setEditingQuestion({})}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm whitespace-nowrap"
+          className="whitespace-nowrap rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700"
         >
-          + Add question
+          Add question
         </button>
       </div>
 
@@ -683,10 +683,10 @@ function QuestionRow({ question, tier, isFirst, isLast, onEdit, onArchive, onReo
       : null;
 
   return (
-    <li className={`px-6 py-4 hover:bg-stone-50 transition ${question.isArchived ? "opacity-60" : ""}`}>
-      <div className="flex items-start gap-4">
+    <li className={`px-4 py-4 transition hover:bg-stone-50 md:px-6 ${question.isArchived ? "opacity-60" : ""}`}>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:gap-4">
         {/* Reorder buttons */}
-        <div className="flex flex-col gap-1 flex-shrink-0 pt-1">
+        <div className="hidden flex-shrink-0 flex-col gap-1 pt-1 md:flex">
           <button
             onClick={() => onReorder("up")}
             disabled={isFirst || isLoading || question.isArchived || readOnly}
@@ -712,75 +712,112 @@ function QuestionRow({ question, tier, isFirst, isLast, onEdit, onArchive, onReo
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-medium">
-              {TYPE_LABELS[question.type] || question.type}
-            </span>
-            {question.isArchived && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                Archived
-              </span>
-            )}
-            {tier === "hidden" && !question.isArchived && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-200">
-                Hidden by category
-              </span>
-            )}
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-medium text-stone-700">
+                  {TYPE_LABELS[question.type] || question.type}
+                </span>
+                {question.isArchived && (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Archived
+                  </span>
+                )}
+                {tier === "hidden" && !question.isArchived && (
+                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Hidden by category
+                  </span>
+                )}
+              </div>
+              <p className="text-sm font-medium leading-6 text-stone-900 md:text-[15px]">
+                <Highlight text={question.text} term={searchTerm} />
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <button
+                onClick={onEdit}
+                disabled={isLoading || readOnly}
+                className="rounded-lg p-2 text-stone-400 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-stone-400"
+                aria-label="Edit"
+                title={readOnly ? disabledReason : "Edit"}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <button
+                onClick={onArchive}
+                disabled={isLoading || readOnly}
+                className={`rounded-lg p-2 transition disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${
+                  question.isArchived
+                    ? "text-emerald-600 hover:bg-emerald-50"
+                    : "text-stone-400 hover:bg-amber-50 hover:text-amber-600"
+                }`}
+                aria-label={question.isArchived ? "Restore" : "Archive"}
+                title={readOnly ? disabledReason : (question.isArchived ? "Restore" : "Archive")}
+              >
+                {question.isArchived ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
-          <p className="text-sm font-medium text-stone-900">
-            <Highlight text={question.text} term={searchTerm} />
-          </p>
+
           {question.helper && (
-            <p className="text-xs text-stone-500 mt-1 italic">
+            <p className="mt-1 text-xs italic text-stone-500 md:text-sm">
               <Highlight text={question.helper} term={searchTerm} />
             </p>
           )}
           {question.options && question.options.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1">
+            <div className="mt-2 flex flex-wrap gap-1.5">
               {question.options.map((opt) => (
-                <span key={opt.value || opt} className="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded">
+                <span key={opt.value || opt} className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700">
                   {opt.label || opt}
                 </span>
               ))}
             </div>
           )}
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <button
-            onClick={onEdit}
-            disabled={isLoading || readOnly}
-            className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-stone-400 disabled:hover:bg-transparent"
-            aria-label="Edit"
-            title={readOnly ? disabledReason : "Edit"}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
-          <button
-            onClick={onArchive}
-            disabled={isLoading || readOnly}
-            className={`p-2 rounded transition disabled:opacity-40 disabled:cursor-not-allowed ${
-              question.isArchived
-                ? "text-emerald-600 hover:bg-emerald-50"
-                : "text-stone-400 hover:text-amber-600 hover:bg-amber-50"
-            } disabled:hover:bg-transparent`}
-            aria-label={question.isArchived ? "Restore" : "Archive"}
-            title={readOnly ? disabledReason : (question.isArchived ? "Restore" : "Archive")}
-          >
-            {question.isArchived ? (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-            )}
-          </button>
+          <div className="mt-3 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 md:hidden">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+              Reorder
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onReorder("up")}
+                disabled={isFirst || isLoading || question.isArchived || readOnly}
+                className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Move up"
+                title={readOnly ? disabledReason : "Move up"}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+                Up
+              </button>
+              <button
+                onClick={() => onReorder("down")}
+                disabled={isLast || isLoading || question.isArchived || readOnly}
+                className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="Move down"
+                title={readOnly ? disabledReason : "Move down"}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+                Down
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </li>

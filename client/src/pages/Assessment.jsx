@@ -259,14 +259,14 @@ export default function Assessment() {
           <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-1">
             Page {currentPage + 1} of {totalPages}
           </p>
-          <h1 className="text-xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900">
             {currentPage === 0
               ? "Let's start your assessment"
               : currentPage === totalPages - 1
               ? "Almost there"
               : "Keep going"}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-base text-gray-500 mt-1">
             Answer honestly — there are no right or wrong answers.
           </p>
         </div>
@@ -341,7 +341,7 @@ export default function Assessment() {
             {/* Centre — dots + progress count */}
             <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
               {/* Progress count */}
-              <p className="text-xs text-gray-400 leading-none">
+              <p className="text-sm text-gray-400 leading-none">
                 <span className="font-semibold text-indigo-600">{answeredCount}</span>
                 <span className="text-gray-300 mx-1">/</span>
                 {totalQuestions}
@@ -481,7 +481,7 @@ function LikertButtons({ value, onChange }) {
               }`}
             >
               <span className="text-base font-bold leading-none">{opt.short}</span>
-              <span className={`text-[10px] leading-tight text-center hidden sm:block ${selected ? "text-indigo-100" : "text-gray-400"}`}>
+              <span className={`text-xs leading-tight text-center hidden sm:block ${selected ? "text-indigo-100" : "text-gray-400"}`}>
                 {opt.label}
               </span>
             </button>
@@ -489,8 +489,8 @@ function LikertButtons({ value, onChange }) {
         })}
       </div>
       <div className="flex justify-between px-1">
-        <span className="text-[10px] text-gray-400">Never</span>
-        <span className="text-[10px] text-gray-400">Always</span>
+        <span className="text-xs text-gray-400">Never</span>
+        <span className="text-xs text-gray-400">Always</span>
       </div>
     </div>
   );
@@ -534,7 +534,7 @@ function MultiSelect({ options, value, onChange }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-gray-400 mb-1">Select all that apply</p>
+      <p className="text-sm text-gray-400 mb-1">Select all that apply</p>
       {options.map((opt) => {
         const selected = value.includes(opt);
         return (

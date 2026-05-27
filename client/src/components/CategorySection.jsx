@@ -14,7 +14,9 @@ function CategorySection({
   const [open, setOpen] = useState(defaultOpen);
 
   const colors = categoryColors[category.color] || defaultCategoryColor;
-  const answeredCount = category.questions.filter((q) => answers[q._id]).length;
+  const answeredCount = category.questions.filter((q) =>
+    Object.prototype.hasOwnProperty.call(answers, q._id.toString())
+  ).length;
   const totalCount = category.questions.length;
   const isComplete = answeredCount === totalCount && totalCount > 0;
 

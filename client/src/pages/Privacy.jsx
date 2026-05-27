@@ -141,7 +141,7 @@ function Privacy() {
 
           {/* ── SIDEBAR TOC ─────────────────────────────────────── */}
           <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-8">
-            <p className="text-xs uppercase tracking-[0.18em] text-stone-400 font-semibold mb-3">
+            <p className="text-sm uppercase tracking-[0.18em] text-stone-400 font-semibold mb-3">
               Contents
             </p>
             <nav className="space-y-1">
@@ -149,7 +149,7 @@ function Privacy() {
                 <button
                   key={s.id}
                   onClick={() => { scrollTo(s.id); setActiveSection(s.id); }}
-                  className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                  className={`w-full text-left flex items-center gap-2 px-3 py-2.5 rounded-lg text-base transition-all ${
                     activeSection === s.id
                       ? "bg-indigo-50 text-indigo-700 font-medium"
                       : "text-stone-500 hover:text-stone-900 hover:bg-stone-100"
@@ -165,11 +165,11 @@ function Privacy() {
 
             {/* Quick contact box */}
             <div className="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl">
-              <p className="text-xs font-semibold text-indigo-800 mb-1">Privacy question?</p>
-              <p className="text-xs text-indigo-700 mb-2 leading-snug">Contact us and we'll respond within 2 business days.</p>
+              <p className="text-sm font-semibold text-indigo-800 mb-1">Privacy question?</p>
+              <p className="text-sm text-indigo-700 mb-2 leading-snug">Contact us and we'll respond within 2 business days.</p>
               <a
                 href={`mailto:${BRAND.supportEmail}`}
-                className="inline-block text-xs font-semibold text-indigo-600 hover:underline"
+                className="inline-block text-sm font-semibold text-indigo-600 hover:underline"
               >
                 {BRAND.supportEmail} →
               </a>
@@ -201,7 +201,7 @@ function Privacy() {
                     <span className="text-xl shrink-0">{item.icon}</span>
                     <div>
                       <p className="text-sm font-semibold text-stone-800">{item.label}</p>
-                      <p className="text-xs text-stone-500 mt-0.5 leading-snug">{item.desc}</p>
+                  <p className="text-sm text-stone-500 mt-0.5 leading-snug">{item.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -386,7 +386,7 @@ function Privacy() {
                   >
                     {BRAND.supportEmail}
                   </a>
-                  <p className="text-xs text-stone-500 mt-0.5">We aim to respond within 2 business days.</p>
+                  <p className="text-sm text-stone-500 mt-0.5">We aim to respond within 2 business days.</p>
                 </div>
               </div>
               <p className="text-sm mt-3">
@@ -406,7 +406,7 @@ function Privacy() {
             {/* Footer note */}
             <div className="pt-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-stone-50 border border-stone-200 rounded-2xl">
-                <p className="text-xs text-stone-500 leading-relaxed">
+                <p className="text-sm text-stone-500 leading-relaxed">
                   This policy applies to the {BRAND.name} platform operated by {BRAND.partnersLine} as part of the La Trobe University Capstone 2026 program. A formally reviewed policy will be issued before any public commercial release.
                 </p>
                 <Link

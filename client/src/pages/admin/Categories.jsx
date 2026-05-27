@@ -1,24 +1,6 @@
-// client/src/pages/admin/Categories.jsx
-
-/**
- * Admin: Category Management
- * --------------------------
- * Add, edit, archive, restore, and reorder capability domains.
- *
- * Categories are the top-level grouping for assessment questions. The 12
- * brief-aligned defaults are seeded; admins can extend or modify them here.
- *
- * Constraints (enforced server-side, surfaced as errors):
- *   - A category's `key` becomes immutable once any question or assessment
- *     references it. Display fields (label, description, icon, colour)
- *     remain editable.
- *   - Archived categories are hidden from new assessments but retained for
- *     historical lookups.
- */
-
 /* eslint-disable react-hooks/set-state-in-effect */
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "../../api/axios";
 import toast from "../../utils/toast";
 import LoadingSpinner from "../../components/LoadingSpinner";
@@ -30,7 +12,7 @@ function Categories() {
   const [stats, setStats] = useState({ total: 0, activeCount: 0, archivedCount: 0 });
   const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null); // null | {} (new) | category object
+  const [editingCategory, setEditingCategory] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
 
   const fetchCategories = useCallback(async () => {
@@ -55,21 +37,21 @@ function Categories() {
     fetchCategories();
   }, [fetchCategories]);
 
-  const handleArchive = async (cat) => {
-    if (!cat.isArchived) {
-      // Archive — show count of questions that will be hidden
-      const qCount = cat.questionCount || 0;
-      const msg = qCount > 0
-        ? `Archive "${cat.label}"? ${qCount} active question${qCount !== 1 ? "s" : ""} will be hidden from new assessments. In-progress assessments are unaffected.`
-        : `Archive "${cat.label}"? It has no active questions, so nothing else changes.`;
-      if (!window.confirm(msg)) return;
+  const handleArchive = async (category) => {
+    if (!category.isArchived) {
+      const qCount = category.questionCount || 0;
+      const message =
+        qCount > 0
+          ? `Archive "${category.label}"? ${qCount} active question${qCount !== 1 ? "s" : ""} will be hidden from new assessments.`
+          : `Archive "${category.label}"? It has no active questions, so nothing else changes.`;
+      if (!window.confirm(message)) return;
     }
 
-    setActionLoading(cat._id);
+    setActionLoading(category._id);
     try {
-      const endpoint = cat.isArchived ? "restore" : "archive";
-      const res = await api.post(`/admin/categories/${cat._id}/${endpoint}`);
-      toast.success(res.data.message || (cat.isArchived ? "Category restored." : "Category archived."));
+      const endpoint = category.isArchived ? "restore" : "archive";
+      const res = await api.post(`/admin/categories/${category._id}/${endpoint}`);
+      toast.success(res.data.message || (category.isArchived ? "Domain restored." : "Domain archived."));
       fetchCategories();
     } catch (err) {
       toast.error(err.message || "Action failed");
@@ -78,10 +60,10 @@ function Categories() {
     }
   };
 
-  const handleReorder = async (cat, direction) => {
-    setActionLoading(cat._id);
+  const handleReorder = async (category, direction) => {
+    setActionLoading(category._id);
     try {
-      await api.post(`/admin/categories/${cat._id}/reorder`, { direction });
+      await api.post(`/admin/categories/${category._id}/reorder`, { direction });
       fetchCategories();
     } catch (err) {
       toast.error(err.message || "Reorder failed");
@@ -92,97 +74,92 @@ function Categories() {
 
   if (loading) return <LoadingSpinner message="Loading categories..." />;
 
-  // Active categories first (in order), then archived (in order, only if toggled)
   const visibleCategories = showArchived
-    ? categories.filter((c) => c.isArchived)   // only archived
-    : categories.filter((c) => !c.isArchived);  // active only
+    ? categories.filter((category) => category.isArchived)
+    : categories.filter((category) => !category.isArchived);
 
-  // For reorder bounds, we only care about position within the active subset
-  const activeKeys = categories.filter((c) => !c.isArchived).map((c) => c._id);
+  const activeIds = categories.filter((category) => !category.isArchived).map((category) => category._id);
 
   return (
-    <div className="p-6 md:p-10">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+    <div className="mx-auto max-w-[1360px] p-4 md:p-8 xl:p-10">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-stone-900 mb-2">
-            Capability Domains
-          </h1>
-          <p className="text-stone-600">
-            Manage the top-level domains carers are assessed against. The 12 default domains come from the Capstone Brief.
+          <h1 className="mb-2 font-serif text-3xl font-bold text-stone-900">Capability Domains</h1>
+          <p className="max-w-3xl text-sm text-stone-600">
+            Manage the top-level domains carers are assessed against. Default domains come from the Capstone Brief and can be extended here.
           </p>
         </div>
-        <button
-          onClick={() => setEditingCategory({})}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm whitespace-nowrap"
-        >
-          + Add domain
-        </button>
+
+        <div className="flex items-center gap-2">
+          <div className="shrink-0 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700">
+            {stats.total} total
+          </div>
+          <button
+            onClick={() => setEditingCategory({})}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            Add domain
+          </button>
+        </div>
       </div>
 
-      {/* Stats + filter */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="mb-5 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         <button
           onClick={() => setShowArchived(false)}
-          className={`flex items-center gap-2 px-3 py-1.5 border rounded-full transition ${
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
             !showArchived
-              ? "bg-emerald-100 border-emerald-400 ring-1 ring-emerald-400"
-              : "bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+              ? "border border-emerald-300 bg-emerald-100 text-emerald-800"
+              : "border border-stone-200 bg-white text-stone-600 hover:border-emerald-200 hover:text-emerald-700"
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span className="text-xs font-medium text-emerald-800">
-            {stats.activeCount} active
-          </span>
+          Active {stats.activeCount}
         </button>
-
         <button
           onClick={() => setShowArchived(true)}
-          className={`flex items-center gap-2 px-3 py-1.5 border rounded-full transition ${
+          className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition ${
             showArchived
-              ? "bg-stone-200 border-stone-400 ring-1 ring-stone-400"
-              : "bg-stone-100 border-stone-200 hover:bg-stone-200"
+              ? "border border-stone-300 bg-stone-200 text-stone-700"
+              : "border border-stone-200 bg-white text-stone-600 hover:bg-stone-50"
           }`}
         >
-          <span className="w-2 h-2 rounded-full bg-stone-400" />
-          <span className="text-xs font-medium text-stone-700">
-            {stats.archivedCount} archived
-          </span>
+          Archived {stats.archivedCount}
         </button>
       </div>
 
-      {/* List */}
       {visibleCategories.length === 0 ? (
-        <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center">
-          <div className="text-4xl mb-2">🗂️</div>
-          <p className="text-stone-500">
-            {showArchived ? "No categories yet." : "No active categories. Toggle 'Show archived' to see archived ones."}
+        <div className="rounded-2xl border border-stone-200 bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-stone-100 text-stone-500">
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </div>
+          <p className="font-medium text-stone-600">
+            {showArchived ? "No archived domains yet." : "No active domains available."}
+          </p>
+          <p className="mt-1 text-sm text-stone-400">
+            {showArchived ? "Archived domains will appear here." : "Create a new domain or switch to archived to review older ones."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {visibleCategories.map((cat) => {
-            const activeIdx = activeKeys.indexOf(cat._id);
-            const isFirstActive = activeIdx === 0;
-            const isLastActive = activeIdx === activeKeys.length - 1;
-
+          {visibleCategories.map((category) => {
+            const activeIndex = activeIds.indexOf(category._id);
             return (
               <CategoryRow
-                key={cat._id}
-                category={cat}
-                isFirstActive={isFirstActive}
-                isLastActive={isLastActive}
-                onEdit={() => setEditingCategory(cat)}
-                onArchive={() => handleArchive(cat)}
-                onReorder={(dir) => handleReorder(cat, dir)}
-                isLoading={actionLoading === cat._id}
+                key={category._id}
+                category={category}
+                isFirstActive={activeIndex === 0}
+                isLastActive={activeIndex === activeIds.length - 1}
+                onEdit={() => setEditingCategory(category)}
+                onArchive={() => handleArchive(category)}
+                onReorder={(direction) => handleReorder(category, direction)}
+                isLoading={actionLoading === category._id}
               />
             );
           })}
         </div>
       )}
 
-      {/* Form modal */}
       {editingCategory !== null && (
         <CategoryFormModal
           category={editingCategory}
@@ -198,113 +175,176 @@ function Categories() {
   );
 }
 
-// ---- Category row ----
 function CategoryRow({ category, isFirstActive, isLastActive, onEdit, onArchive, onReorder, isLoading }) {
   const archived = category.isArchived;
+  const colorPillClass = getColorPillClass(category.color);
+
   return (
-    <div className={`bg-white border border-stone-200 rounded-2xl overflow-hidden ${archived ? "opacity-60" : ""}`}>
-      <div className="px-6 py-4">
-        <div className="flex items-start gap-4">
-          {/* Reorder buttons (active only) */}
-          <div className="flex flex-col gap-1 flex-shrink-0 pt-1">
+    <div className={`overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm ${archived ? "opacity-70" : ""}`}>
+      <div className="px-4 py-4 md:px-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start">
+          <div className="hidden flex-col gap-1.5 pt-1 md:flex">
             <button
               onClick={() => onReorder("up")}
               disabled={archived || isFirstActive || isLoading}
-              className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 text-stone-400 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-700 disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Move up"
               title={archived ? "Restore to reorder" : "Move up"}
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
               </svg>
             </button>
             <button
               onClick={() => onReorder("down")}
               disabled={archived || isLastActive || isLoading}
-              className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded disabled:opacity-30 disabled:cursor-not-allowed transition"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 text-stone-400 transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-700 disabled:cursor-not-allowed disabled:opacity-30"
               aria-label="Move down"
               title={archived ? "Restore to reorder" : "Move down"}
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
             </button>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h3 className="font-semibold text-stone-900 flex items-center gap-2">
-                {category.icon && <span className="text-xl leading-none">{category.icon}</span>}
-                <span>{category.label}</span>
-              </h3>
-              {archived && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-                  Archived
-                </span>
-              )}
-              <span className="text-xs px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-medium">
-                {category.color}
-              </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex items-start gap-3">
+                  {category.icon && (
+                    <span className="mt-0.5 shrink-0 text-base leading-none md:text-lg">{category.icon}</span>
+                  )}
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-[15px] font-semibold leading-snug text-stone-900 md:text-base">
+                        {category.label}
+                      </h3>
+
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${colorPillClass}`}
+                      >
+                        {category.color}
+                      </span>
+
+                      {archived && (
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          Archived
+                        </span>
+                      )}
+                    </div>
+
+                    {category.description && (
+                      <p className="mt-1.5 max-w-3xl text-sm leading-5 text-stone-600">{category.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={onEdit}
+                  disabled={isLoading}
+                  className="rounded-lg p-2 text-stone-400 transition hover:bg-indigo-50 hover:text-indigo-600"
+                  aria-label="Edit"
+                  title="Edit"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={onArchive}
+                  disabled={isLoading}
+                  className={`rounded-lg p-2 transition ${
+                    archived ? "text-emerald-600 hover:bg-emerald-50" : "text-stone-400 hover:bg-amber-50 hover:text-amber-600"
+                  }`}
+                  aria-label={archived ? "Restore" : "Archive"}
+                  title={archived ? "Restore" : "Archive"}
+                >
+                  {archived ? (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
 
-            {category.description && (
-              <p className="text-sm text-stone-600 mt-1">{category.description}</p>
-            )}
-
-            <div className="flex items-center gap-3 mt-2 text-xs text-stone-500">
-              <span className="font-mono">{category.key}</span>
-              <span>•</span>
-              <span>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-500">
+              <span className="rounded-full bg-stone-50 px-2.5 py-1 font-mono text-stone-600">{category.key}</span>
+              <span className="rounded-full bg-stone-50 px-2.5 py-1 text-stone-600">
                 {category.questionCount} active question{category.questionCount !== 1 ? "s" : ""}
-                {category.archivedQuestionCount > 0 && (
-                  <span className="text-stone-400">
-                    {" "}({category.archivedQuestionCount} archived)
-                  </span>
-                )}
               </span>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={onEdit}
-              disabled={isLoading}
-              className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition"
-              aria-label="Edit"
-              title="Edit"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
-            <button
-              onClick={onArchive}
-              disabled={isLoading}
-              className={`p-2 rounded transition ${
-                archived
-                  ? "text-emerald-600 hover:bg-emerald-50"
-                  : "text-stone-400 hover:text-amber-600 hover:bg-amber-50"
-              }`}
-              aria-label={archived ? "Restore" : "Archive"}
-              title={archived ? "Restore" : "Archive"}
-            >
-              {archived ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                </svg>
+              {category.archivedQuestionCount > 0 && (
+                <span className="text-stone-400">({category.archivedQuestionCount} archived)</span>
               )}
-            </button>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 md:hidden">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                Reorder
+              </span>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onReorder("up")}
+                  disabled={archived || isFirstActive || isLoading}
+                  className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Move up"
+                  title={archived ? "Restore to reorder" : "Move up"}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                  </svg>
+                  Up
+                </button>
+                <button
+                  onClick={() => onReorder("down")}
+                  disabled={archived || isLastActive || isLoading}
+                  className="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-stone-300 hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-30"
+                  aria-label="Move down"
+                  title={archived ? "Restore to reorder" : "Move down"}
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                  Down
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+function getColorPillClass(color) {
+  const map = {
+    indigo: "bg-indigo-100 text-indigo-700",
+    pink: "bg-pink-100 text-pink-700",
+    purple: "bg-purple-100 text-purple-700",
+    amber: "bg-amber-100 text-amber-700",
+    teal: "bg-teal-100 text-teal-700",
+    green: "bg-green-100 text-green-700",
+    sky: "bg-sky-100 text-sky-700",
+    rose: "bg-rose-100 text-rose-700",
+    red: "bg-red-100 text-red-700",
+    violet: "bg-violet-100 text-violet-700",
+    fuchsia: "bg-fuchsia-100 text-fuchsia-700",
+    blue: "bg-blue-100 text-blue-700",
+    orange: "bg-orange-100 text-orange-700",
+    emerald: "bg-emerald-100 text-emerald-700",
+  };
+
+  return map[color] || "bg-stone-100 text-stone-700";
 }
 
 export default Categories;

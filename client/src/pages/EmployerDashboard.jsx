@@ -177,12 +177,12 @@ export default function EmployerDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">
                 Certificate Verification
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-base text-gray-500">
                 Verify the authenticity of a CareAble caregiver certificate by entering its ID below.
               </p>
             </div>
             <div className="hidden sm:flex flex-col items-end text-right">
-              <p className="text-sm font-medium text-gray-700">{user?.name}</p>
+              <p className="text-base font-medium text-gray-700">{user?.name}</p>
               <p className="text-xs text-gray-400">{user?.email}</p>
             </div>
           </div>
@@ -274,7 +274,7 @@ export default function EmployerDashboard() {
                 </p>
               )}
 
-              <p className="mt-3 text-xs text-gray-400">
+                <p className="mt-3 text-sm text-gray-400">
                 Format: <span className="font-mono">CA-YYYY-XXXXXX</span> — found on the printed or downloaded certificate.
               </p>
             </div>
@@ -326,7 +326,7 @@ export default function EmployerDashboard() {
                   {/* Admin-only fields */}
                   {isAdmin && (
                     <div className="pt-4 border-t border-dashed border-gray-200">
-                      <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-3">
+                      <p className="text-sm font-semibold text-indigo-600 uppercase tracking-wider mb-3">
                         Admin Details
                       </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -368,7 +368,7 @@ export default function EmployerDashboard() {
                   {/* Top areas */}
                   {result.topAreas?.length > 0 && (
                     <div className="pt-4 border-t border-gray-100">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                      <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
                         Top Capability Areas
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -388,7 +388,7 @@ export default function EmployerDashboard() {
                   {result.domainScores &&
                     Object.keys(result.domainScores).length > 0 && (
                       <div className="pt-4 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
                           Domain Scores
                         </p>
                         <div className="space-y-2.5">
@@ -397,7 +397,7 @@ export default function EmployerDashboard() {
                             .map(([label, score]) => (
                               <div key={label}>
                                 <div className="flex justify-between mb-1">
-                                  <span className="text-xs text-gray-600 truncate pr-2">
+                                  <span className="text-sm text-gray-600 truncate pr-2">
                                     {label}
                                   </span>
                                 </div>
@@ -405,7 +405,7 @@ export default function EmployerDashboard() {
                               </div>
                             ))}
                         </div>
-                        <p className="mt-3 text-xs text-gray-400">
+                        <p className="mt-3 text-sm text-gray-400">
                           Scores on a 1–5 scale. Strength ≥ 4.0 · Growth ≥ 3.0 · Support &lt; 3.0
                         </p>
                       </div>
@@ -480,7 +480,7 @@ export default function EmployerDashboard() {
 
             {/* Legend */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
                 Level Guide
               </p>
               <dl className="space-y-2">
@@ -488,8 +488,8 @@ export default function EmployerDashboard() {
                   <div key={level} className="flex items-start gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${meta.dot}`} />
                     <div>
-                      <dt className="text-xs font-semibold text-gray-700">{level}</dt>
-                      <dd className="text-xs text-gray-400">{meta.label}</dd>
+                      <dt className="text-sm font-semibold text-gray-700">{level}</dt>
+                      <dd className="text-sm text-gray-400">{meta.label}</dd>
                     </div>
                   </div>
                 ))}
@@ -506,13 +506,13 @@ export default function EmployerDashboard() {
 function InfoField({ label, value, large, mono, small }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wider text-gray-400 font-medium mb-0.5">
+      <p className="text-sm uppercase tracking-wider text-gray-400 font-medium mb-0.5">
         {label}
       </p>
       <p
         className={`text-gray-900 break-all ${
           large ? "text-base font-semibold" : "text-sm"
-        } ${mono ? "font-mono" : ""} ${small ? "text-xs" : ""}`}
+        } ${mono ? "font-mono" : ""} ${small ? "text-sm" : ""}`}
       >
         {value ?? "—"}
       </p>
