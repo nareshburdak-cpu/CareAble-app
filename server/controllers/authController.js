@@ -379,6 +379,20 @@ const googleAuth = asyncHandler(async (req, res) => {
     lastLoginAt: new Date(),
   });
 
+    // Send welcome email (new Google users only — this branch is creation-only).
+  // No verification email: Google already verified the address.
+  try {
+    const welcomeContent = welcomeEmail({ name: user.name });
+    await sendEmail({
+      to: user.email,
+      subject: welcomeContent.subject,
+      html: welcomeContent.html,
+    });
+    await logEmailSent(user._id, "welcome");
+  } catch (err) {
+    console.error("Welcome email failed (Google signup):", err.message);
+  }
+
   const token = generateToken(user._id);
   res.status(201).json({
     success: true,
