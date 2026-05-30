@@ -1,9 +1,12 @@
+// client/src/constants/brand.js
+
 /**
  * Brand Constants
  * ---------------
  * Single source of truth for all CareAble brand strings and colours.
  * 🚨 If you change `tagline`, also update client/index.html
  */
+import naresh from "../assets/team/naresh.png";
 
 export const BRAND = {
   // Core identity
@@ -16,7 +19,7 @@ export const BRAND = {
     "CareAble helps unpaid carers — family members, friends, and neighbours — recognise and celebrate their caregiving skills. Get a personalised capability report and a professional digital certificate.",
 
   // Version (manually bump this on releases)
-  version: "0.13.0",   // Phase 13 = v0.13
+  version: "0.13.0",
 
   // Contact email (used on Contact page)
   supportEmail: "hello@careable.site",
@@ -54,31 +57,31 @@ export const APP_NAME = BRAND.name;
 
 // Marketing content for landing page
 export const TRUST_STATS = [
-  { number: "30", label: "Caregiving capabilities measured" },
-  { number: "6", label: "Skill categories" },
+  { number: "12", label: "Capability domains assessed" },
+  { number: "60+", label: "Questions across all domains" },
   { number: "10–15", label: "Minutes to complete", suffix: "min" },
 ];
 
 export const FEATURES = [
   {
     icon: "compass",
-    title: "Self-discovery, made simple",
-    desc: "A guided 30-question journey across six caregiving capability areas. Built with experts at La Trobe University.",
+    title: "12 capability domains",
+    desc: "A guided 60-question journey across 12 caregiving capability areas — from communication and advocacy to digital literacy and leadership. Built with experts at La Trobe University.",
   },
   {
     icon: "certificate",
     title: "Recognised digital certificate",
-    desc: "Aligned with the Australian Skills Classification — ready to share with employers, agencies, or in your portfolio.",
+    desc: "Aligned with the Australian Skills Classification — ready to share with employers, agencies, or in your portfolio. Each certificate has a unique ID and QR code for instant verification.",
   },
   {
     icon: "chart",
-    title: "Visual capability heatmap",
-    desc: "See your strengths at a glance with an interactive radar chart. Spot growth areas without judgment.",
+    title: "Visual capability report",
+    desc: "See your strengths at a glance with a per-domain score breakdown. Three evidence-based tiers: Strength, Growth, and Support — spot growth areas without judgment.",
   },
   {
     icon: "shield",
     title: "Private and secure",
-    desc: "Your assessment is yours alone. No data selling, no third parties — bank-grade encryption.",
+    desc: "Your assessment is yours alone. No data selling, no third parties — data stored in Sydney, Australia. Employers can only verify a certificate ID you choose to share.",
   },
 ];
 
@@ -91,18 +94,85 @@ export const STEPS = [
   {
     n: "02",
     title: "Take the self-assessment",
-    desc: "Reflect on your caregiving across six areas. Pause and resume anytime — it auto-saves.",
+    desc: "Reflect on your caregiving across 12 capability domains. Pause and resume anytime — your progress is auto-saved.",
   },
   {
     n: "03",
     title: "Discover your strengths",
-    desc: "An instant capability report shows your top skills and growth areas with personalised insights.",
+    desc: "An instant capability report shows your score in each domain, your overall level (Strength, Growth, or Support), and your top areas.",
   },
   {
     n: "04",
     title: "Download your certificate",
-    desc: "A professional PDF certificate, uniquely numbered, ready to share or print.",
+    desc: "A professional PDF certificate with a unique ID and QR code — ready to share with employers or add to your portfolio.",
   },
 ];
 
+// client/src/constants/brand.js — add before `export default BRAND`
+
+// client/src/constants/brand.js — replace PARTNERS and TEAM exports
+
+export const PARTNERS = [
+  {
+    name: "La Trobe University",
+    abbr: "LTU",
+    description: "Lead academic partner and project sponsor. Home of ACAMI — the Australian Centre for Applied Medical Informatics.",
+    url: "https://www.latrobe.edu.au",
+    logo: null,
+    bgColor: "bg-red-600",
+    confirmed: true,
+  },
+  {
+    name: "ACAMI",
+    abbr: "ACAMI",
+    description: "Australian Centre for Applied Medical Informatics — driving research into digital health and care workforce capability.",
+    url: "https://www.latrobe.edu.au",
+    logo: null,
+    bgColor: "bg-blue-700",
+    confirmed: true,
+  },
+  { name: "Partner Organisation", abbr: "PO3", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Partner Organisation", abbr: "PO4", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Partner Organisation", abbr: "PO5", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Partner Organisation", abbr: "PO6", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
+  { name: "Partner Organisation", abbr: "PO7", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
+  { name: "Partner Organisation", abbr: "PO8", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
+];
+
+export const TEAM = [
+  {
+    name: "Dr. Phu Lai",
+    role: "Research Fellow",
+    org: "ACAMI · La Trobe University",
+    bio: "Research fellow at ACAMI specialising in digital health, care workforce capability, and applied medical informatics.",
+    initials: "PL",
+    photo: null,
+    gradient: "from-indigo-500 to-purple-600",
+    confirmed: true,
+  },
+  {
+    name: "Dr. Sora Lee",
+    role: "Lecturer, Public Health & Ageing",
+    org: "School of Psychology and Public Health",
+    bio: "Lecturer specialising in public health and ageing. Brings expertise in caregiver wellbeing and workforce recognition frameworks.",
+    initials: "SL",
+    photo: null,
+    gradient: "from-purple-500 to-pink-500",
+    confirmed: true,
+  },
+  {
+    name: "Naresh Kumar",
+    role: "Capstone Development Team",
+    org: "La Trobe University",
+    bio: "The student engineering team behind CareAble, Leading the team and responsible for design, development, and delivery of the platform.",
+    initials: "NK",
+    photo: naresh,
+    gradient: "from-teal-500 to-indigo-500",
+    confirmed: true,
+  },
+  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
+  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
+  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
+  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
+];
 export default BRAND;

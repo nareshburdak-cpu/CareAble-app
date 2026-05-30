@@ -14,10 +14,6 @@ const RESOURCE_LINKS = [
   { to: "/contact", label: "Contact" },
 ];
 
-const SUPPORT_LINKS = [
-  { to: "/help", label: "Help centre" },
-  { to: "/accessibility", label: "Accessibility" },
-];
 
 const EmailIcon = () => (
   <svg
@@ -61,8 +57,8 @@ function ColLabel({ children }) {
 export default function Footer() {
   return (
     <footer className="mt-auto border-t border-stone-200 bg-gradient-to-b from-stone-50 to-[#f5f4f1]">
-      <div className="mx-auto max-w-6xl px-4 pt-10 pb-6">
-        <div className="mb-8 hidden gap-10 md:grid md:grid-cols-[1.8fr_1fr_1fr_1fr]">
+      <div className="mx-auto max-w-6xl px-4 pt-8 pb-5">
+        <div className="mb-4 hidden gap-10 md:grid md:grid-cols-[1.8fr_1fr_1fr]">
           <div>
             <Link to="/" className="group mb-3 inline-flex items-center gap-2.5">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-gradient-to-br from-teal-50 to-blue-50 transition-transform duration-200 group-hover:scale-105">
@@ -91,7 +87,7 @@ export default function Footer() {
 
           <div>
             <ColLabel>Product</ColLabel>
-            <ul className="space-y-2.5">
+            <ul className="space-y-1.5">
               {PRODUCT_LINKS.map(({ to, label }) => (
                 <FooterLink key={to} to={to} label={label} />
               ))}
@@ -100,28 +96,11 @@ export default function Footer() {
 
           <div>
             <ColLabel>Resources</ColLabel>
-            <ul className="space-y-2.5">
+            <ul className="space-y-1.5">
               {RESOURCE_LINKS.map(({ to, label }) => (
                 <FooterLink key={to} to={to} label={label} />
               ))}
             </ul>
-          </div>
-
-          <div>
-            <ColLabel>Support</ColLabel>
-            <ul className="mb-4 space-y-2.5">
-              {SUPPORT_LINKS.map(({ to, label }) => (
-                <FooterLink key={to} to={to} label={label} />
-              ))}
-            </ul>
-
-            <a
-              href={`mailto:${BRAND.supportEmail}`}
-              className="inline-flex items-center gap-1.5 text-sm text-stone-500 transition-colors duration-150 hover:text-indigo-600"
-            >
-              <EmailIcon />
-              {BRAND.supportEmail}
-            </a>
           </div>
         </div>
 
@@ -156,7 +135,7 @@ export default function Footer() {
           </div>
 
           <div className="mb-4 grid grid-cols-2 gap-x-6 gap-y-3">
-            {[...PRODUCT_LINKS, ...RESOURCE_LINKS, ...SUPPORT_LINKS].map(({ to, label }) => (
+            {[...PRODUCT_LINKS, ...RESOURCE_LINKS].map(({ to, label }) => (
               <Link
                 key={to}
                 to={to}

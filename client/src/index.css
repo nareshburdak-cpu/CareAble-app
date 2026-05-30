@@ -65,6 +65,33 @@ body {
   animation: slide-in-right 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Carousel utilities — added for Team/Partners cinematic carousel */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes blob-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%      { transform: translate(20px, -30px) scale(1.05); }
+  66%      { transform: translate(-15px, 20px) scale(0.97); }
+}
+.animate-blob-float {
+  animation: blob-float 14s ease-in-out infinite;
+}
+
+@keyframes border-glow {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+.animate-border-glow {
+  animation: border-glow 3s ease-in-out infinite;
+}
+
+
 /* Hide footer only on assessment page */
 body.hide-footer footer {
   display: none;

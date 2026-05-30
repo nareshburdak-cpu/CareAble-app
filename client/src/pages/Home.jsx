@@ -18,6 +18,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import BRAND, { TRUST_STATS, FEATURES, STEPS } from "../constants/brand";
+import { TeamCarousel, PartnersCarousel } from "../components/CinematicCarousel";
 
 function Home() {
   const { isAuthenticated, user } = useAuth();
@@ -29,8 +30,8 @@ function Home() {
       <About />
       <Features />
       <HowItWorks />
-      <Partners />
-      <Team />
+      <PartnersCarousel />
+      <TeamCarousel initialIdx={2} />
       <Contact />
       <FinalCTA isAuthenticated={isAuthenticated} />
     </div>
@@ -160,12 +161,12 @@ function Hero({ isAuthenticated, user }) {
 // =============================================================================
 function SampleCard() {
   const skills = [
-    { name: "Communication", val: "4.8", tier: "Strength", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
-    { name: "Emotional Care", val: "4.6", tier: "Strength", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
-    { name: "Planning", val: "3.7", tier: "Growth", color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
-    { name: "Digital Skills", val: "3.2", tier: "Growth", color: "bg-indigo-50 border-indigo-200 text-indigo-800" },
-    { name: "Practical Care", val: "4.5", tier: "Strength", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
-    { name: "Adaptability", val: "4.1", tier: "Strength", color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+    { name: "Communication & Relational Care", val: "4.8", tier: "Strength", color: "bg-emerald-50 border border-emerald-200 text-emerald-800" },
+    { name: "Emotional Resilience", val: "4.6", tier: "Strength", color: "bg-emerald-50 border border-emerald-200 text-emerald-800" },
+    { name: "System Navigation & Advocacy", val: "3.7", tier: "Growth", color: "bg-indigo-50 border border-indigo-200 text-indigo-800" },
+    { name: "Planning & Organisation", val: "3.2", tier: "Growth", color: "bg-indigo-50 border border-indigo-200 text-indigo-800" },
+    { name: "Practical Care & Safety", val: "4.5", tier: "Strength", color: "bg-emerald-50 border border-emerald-200 text-emerald-800" },
+    { name: "Adaptability & Learning", val: "4.1", tier: "Strength", color: "bg-emerald-50 border border-emerald-200 text-emerald-800" },
   ];
 
   return (
@@ -177,7 +178,7 @@ function SampleCard() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-medium text-stone-900">Sarah's Capability Report</p>
-            <p className="text-xs text-stone-500">Sample — what you'll receive</p>
+            <p className="text-xs text-stone-500">Sample — 12 domains · 60 questions</p>
           </div>
           <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded-full border border-emerald-200">
             ✓ Strength
@@ -185,7 +186,7 @@ function SampleCard() {
         </div>
 
         <p className="text-xs uppercase tracking-wider text-stone-500 font-medium mb-3">
-          Capability areas · scored out of 5.00
+          Top capability areas · scored out of 5.00
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
@@ -280,19 +281,25 @@ function About() {
           {/* Visual stat block */}
           <div className="grid grid-cols-2 gap-4">
             {[
-              { num: "2.65M", label: "Unpaid carers in Australia", color: "bg-indigo-600 text-white" },
-              { num: "12", label: "Capability domains assessed", color: "bg-purple-600 text-white" },
-              { num: "Free", label: "Always free for carers", color: "bg-white border border-stone-200 text-stone-900" },
-              { num: "ASC", label: "Australian Skills Classification aligned", color: "bg-white border border-stone-200 text-stone-900" },
+              { num: "2.65M", label: "Unpaid carers in Australia",                color: "bg-indigo-600", light: false },
+              { num: "12",    label: "Capability domains assessed",               color: "bg-purple-600", light: false },
+              { num: "Free",  label: "Always free for carers",                    color: "bg-white border border-stone-200", light: true },
+              { num: "ASC",   label: "Australian Skills Classification aligned",  color: "bg-white border border-stone-200", light: true },
             ].map((item) => (
-              <div key={item.label} className={`${item.color} rounded-2xl p-6 flex flex-col justify-between min-h-[130px]`}>
-                <div className="text-3xl font-bold font-serif">{item.num}</div>
-                <div className={`text-sm leading-tight mt-3 ${item.color.includes("white") ? "text-stone-500" : "text-white/80"}`}>
+              <div
+                key={item.label}
+                className={`${item.color} rounded-2xl p-6 flex flex-col justify-between min-h-[130px]`}
+              >
+                <div className={`text-3xl font-bold font-serif ${item.light ? "text-stone-900" : "text-white"}`}>
+                  {item.num}
+                </div>
+                <div className={`text-sm leading-tight mt-3 ${item.light ? "text-stone-600" : "text-white/80"}`}>
                   {item.label}
                 </div>
               </div>
             ))}
           </div>
+
         </div>
       </div>
     </section>
@@ -380,7 +387,7 @@ function HowItWorks() {
         <div className="grid md:grid-cols-2 gap-6">
           {STEPS.map((s) => (
             <div key={s.n} className="bg-white border border-stone-200 rounded-2xl p-6 md:p-8 flex gap-6 hover:border-indigo-200 hover:shadow-md transition-all">
-              <div className="font-serif text-5xl md:text-6xl font-bold text-indigo-100 leading-none flex-shrink-0">
+              <div className="font-serif text-5xl md:text-6xl font-bold text-indigo-300 leading-none flex-shrink-0">
                 {s.n}
               </div>
               <div className="flex-1 min-w-0">
@@ -395,148 +402,6 @@ function HowItWorks() {
   );
 }
 
-// =============================================================================
-// PARTNERS
-// =============================================================================
-const PARTNERS = [
-  { name: "La Trobe University", abbr: "LTU", color: "bg-red-600", confirmed: true },
-  { name: "ACAMI", abbr: "ACAMI", color: "bg-blue-700", confirmed: true },
-  { name: "Partner Organisation", abbr: "PO3", color: "bg-stone-400", confirmed: false },
-  { name: "Partner Organisation", abbr: "PO4", color: "bg-stone-400", confirmed: false },
-  { name: "Partner Organisation", abbr: "PO5", color: "bg-stone-400", confirmed: false },
-  { name: "Partner Organisation", abbr: "PO6", color: "bg-stone-400", confirmed: false },
-  { name: "Partner Organisation", abbr: "PO7", color: "bg-stone-400", confirmed: false },
-];
-
-function Partners() {
-  return (
-    <section className="py-20 md:py-28 bg-stone-50/60 border-y border-stone-200">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-700 font-medium mb-3">
-            Our partners
-          </p>
-          <h2 className="font-serif text-3xl md:text-4xl font-bold text-stone-900 mb-4">
-            Backed by leading institutions
-          </h2>
-          <p className="text-stone-600 max-w-xl mx-auto">
-            CareAble is developed in collaboration with La Trobe University and supported by partner organisations across the care and research sectors.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {PARTNERS.map((p, i) => (
-            <div
-              key={i}
-              className={`bg-white border rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-center min-h-[120px] transition-all ${
-                p.confirmed
-                  ? "border-stone-200 hover:border-indigo-300 hover:shadow-md"
-                  : "border-dashed border-stone-300 opacity-50"
-              }`}
-            >
-              <div className={`w-12 h-12 rounded-xl ${p.color} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                {p.abbr.slice(0, 3)}
-              </div>
-              <p className={`text-sm font-medium leading-tight ${p.confirmed ? "text-stone-800" : "text-stone-400"}`}>
-                {p.name}
-              </p>
-              {!p.confirmed && (
-                <span className="text-[10px] text-stone-400 font-medium uppercase tracking-wide">
-                  Coming soon
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <p className="text-center text-xs text-stone-400 mt-8">
-          Interested in partnering with CareAble?{" "}
-          <a href="#contact" className="text-indigo-600 hover:underline">Get in touch →</a>
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// =============================================================================
-// TEAM
-// =============================================================================
-const TEAM = [
-  {
-    name: "Dr. Phu Lai",
-    role: "Research Fellow",
-    org: "ACAMI · La Trobe University",
-    initials: "PL",
-    color: "from-indigo-500 to-purple-600",
-    confirmed: true,
-  },
-  {
-    name: "Dr. Sora Lee",
-    role: "Lecturer, Public Health & Ageing",
-    org: "School of Psychology and Public Health",
-    initials: "SL",
-    color: "from-purple-500 to-pink-500",
-    confirmed: true,
-  },
-  {
-    name: "Team Member",
-    role: "Placeholder",
-    org: "Organisation",
-    initials: "TM",
-    color: "from-stone-300 to-stone-400",
-    confirmed: false,
-  },
-  {
-    name: "Team Member",
-    role: "Placeholder",
-    org: "Organisation",
-    initials: "TM",
-    color: "from-stone-300 to-stone-400",
-    confirmed: false,
-  },
-];
-
-function Team() {
-  return (
-    <section className="py-20 md:py-28">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <p className="text-xs uppercase tracking-[0.2em] text-indigo-700 font-medium mb-3">
-            Our team
-          </p>
-          <h2 className="font-serif text-3xl md:text-4xl font-bold text-stone-900 mb-4">
-            The people behind CareAble
-          </h2>
-          <p className="text-stone-600 max-w-xl mx-auto">
-            A multidisciplinary team from La Trobe University's research and technology community.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {TEAM.map((member, i) => (
-            <div
-              key={i}
-              className={`bg-white border rounded-2xl p-6 text-center transition-all ${
-                member.confirmed
-                  ? "border-stone-200 hover:border-indigo-300 hover:shadow-md hover:-translate-y-1"
-                  : "border-dashed border-stone-200 opacity-50"
-              }`}
-            >
-              <div className={`w-16 h-16 rounded-full bg-gradient-to-br ${member.color} flex items-center justify-center text-white font-bold text-lg mx-auto mb-4`}>
-                {member.initials}
-              </div>
-              <p className={`font-semibold mb-0.5 ${member.confirmed ? "text-stone-900" : "text-stone-400"}`}>
-                {member.name}
-              </p>
-              <p className="text-sm text-indigo-600 font-medium mb-1">{member.role}</p>
-              <p className="text-xs text-stone-500 leading-snug">{member.org}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 // =============================================================================
 // CONTACT FORM
@@ -592,6 +457,7 @@ function Contact() {
       }));
     }
   };
+
   return (
     <section id="contact" className="py-20 md:py-28 bg-stone-50/60 border-y border-stone-200">
       <div className="max-w-6xl mx-auto px-4">
@@ -692,7 +558,7 @@ function Contact() {
                     <p className="text-xs text-red-600 mt-1">{errors.message}</p>
                   )}
                 </div>
-                 {errors.submit && (
+                {errors.submit && (
                   <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
                     {errors.submit}
                   </p>

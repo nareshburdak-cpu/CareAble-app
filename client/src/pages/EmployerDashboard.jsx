@@ -246,12 +246,12 @@ const handleConnect = async () => {
           <div className="lg:col-span-2 space-y-5">
 
             {/* Search card */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 -mt-12 relative print:hidden">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 -mt-14 relative print:hidden">
               <label htmlFor="cert-input" className="block text-sm font-semibold text-slate-700 mb-3">
                 Certificate ID
               </label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+              <div className="flex gap-2 items-stretch min-w-0">
+                <div className="relative flex-1 min-w-0">
                   <input
                     id="cert-input"
                     ref={inputRef}
