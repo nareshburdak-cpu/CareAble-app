@@ -1,5 +1,5 @@
 // client/src/components/CinematicCarousel.jsx
-// v7 — clean, no broken tags
+// v8 — partner role field, improved name tab styling
 
 import { useState, useEffect, useCallback } from "react";
 import { TEAM, PARTNERS } from "../constants/brand";
@@ -274,6 +274,7 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
     "bg-stone-400": "from-stone-300 to-stone-500",
   };
   const grad = gradientMap[partner.bgColor] || "from-indigo-500 to-purple-700";
+  const roleLabel = partner.role || "Partner Organisation";
 
   const front = (
     <div className="w-full h-full relative overflow-hidden">
@@ -285,19 +286,17 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
         )}
       </div>
       <div className="absolute inset-0" style={{
-        background: "linear-gradient(to top, rgba(31, 31, 31, 0.72) 0%, rgba(0,0,0,0.2) 40%, transparent 65%)",
+        background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.15) 45%, transparent 68%)",
       }} />
       <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
-        <div className="rounded-2xl px-3.5 py-1.5" style={{
-          background: "rgba(15, 15, 15, 0.07)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-          border: "1px solid rgba(255,255,255,0.15)",
+        <div className="rounded-2xl px-3.5 py-2" style={{
+          background: "rgba(0,0,0,0.45)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          border: "1px solid rgba(255,255,255,0.12)",
         }}>
           <p className="font-bold text-white text-sm leading-tight tracking-tight">{partner.name}</p>
-          <p className="text-[11px] font-medium mt-0" style={{ color: "rgb(255, 255, 255)" }}>
-            Partner organisation
-          </p>
+          <p className="text-[11px] font-medium mt-0.5" style={{ color: "rgba(167,139,250,1)" }}>{roleLabel}</p>
           {isActive && (
             <p className="text-[10px] text-white/40 text-right mt-0.5">tap for info →</p>
           )}
@@ -315,13 +314,13 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
           </div>
           <div>
             <p className="font-bold text-white text-xs leading-tight">{partner.name}</p>
-            <p className="text-[10px] text-white/70">Partner organisation</p>
+            <p className="text-[10px] text-white/70">{roleLabel}</p>
           </div>
         </div>
         <div className="h-px bg-white/20 mb-3" />
-        <p className="text-[11px] text-white/85 leading-relaxed">{partner.description}</p>
+        <p className="text-[11px] text-white/90 leading-relaxed line-clamp-5">{partner.description}</p>
       </div>
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex items-center justify-between mt-2">
         {partner.url ? (
           <a
             href={partner.url}

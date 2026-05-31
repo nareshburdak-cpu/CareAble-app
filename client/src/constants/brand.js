@@ -10,6 +10,9 @@ import naresh from "../assets/team/naresh.png";
 import sora from "../assets/team/sora.png";
 import Phu from "../assets/team/Phu.png";
 import shivanshi from "../assets/team/shivanshi.png";
+import yogesh from "../assets/team/yogesh.png";
+import jayan from "../assets/team/jayan.png";
+
 import acami from "../assets/partners/acami.jpg";
 import la_trobe from "../assets/partners/la_trobe.jpg";
 import coming from "../assets/partners/coming.png";
@@ -117,24 +120,26 @@ export const STEPS = [
 ];
 
 export const PARTNERS = [
-  {
-    name: "La Trobe University",
-    abbr: "LTU",
-    description: "Lead academic partner and project sponsor. Home of ACAMI — the Australian Centre for Applied Medical Informatics.",
-    url: "https://www.latrobe.edu.au",
-    logo: la_trobe,
-    bgColor: "bg-red-600",
-    confirmed: true,
-  },
-  {
-    name: "ACAMI",
-    abbr: "ACAMI",
-    description: "Australian Centre for Applied Medical Informatics — driving research into digital health and care workforce capability.",
-    url: "https://www.latrobe.edu.au",
-    logo: acami,
-    bgColor: "bg-blue-700",
-    confirmed: true,
-  },
+{
+  name: "La Trobe University",
+  abbr: "LTU",
+  role: "Academic Partner",
+  description: "Lead academic partner. Ranked top 1% globally, renowned for health sciences research and social impact across Victoria.",
+  url: "https://www.latrobe.edu.au",
+  logo: la_trobe,
+  bgColor: "bg-red-600",
+  confirmed: true,
+},
+{
+  name: "ACAMI",
+  abbr: "ACAMI",
+  role: "Research Partner",
+  description: "World's first AI medical innovation centre. Backed by $10M in government funding to advance medical research and workforce capability.",
+  url: "https://www.latrobe.edu.au/acami",
+  logo: acami,
+  bgColor: "bg-blue-700",
+  confirmed: true,
+},
   { name: "Upcoming Partners", abbr: "PO3", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
   { name: "Upcoming Partners", abbr: "PO4", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
   { name: "Upcoming Partners", abbr: "PO5", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
@@ -143,48 +148,90 @@ export const PARTNERS = [
   { name: "Partner Organisation", abbr: "PO8", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
 ];
 
+// client/src/constants/brand.js
+
 export const TEAM = [
-  {
-    name: "Dr. Phu Lai",
-    role: "Research Fellow",
-    org: "ACAMI · La Trobe University",
-    bio: "Research fellow at ACAMI specialising in digital health, care workforce capability, and applied medical informatics.",
-    initials: "PL",
-    photo: Phu,
-    gradient: "from-indigo-500 to-purple-600",
-    confirmed: true,
-  },
-  {
-    name: "Dr. Sora Lee",
-    role: "Lecturer, Public Health & Ageing",
-    org: "School of Psychology and Public Health",
-    bio: "Lecturer specialising in public health and ageing. Brings expertise in caregiver wellbeing and workforce recognition frameworks.",
-    initials: "SL",
-    photo: sora,
-    gradient: "from-purple-500 to-pink-500",
-    confirmed: true,
-  },
-  {
-    name: "Naresh Kumar",
-    role: "Development Team Leader",
-    org: "La Trobe University",
-    bio: "Team leader and responsible for design, development, and delivery of the platform.",
-    initials: "NK",
-    photo: naresh,
-    gradient: "from-teal-500 to-indigo-500",
-    confirmed: true,
-  },
-  { name: "Shivanshi Joon",
-    role: "Team member", 
-    org: "La Trobe University", 
-    bio: "Network and security specialist", 
-    initials: "SJ", 
-    photo: shivanshi, 
-    gradient: "from-stone-300 to-stone-400", 
-    confirmed: true,
-  },
-  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
-  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
-  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
+{
+  name: "Dr. Phu Lai",
+  role: "Research Fellow",
+  org: "ACAMI · La Trobe University",
+  bio: "Research fellow at ACAMI, the world's first university centre using AI to advance medical innovation and care workforce capability. Leads the CareAble research initiative at La Trobe.",
+  initials: "PL",
+  photo: Phu,
+  gradient: "from-indigo-500 to-purple-600",
+  confirmed: true,
+},
+{
+  name: "Dr. Sora Lee",
+  role: "Lecturer, Public Health & Ageing",
+  org: "School of Psychology and Public Health",
+  bio: "Lecturer at La Trobe University specialising in public health and ageing. Brings research expertise in caregiver wellbeing and workforce recognition to the CareAble project.",
+  initials: "SL",
+  photo: sora,
+  gradient: "from-purple-500 to-pink-500",
+  confirmed: true,
+},
+{
+  name: "Naresh Kumar",
+  role: "Team Leader & Full-Stack Developer",
+  org: "La Trobe University",
+  bio: "Led the end-to-end design, development, and deployment of CareAble from database architecture and REST API design to React frontend, cloud infrastructure.",
+  initials: "NK",
+  photo: naresh,
+  gradient: "from-teal-500 to-indigo-500",
+  confirmed: true,
+},
+{
+  name: "Shivanshi Joon",
+  role: "Security & Backend Developer",
+  org: "La Trobe University",
+  bio: "Designed and implemented CareAble's authentication system JWT, OAuth2, OTP flows, and role-based access control. Responsible for API security, database schema.",
+  initials: "SJ",
+  photo: shivanshi,
+  gradient: "from-rose-500 to-pink-600",
+  confirmed: true,
+},
+{
+  name: "Jayan Sekhar Mallu",
+  role: "AI & Data Integration",
+  org: "La Trobe University",
+  bio: "Contributed to CareAble's AI insights feature and data integration layer. Brings skills in Python, R, and TensorFlow to support data-driven assessment outcomes.",
+  initials: "JM",
+  photo: jayan,
+  gradient: "from-amber-500 to-orange-500",
+  confirmed: true,
+},
+{
+  name: "Hema Priya",
+  role: "Full-Stack Developer",
+  org: "La Trobe University",
+  bio: "Contributed across frontend and backend, building responsive UI components, integrating APIs, and supporting authentication flows.",
+  initials: "HP",
+  photo: null,
+  gradient: "from-emerald-500 to-teal-500",
+  confirmed: true,
+},
+{
+  name: "Sreenivasulu Reddy",
+  role: "Data & Analytics Developer",
+  org: "La Trobe University",
+  bio: "Built CareAble's analytics dashboards and data visualisations. Manages MongoDB schema design and database performance to support assessment scoring and reporting.",
+  initials: "SR",
+  photo: null,
+  gradient: "from-blue-500 to-indigo-500",
+  confirmed: true,
+},
+{
+  name: "Yogesh Tajane",
+  role: "QA & Documentation Lead",
+  org: "La Trobe University",
+  bio: "Responsible for platform quality assurance, test case design, and technical documentation. Ensures CareAble meets usability standards and is well-documented for future development.",
+  initials: "YT",
+  photo: yogesh,
+  gradient: "from-violet-500 to-purple-600",
+  confirmed: true,
+},
 ];
+
+
 export default BRAND;
