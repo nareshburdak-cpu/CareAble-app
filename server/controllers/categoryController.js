@@ -1,3 +1,4 @@
+/** @file Admin category management endpoints with archive and reorder support. */
 // server/controllers/categoryController.js
 
 /**

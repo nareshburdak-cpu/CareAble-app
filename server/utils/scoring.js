@@ -1,3 +1,4 @@
+/** @file Assessment scoring helpers for answers, category means, and overall levels. */
 // server/utils/scoring.js
 
 /**
@@ -120,6 +121,7 @@ function calculateScores(answersMap, questions) {
     }
 
     if (scoredValues.length > 0) {
+      // Average only answered, scoreable questions so skipped items do not count as zero.
       const mean = scoredValues.reduce((a, b) => a + b, 0) / scoredValues.length;
       categoryScores[category] = Math.round(mean * 100) / 100; // 2dp
     } else {
@@ -130,7 +132,7 @@ function calculateScores(answersMap, questions) {
     }
   }
 
-  // Overall score = mean of non-null category scores only
+  // Overall score weights each scored category equally, regardless of question count.
   const scoredCategories = Object.values(categoryScores).filter((v) => v !== null);
   const overallScore =
     scoredCategories.length > 0

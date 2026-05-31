@@ -1,3 +1,4 @@
+/** @file Health check endpoint for server and database status. */
 /**
  * Health Controller
  * -----------------

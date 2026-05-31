@@ -1,3 +1,4 @@
+/** @file PDF certificate generator with QR code and partner branding. */
 // server/utils/generateCertificate.js
 
 /**

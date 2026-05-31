@@ -1,3 +1,4 @@
+/** @file Resend email delivery helper with development-mode console preview. */
 /**
  * Email Service
  * -------------

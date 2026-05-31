@@ -1,3 +1,4 @@
+/** @file Admin route definitions for users, analytics, questions, settings, and categories. */
 // server/routes/adminRoutes.js
 const express = require("express");
 const router = express.Router();

@@ -1,3 +1,4 @@
+/** @file Authentication, registration, OTP, Google sign-in, and onboarding endpoints. */
 /**
  * Auth Controller
  * ---------------

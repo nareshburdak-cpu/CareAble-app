@@ -1,3 +1,4 @@
+/** @file Certificate verification and employer interest endpoints. */
 const Assessment = require("../models/Assessment");
 const ApiError = require("../utils/ApiError");
 const asyncHandler = require("../utils/asyncHandler");

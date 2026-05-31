@@ -1,3 +1,4 @@
+/** @file Route definition for the public health check endpoint. */
 /**
  * Health Routes
  * -------------

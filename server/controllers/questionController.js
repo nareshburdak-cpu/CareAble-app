@@ -1,3 +1,4 @@
+/** @file Question list endpoint for active categories and assessment ordering. */
 // server/controllers/questionController.js
 
 /**

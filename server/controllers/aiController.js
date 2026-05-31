@@ -1,3 +1,4 @@
+/** @file AI insight generation endpoint for submitted assessment results. */
 // server/controllers/aiController.js
 
 /**

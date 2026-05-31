@@ -1,3 +1,4 @@
+/** @file In-memory category cache for active and archived category lookups. */
 // server/utils/categoryCache.js
 
 /**
@@ -81,6 +82,7 @@ const getCategoryByKey = async (key) => {
  * reorder) so subsequent reads load fresh data from Mongo.
  */
 const invalidate = () => {
+  // Clear every cached shape together so list and key lookups cannot drift.
   cachedActive = null;
   cachedAll = null;
   cachedMap = null;

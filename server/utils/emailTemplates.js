@@ -1,3 +1,4 @@
+/** @file HTML email templates for account, OTP, employer, and certificate emails. */
 /**
  * Email Templates
  * ---------------

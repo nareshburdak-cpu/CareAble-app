@@ -1,3 +1,4 @@
+/** @file Route definitions for AI-generated assessment insights. */
 // server/routes/aiRoutes.js
 
 /**

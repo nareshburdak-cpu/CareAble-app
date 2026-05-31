@@ -1,3 +1,4 @@
+/** @file Cached settings helpers for assessment configuration values. */
 // server/utils/settings.js
 
 /**

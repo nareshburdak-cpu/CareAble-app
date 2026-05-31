@@ -1,3 +1,4 @@
+/** @file HTTP client configuration with auth headers and normalized API errors. */
 /**
  * Axios instance
  * --------------

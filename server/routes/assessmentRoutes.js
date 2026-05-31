@@ -1,3 +1,4 @@
+/** @file Route definitions for assessment start, answer, submit, history, and certificates. */
 /**
  * Assessment Routes
  * -----------------

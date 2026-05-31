@@ -1,3 +1,4 @@
+/** @file Route definition for authenticated question retrieval. */
 /**
  * Question Routes
  * ---------------

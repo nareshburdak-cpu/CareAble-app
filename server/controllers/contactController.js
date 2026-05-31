@@ -1,3 +1,4 @@
+/** @file Public contact form endpoint and notification email handling. */
 // server/controllers/contactController.js
 
 /**
