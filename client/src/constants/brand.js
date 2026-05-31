@@ -10,6 +10,10 @@ import naresh from "../assets/team/naresh.png";
 import sora from "../assets/team/sora.png";
 import Phu from "../assets/team/Phu.png";
 import shivanshi from "../assets/team/shivanshi.png";
+import acami from "../assets/partners/acami.jpg";
+import la_trobe from "../assets/partners/la_trobe.jpg";
+import coming from "../assets/partners/coming.png";
+
 
 
 export const BRAND = {
@@ -122,7 +126,7 @@ export const PARTNERS = [
     abbr: "LTU",
     description: "Lead academic partner and project sponsor. Home of ACAMI — the Australian Centre for Applied Medical Informatics.",
     url: "https://www.latrobe.edu.au",
-    logo: null,
+    logo: la_trobe,
     bgColor: "bg-red-600",
     confirmed: true,
   },
@@ -131,13 +135,13 @@ export const PARTNERS = [
     abbr: "ACAMI",
     description: "Australian Centre for Applied Medical Informatics — driving research into digital health and care workforce capability.",
     url: "https://www.latrobe.edu.au",
-    logo: null,
+    logo: acami,
     bgColor: "bg-blue-700",
     confirmed: true,
   },
-  { name: "Partner Organisation", abbr: "PO3", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
-  { name: "Partner Organisation", abbr: "PO4", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
-  { name: "Partner Organisation", abbr: "PO5", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Upcoming Partners", abbr: "PO3", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Upcoming Partners", abbr: "PO4", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
+  { name: "Upcoming Partners", abbr: "PO5", description: "Coming soon.", url: null, logo: coming, bgColor: "bg-stone-400", confirmed: true },
   { name: "Partner Organisation", abbr: "PO6", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
   { name: "Partner Organisation", abbr: "PO7", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
   { name: "Partner Organisation", abbr: "PO8", description: "Coming soon.", url: null, logo: null, bgColor: "bg-stone-400", confirmed: false },
@@ -174,7 +178,15 @@ export const TEAM = [
     gradient: "from-teal-500 to-indigo-500",
     confirmed: true,
   },
-  { name: "Shivanshi Joon", role: "Team member", org: "La Trobe University", bio: "Network and security specialist", initials: "SJ", photo: shivanshi, gradient: "from-stone-300 to-stone-400", confirmed: true },
+  { name: "Shivanshi Joon",
+    role: "Team member", 
+    org: "La Trobe University", 
+    bio: "Network and security specialist", 
+    initials: "SJ", 
+    photo: shivanshi, 
+    gradient: "from-stone-300 to-stone-400", 
+    confirmed: true,
+  },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },

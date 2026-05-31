@@ -3,7 +3,7 @@
  * Appears at the top of all protected pages.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import api from "../api/axios";
 import toast from "../utils/toast";
 import { useAuth } from "../hooks/useAuth";
@@ -12,13 +12,11 @@ function EmailVerifyBanner() {
   const { user } = useAuth();
   const [sending, setSending] = useState(false);
   const dismissalKey = user?.email ? `email-verify-banner-dismissed:${user.email}` : null;
-  const [dismissed, setDismissed] = useState(() => (
-    dismissalKey ? sessionStorage.getItem(dismissalKey) === "true" : false
-  ));
-
-  useEffect(() => {
-    setDismissed(dismissalKey ? sessionStorage.getItem(dismissalKey) === "true" : false);
-  }, [dismissalKey]);
+  const [dismissedEmail, setDismissedEmail] = useState(null);
+  const dismissed = !!dismissalKey && (
+    dismissedEmail === user?.email ||
+    sessionStorage.getItem(dismissalKey) === "true"
+  );
 
   // Don't show if no user, already verified, or dismissed this session
   if (!user || user.emailVerified || dismissed) return null;
@@ -59,7 +57,7 @@ function EmailVerifyBanner() {
         <button
           onClick={() => {
             if (dismissalKey) sessionStorage.setItem(dismissalKey, "true");
-            setDismissed(true);
+            setDismissedEmail(user.email);
           }}
           aria-label="Dismiss"
           className="text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded-md p-1 transition flex-shrink-0"

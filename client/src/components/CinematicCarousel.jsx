@@ -279,23 +279,23 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
     <div className="w-full h-full relative overflow-hidden">
       <div className={`w-full h-full bg-gradient-to-br ${grad} flex items-center justify-center`}>
         {partner.logo ? (
-          <img src={partner.logo} alt={partner.name} className="w-16 h-16 object-contain drop-shadow-lg" />
+          <img src={partner.logo} alt={partner.name} className="object-contain drop-shadow-lg" />
         ) : (
           <span className="text-3xl font-bold text-white/90 tracking-tight">{partner.abbr}</span>
         )}
       </div>
       <div className="absolute inset-0" style={{
-        background: "linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.2) 40%, transparent 65%)",
+        background: "linear-gradient(to top, rgba(31, 31, 31, 0.72) 0%, rgba(0,0,0,0.2) 40%, transparent 65%)",
       }} />
       <div className="absolute bottom-0 left-0 right-0 px-3 pb-3">
         <div className="rounded-2xl px-3.5 py-1.5" style={{
-          background: "rgba(255,255,255,0.10)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
+          background: "rgba(15, 15, 15, 0.07)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
           border: "1px solid rgba(255,255,255,0.15)",
         }}>
           <p className="font-bold text-white text-sm leading-tight tracking-tight">{partner.name}</p>
-          <p className="text-[11px] font-medium mt-0" style={{ color: "rgba(167,139,250,1)" }}>
+          <p className="text-[11px] font-medium mt-0" style={{ color: "rgb(255, 255, 255)" }}>
             Partner organisation
           </p>
           {isActive && (
