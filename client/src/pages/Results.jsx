@@ -138,8 +138,12 @@ function Results() {
     <section className="flex-1 bg-gray-50 min-h-screen">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white">
-        <div className="max-w-5xl mx-auto px-4 pt-5 pb-6">
+      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 text-white">
+        <div
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+        />
+        <div className="relative max-w-5xl mx-auto px-4 pt-5 pb-6">
 
           {/* Title row — date left, dashboard button right */}
           <div className="flex items-start justify-between gap-3 mb-4">
@@ -310,7 +314,11 @@ function Results() {
         {activeTab === "certificate" && (
           <div className="max-w-md mx-auto">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-6 text-center text-white">
+              <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-6 text-center text-white">
+                <div
+                  className="absolute inset-0 opacity-20 pointer-events-none"
+                  style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+                />
                 <div className="text-4xl mb-2">🏅</div>
                 <h2 className="text-lg font-bold mb-0.5">Your Digital Certificate</h2>
                 <p className="text-indigo-200 text-xs">{meta.emoji} {assessment.level} Level</p>

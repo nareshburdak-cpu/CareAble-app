@@ -81,6 +81,10 @@ function UserMenu() {
 
             {/* Header */}
             <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 px-5 pt-5 pb-5 overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-20 pointer-events-none"
+                style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+              />
               <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
               <div className="relative flex items-center gap-3">
                 <div className="w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm text-indigo-700 bg-white shadow-lg flex-shrink-0">{initials}</div>

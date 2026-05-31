@@ -18,7 +18,10 @@ const ApiError = require("../utils/ApiError");
 const { getAllSettings, setSetting, SETTING_SCHEMA } = require("../utils/settings");
 const { logAdminAction } = require("../utils/audit");
 const Question = require("../models/Question");
+const Assessment = require("../models/Assessment");
 const categoryCache = require("../utils/categoryCache");
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * @desc    List all platform settings
@@ -59,6 +62,22 @@ const updateSetting = asyncHandler(async (req, res) => {
     throw new ApiError(err.statusCode || 400, err.message);
   }
 
+  if (key === "inProgressAssessmentExpiryDays") {
+    await Assessment.updateMany(
+      { status: "in-progress" },
+      [
+        {
+          $set: {
+            expiresAt: {
+              $add: ["$createdAt", newValue * DAY_MS],
+            },
+          },
+        },
+      ],
+      { updatePipeline: true }
+    );
+  }
+
   await logAdminAction(req, "setting.update", {
     targetType: "setting",
     targetId: key,
@@ -67,7 +86,9 @@ const updateSetting = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: "Setting updated. Will apply to new assessments going forward.",
+    message: key === "inProgressAssessmentExpiryDays"
+      ? "Setting updated. In-progress assessment expiry times have been refreshed."
+      : "Setting updated. Will apply to new assessments going forward.",
     data: { key, value: newValue },
   });
 });

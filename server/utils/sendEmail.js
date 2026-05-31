@@ -32,14 +32,18 @@ const FROM = process.env.EMAIL_FROM || "CareAble <onboarding@resend.dev>";
  * @param {string} params.subject  - Email subject line
  * @param {string} params.html     - HTML body
  * @param {string} [params.text]   - Plain text fallback (optional but recommended)
+ * @param {Array}  [params.attachments] - Optional Resend attachments
  * @returns {Promise<{ success: boolean, id?: string, error?: string }>}
  */
-async function sendEmail({ to, subject, html, text, replyTo }) {
+async function sendEmail({ to, subject, html, text, replyTo, attachments }) {
   // Dev mode without API key — log to console instead of sending
   if (!resend) {
     console.log("\n📧 [EMAIL — dev mode, not actually sent]");
     console.log(`   To:      ${to}`);
     console.log(`   Subject: ${subject}`);
+    if (attachments?.length) {
+      console.log(`   Attachments: ${attachments.map((a) => a.filename).join(", ")}`);
+    }
     console.log(`   Preview: ${html.replace(/<[^>]+>/g, "").slice(0, 100)}...\n`);
     return { success: true, id: "dev-mode" };
   }
@@ -52,6 +56,7 @@ async function sendEmail({ to, subject, html, text, replyTo }) {
       html,
       text: text || stripHtml(html),
       ...(replyTo ? { replyTo } : {}),
+      ...(attachments?.length ? { attachments } : {}),
     });
 
     if (result.error) {

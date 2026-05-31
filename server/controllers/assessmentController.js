@@ -37,10 +37,13 @@ const { customAlphabet } = require("nanoid");
 const { shuffle } = require("../utils/shuffle");
 const categoryCache = require("../utils/categoryCache");
 const { getSetting } = require("../utils/settings");
+const { sendEmail } = require("../utils/sendEmail");
+const { assessmentCertificateEmail } = require("../utils/emailTemplates");
 
 // Readable alphabet: no confusing chars (no 0/O, 1/I/l, etc.)
 const ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const nanoid = customAlphabet(ID_ALPHABET, 10);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -90,6 +93,45 @@ function buildCooldownPayload(submittedAt, cooldownHours) {
   };
 }
 
+async function buildAssessmentExpiryDate(from = new Date()) {
+  const expiryDays = await getSetting("inProgressAssessmentExpiryDays");
+  return new Date(from.getTime() + expiryDays * DAY_MS);
+}
+
+function isExpiredInProgress(assessment) {
+  return (
+    assessment?.status === "in-progress" &&
+    assessment.expiresAt &&
+    assessment.expiresAt.getTime() <= Date.now()
+  );
+}
+
+async function deleteExpiredInProgressForUser(userId) {
+  const expiryDays = await getSetting("inProgressAssessmentExpiryDays");
+  const legacyExpiryStart = new Date(Date.now() - expiryDays * DAY_MS);
+  const result = await Assessment.deleteMany({
+    user: userId,
+    status: "in-progress",
+    $or: [
+      { expiresAt: { $lte: new Date() } },
+      { expiresAt: { $exists: false }, createdAt: { $lte: legacyExpiryStart } },
+      { expiresAt: null, createdAt: { $lte: legacyExpiryStart } },
+    ],
+  });
+  return result.deletedCount || 0;
+}
+
+async function ensureActiveInProgress(assessment) {
+  if (!isExpiredInProgress(assessment)) return assessment;
+
+  await Assessment.findByIdAndDelete(assessment._id);
+  throw new ApiError(
+    410,
+    "This in-progress assessment has expired. Please start a new assessment to get the latest questions.",
+    { expiredAssessment: true }
+  );
+}
+
 // ── Endpoints ──────────────────────────────────────────────────────
 
 /**
@@ -97,7 +139,49 @@ function buildCooldownPayload(submittedAt, cooldownHours) {
  * @route   POST /api/assessments/start
  * @access  Private
  */
+function buildClientUrl(path) {
+  const base = (process.env.CLIENT_URL || "https://careable.site").replace(/\/$/, "");
+  return `${base}${path}`;
+}
+
+async function sendCertificateEmail(user, assessment) {
+  if (!user?.email) return;
+
+  try {
+    const pdfBuffer = await generateCertificate(user, assessment);
+    const verifyUrl = buildClientUrl(`/verify/${encodeURIComponent(assessment.certificateId)}`);
+    const resultsUrl = buildClientUrl(`/results/${assessment._id}`);
+    const { subject, html } = assessmentCertificateEmail({
+      name: user.name,
+      assessment,
+      verifyUrl,
+      resultsUrl,
+    });
+
+    const result = await sendEmail({
+      to: user.email,
+      subject,
+      html,
+      attachments: [
+        {
+          filename: `CareAble_Certificate_${assessment.certificateId || "certificate"}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        },
+      ],
+    });
+
+    if (!result.success) {
+      console.error("[CERT EMAIL] Send failed:", result.error);
+    }
+  } catch (err) {
+    console.error("[CERT EMAIL] Could not send certificate email:", err.message);
+  }
+}
+
 const startAssessment = asyncHandler(async (req, res) => {
+  let expiredDeletedCount = await deleteExpiredInProgressForUser(req.user._id);
+
   // STEP 0: Cooldown check (only if no in-progress to resume)
   const hasInProgress = await Assessment.exists({
     user: req.user._id,
@@ -146,6 +230,43 @@ const startAssessment = asyncHandler(async (req, res) => {
     }
   }
 
+  if (assessment && !assessment.expiresAt) {
+    assessment.expiresAt = await buildAssessmentExpiryDate(assessment.createdAt || new Date());
+    await assessment.save();
+  }
+
+  if (isExpiredInProgress(assessment)) {
+    await Assessment.findByIdAndDelete(assessment._id);
+    expiredDeletedCount += 1;
+    assessment = null;
+  }
+
+  if (!assessment) {
+    const cooldownHours = await getSetting("assessmentCooldownHours");
+    const cooldownMs = cooldownHours * 60 * 60 * 1000;
+    const cooldownStart = new Date(Date.now() - cooldownMs);
+
+    const recentSubmission = await Assessment.findOne({
+      user: req.user._id,
+      status: "submitted",
+      submittedAt: { $gte: cooldownStart },
+    })
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    if (recentSubmission) {
+      const payload = buildCooldownPayload(
+        new Date(recentSubmission.submittedAt),
+        cooldownHours
+      );
+      throw new ApiError(
+        429,
+        `Please wait ${payload.hoursRemaining} more hour${payload.hoursRemaining === 1 ? "" : "s"} before retaking. This helps keep results meaningful.`,
+        { cooldown: payload }
+      );
+    }
+  }
+
   // STEP 2: Create new if needed
   if (!assessment) {
     try {
@@ -153,6 +274,7 @@ const startAssessment = asyncHandler(async (req, res) => {
         user: req.user._id,
         status: "in-progress",
         answers: new Map(),
+        expiresAt: await buildAssessmentExpiryDate(),
       });
     } catch (err) {
       if (err.code === 11000) {
@@ -224,6 +346,7 @@ const startAssessment = asyncHandler(async (req, res) => {
           : 0,
       },
       questionTotal: totalQuestions,
+      expiredDraftDeleted: expiredDeletedCount > 0,
     },
   });
 });
@@ -234,6 +357,8 @@ const startAssessment = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getCurrent = asyncHandler(async (req, res) => {
+  const expiredDeletedCount = await deleteExpiredInProgressForUser(req.user._id);
+
   const assessment = await Assessment.findOne({
     user: req.user._id,
     status: "in-progress",
@@ -253,6 +378,7 @@ const getCurrent = asyncHandler(async (req, res) => {
           : 0,
       },
       questionTotal: totalQuestions,
+      expiredDraftDeleted: expiredDeletedCount > 0,
     },
   });
 });
@@ -277,6 +403,7 @@ const saveAnswer = asyncHandler(async (req, res) => {
   if (assessment.status === "submitted") {
     throw new ApiError(400, "This assessment has already been submitted");
   }
+  await ensureActiveInProgress(assessment);
 
   const lockedIds = new Set(lockedQuestionIds(assessment));
   if (!lockedIds.has(questionId)) {
@@ -330,6 +457,7 @@ const submitAssessment = asyncHandler(async (req, res) => {
   if (assessment.status === "submitted") {
     throw new ApiError(400, "This assessment has already been submitted");
   }
+  await ensureActiveInProgress(assessment);
   if (!req.user.emailVerified) {
     throw new ApiError(
       403,
@@ -379,6 +507,7 @@ const submitAssessment = asyncHandler(async (req, res) => {
 
   assessment.status = "submitted";
   assessment.submittedAt = new Date();
+  assessment.expiresAt = undefined;
   assessment.categoryScores = categoryScores;
   assessment.overallScore = overallScore;
   assessment.level = level;
@@ -392,12 +521,20 @@ const submitAssessment = asyncHandler(async (req, res) => {
       .sort((a, b) => a - b);
 
     if (timestamps.length >= 2) {
-      const totalMs = timestamps[timestamps.length - 1] - timestamps[0];
-      const avgSecPerQuestion = totalMs / 1000 / answersArray.length;
+      // Cap each inter-answer gap at 2 minutes to exclude idle time.
+      // Without this, a user who pauses mid-assessment inflates the total.
+      const MAX_GAP_MS = 2 * 60 * 1000; // 2 minutes per question max
+      let activeMs = 0;
+      for (let i = 1; i < timestamps.length; i++) {
+        const gap = timestamps[i] - timestamps[i - 1];
+        activeMs += Math.min(gap, MAX_GAP_MS);
+      }
 
-      assessment.completionTimeMs = totalMs;
+      const avgSecPerQuestion = activeMs / 1000 / answersArray.length;
+
+      assessment.completionTimeMs = activeMs;
       assessment.avgSecPerQuestion = Math.round(avgSecPerQuestion);
-      assessment.rushed = avgSecPerQuestion < 3;
+      assessment.rushed = avgSecPerQuestion < 4;
     }
   }
 
@@ -405,6 +542,8 @@ const submitAssessment = asyncHandler(async (req, res) => {
 
   req.user.hasCompletedAssessment = true;
   await req.user.save();
+
+  await sendCertificateEmail(req.user, assessment);
 
   res.status(200).json({
     success: true,
@@ -425,6 +564,9 @@ const getAssessmentById = asyncHandler(async (req, res) => {
   if (assessment.user.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not your assessment");
   }
+  if (assessment.status === "in-progress") {
+    await ensureActiveInProgress(assessment);
+  }
 
   res.status(200).json({
     success: true,
@@ -438,6 +580,8 @@ const getAssessmentById = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const listMyAssessments = asyncHandler(async (req, res) => {
+  await deleteExpiredInProgressForUser(req.user._id);
+
   const docs = await Assessment.find({ user: req.user._id })
     .sort({ createdAt: -1 })
     .lean();
@@ -487,6 +631,7 @@ const deleteAnswer = asyncHandler(async (req, res) => {
   if (assessment.status === "submitted") {
     throw new ApiError(400, "This assessment has already been submitted");
   }
+  await ensureActiveInProgress(assessment);
 
   assessment.answers.delete(questionId);
   await assessment.save();
@@ -547,6 +692,7 @@ const deleteAssessment = asyncHandler(async (req, res) => {
       "Submitted assessments cannot be deleted. They're a permanent record of your skills."
     );
   }
+  await ensureActiveInProgress(assessment);
 
   await Assessment.findByIdAndDelete(req.params.id);
 
@@ -562,6 +708,8 @@ const deleteAssessment = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getCooldownStatus = asyncHandler(async (req, res) => {
+  await deleteExpiredInProgressForUser(req.user._id);
+
   const cooldownHours = await getSetting("assessmentCooldownHours");
   const cooldownMs = cooldownHours * 60 * 60 * 1000;
   const cooldownStart = new Date(Date.now() - cooldownMs);

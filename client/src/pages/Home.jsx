@@ -614,7 +614,11 @@ function FormField({ label, name, type, value, onChange, error, placeholder }) {
 function FinalCTA({ isAuthenticated }) {
   return (
     <section className="py-20 md:py-28 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 pointer-events-none" />
+    <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 pointer-events-none" />
+      <div
+        className="absolute inset-0 opacity-20 pointer-events-none"
+        style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+      />
       <div
         className="absolute top-0 left-0 w-96 h-96 rounded-full opacity-30 blur-3xl pointer-events-none"
         style={{ background: "radial-gradient(circle, rgba(236,72,153,0.4), transparent 70%)" }}

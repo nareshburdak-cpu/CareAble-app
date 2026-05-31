@@ -99,6 +99,13 @@ const assessmentSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // In-progress drafts expire after the admin-configured window.
+    // Cleared on submit so submitted assessments are never TTL-deleted.
+    expiresAt: {
+      type: Date,
+      index: true,
+    },
+
     completionTimeMs: {
       type: Number,
     },
@@ -125,6 +132,17 @@ assessmentSchema.index(
     unique: true,
     partialFilterExpression: { status: "in-progress" },
     name: "unique_user_in_progress",
+  }
+);
+
+// MongoDB TTL cleanup for expired in-progress drafts. expireAfterSeconds: 0
+// means the document becomes eligible for deletion once expiresAt is reached.
+assessmentSchema.index(
+  { expiresAt: 1 },
+  {
+    expireAfterSeconds: 0,
+    partialFilterExpression: { status: "in-progress" },
+    name: "in_progress_assessment_expiry",
   }
 );
 

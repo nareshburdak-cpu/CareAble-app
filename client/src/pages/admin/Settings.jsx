@@ -40,7 +40,11 @@ function Settings() {
       setSettings((prev) =>
         prev.map((s) => (s.key === key ? { ...s, value: res.data.data.value } : s))
       );
-      toast.success("Setting saved. Applies to new assessments going forward.");
+      toast.success(
+        key === "inProgressAssessmentExpiryDays"
+          ? "Setting saved. In-progress expiry times refreshed."
+          : "Setting saved. Applies to new assessments going forward."
+      );
     } catch (err) {
       toast.error(err.message || "Could not save setting");
     } finally {
@@ -139,6 +143,7 @@ function SettingCard({ setting, maxAllowed, activeCategories, isSaving, onSave }
   const LABELS = {
     questionsPerCategory:    "Questions per Capability Domain",
     assessmentCooldownHours: "Assessment Retake Cooldown",
+    inProgressAssessmentExpiryDays: "In-progress Assessment Expiry",
   };
 
   const label          = LABELS[setting.key] || setting.key;
@@ -185,6 +190,12 @@ function SettingCard({ setting, maxAllowed, activeCategories, isSaving, onSave }
                 onChange={setLocalValue}
                 min={1}
                 max={maxAllowed}
+                defaultValue={setting.default}
+              />
+            ) : setting.key === "inProgressAssessmentExpiryDays" ? (
+              <DaysInput
+                value={localValue}
+                onChange={setLocalValue}
                 defaultValue={setting.default}
               />
             ) : (
@@ -317,6 +328,92 @@ function NumberInput({ value, onChange, min, max, defaultValue }) {
 }
 
 // ── TimeInput — for assessmentCooldownHours ────────────────────────
+function DaysInput({ value, onChange, defaultValue }) {
+  const MIN = 1;
+  const MAX = 90;
+  const PRESETS = [
+    { label: "1 day", days: 1 },
+    { label: "3 days", days: 3 },
+    { label: "7 days", days: 7 },
+    { label: "14 days", days: 14 },
+    { label: "30 days", days: 30 },
+    { label: "90 days", days: 90 },
+  ];
+
+  const handleInput = (e) => {
+    const parsed = parseInt(e.target.value, 10);
+    if (!isNaN(parsed)) {
+      onChange(Math.max(MIN, Math.min(MAX, parsed)));
+    }
+  };
+
+  return (
+    <div>
+      <label className="block text-xs font-medium text-stone-500 mb-2 uppercase tracking-wide">
+        Expiry window
+      </label>
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {PRESETS.map((p) => (
+          <button
+            key={p.days}
+            type="button"
+            onClick={() => onChange(p.days)}
+            className={`px-3 py-1 rounded-full text-xs font-semibold transition border ${
+              value === p.days
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : p.days === defaultValue
+                ? "bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+                : "bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200"
+            }`}
+          >
+            {p.label}
+            {p.days === defaultValue && value !== p.days && (
+              <span className="ml-1 opacity-60 text-[10px]">(default)</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+        <div className="flex items-center overflow-hidden rounded-lg border border-stone-200">
+          <button type="button"
+            onClick={() => onChange(Math.max(MIN, value - 1))}
+            disabled={value <= MIN}
+            className="w-9 h-9 flex items-center justify-center text-stone-600 hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition border-r border-stone-200">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+            </svg>
+          </button>
+          <input
+            type="number"
+            min={MIN}
+            max={MAX}
+            value={value}
+            onChange={handleInput}
+            className="w-16 text-center text-xl font-bold text-stone-900 border-none outline-none py-1.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="pr-3 text-xs text-stone-400 font-medium">days</span>
+          <button type="button"
+            onClick={() => onChange(Math.min(MAX, value + 1))}
+            disabled={value >= MAX}
+            className="w-9 h-9 flex items-center justify-center text-stone-600 hover:bg-stone-50 disabled:opacity-30 disabled:cursor-not-allowed transition border-l border-stone-200">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+
+        <span className="text-sm font-semibold text-indigo-700">
+          In-progress drafts expire after {value} day{value === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      <p className="mt-2 text-[11px] text-stone-400">Enter any value between 1 and 90 days.</p>
+    </div>
+  );
+}
+
 function TimeInput({ value, onChange, defaultValue }) {
   const MIN = 1;
   const MAX = 720;

@@ -371,6 +371,67 @@ function employerInterestEmail({ carerName, employerName, employerOrg, message }
   };
 }
 
+// =============================================================================
+// ASSESSMENT CERTIFICATE EMAIL
+// =============================================================================
+function assessmentCertificateEmail({ name, assessment, verifyUrl, resultsUrl }) {
+  const firstName = name?.split(" ")[0] || "there";
+  const score = assessment.overallScore != null
+    ? assessment.overallScore.toFixed(2)
+    : null;
+
+  const content = `
+    <h2 style="margin: 0 0 16px 0; color: #1c1917; font-size: 26px; font-weight: 700; letter-spacing: -0.02em;">
+      Your CareAble certificate is ready
+    </h2>
+
+    <p style="margin: 0 0 16px 0; color: #44403c; font-size: 16px; line-height: 1.6;">
+      Hi ${firstName}, congratulations on completing your CareAble self-assessment.
+      Your digital certificate is attached to this email as a PDF.
+    </p>
+
+    <table cellpadding="0" cellspacing="0" border="0" style="width: 100%; background-color: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 12px; margin: 24px 0;">
+      <tr>
+        <td style="padding: 18px 20px;">
+          <p style="margin: 0 0 8px 0; color: #3730a3; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
+            Certificate summary
+          </p>
+          <p style="margin: 0 0 6px 0; color: #1c1917; font-size: 15px; line-height: 1.6;">
+            <strong>Certificate ID:</strong> ${assessment.certificateId || "Pending"}
+          </p>
+          <p style="margin: 0 0 6px 0; color: #1c1917; font-size: 15px; line-height: 1.6;">
+            <strong>Level:</strong> ${assessment.level || "Completed"}
+          </p>
+          ${
+            score
+              ? `<p style="margin: 0; color: #1c1917; font-size: 15px; line-height: 1.6;"><strong>Overall score:</strong> ${score} / 5.00</p>`
+              : ""
+          }
+        </td>
+      </tr>
+    </table>
+
+    ${button("View my results", resultsUrl)}
+
+    <p style="margin: 24px 0 16px 0; color: #44403c; font-size: 15px; line-height: 1.6;">
+      You can also verify this certificate online using the link below:
+    </p>
+
+    <p style="margin: 0 0 24px 0; padding: 12px 16px; background-color: #f5f5f4; border-radius: 8px; color: #44403c; font-size: 13px; word-break: break-all; font-family: 'Courier New', monospace;">
+      ${verifyUrl}
+    </p>
+
+    <p style="margin: 0; color: #78716c; font-size: 13px; line-height: 1.6;">
+      Keep this email for your records. You can always download the certificate again from your dashboard.
+    </p>
+  `;
+
+  return {
+    subject: `Your ${BRAND.name} certificate is ready`,
+    html: emailWrapper(content),
+  };
+}
+
 
 
 module.exports = {
@@ -379,4 +440,5 @@ module.exports = {
   verifyEmailTemplate,
   otpEmail,
   employerInterestEmail,
+  assessmentCertificateEmail,
 };

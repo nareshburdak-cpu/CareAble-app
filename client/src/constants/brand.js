@@ -7,6 +7,10 @@
  * 🚨 If you change `tagline`, also update client/index.html
  */
 import naresh from "../assets/team/naresh.png";
+import sora from "../assets/team/sora.png";
+import Phu from "../assets/team/Phu.png";
+import shivanshi from "../assets/team/shivanshi.png";
+
 
 export const BRAND = {
   // Core identity
@@ -146,7 +150,7 @@ export const TEAM = [
     org: "ACAMI · La Trobe University",
     bio: "Research fellow at ACAMI specialising in digital health, care workforce capability, and applied medical informatics.",
     initials: "PL",
-    photo: null,
+    photo: Phu,
     gradient: "from-indigo-500 to-purple-600",
     confirmed: true,
   },
@@ -156,21 +160,21 @@ export const TEAM = [
     org: "School of Psychology and Public Health",
     bio: "Lecturer specialising in public health and ageing. Brings expertise in caregiver wellbeing and workforce recognition frameworks.",
     initials: "SL",
-    photo: null,
+    photo: sora,
     gradient: "from-purple-500 to-pink-500",
     confirmed: true,
   },
   {
     name: "Naresh Kumar",
-    role: "Capstone Development Team",
+    role: "Development Team Leader",
     org: "La Trobe University",
-    bio: "The student engineering team behind CareAble, Leading the team and responsible for design, development, and delivery of the platform.",
+    bio: "Team leader and responsible for design, development, and delivery of the platform.",
     initials: "NK",
     photo: naresh,
     gradient: "from-teal-500 to-indigo-500",
     confirmed: true,
   },
-  { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
+  { name: "Shivanshi Joon", role: "Team member", org: "La Trobe University", bio: "Network and security specialist", initials: "SJ", photo: shivanshi, gradient: "from-stone-300 to-stone-400", confirmed: true },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: true },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },
   { name: "Team Member", role: "Placeholder", org: "Organisation", bio: "Coming soon.", initials: "TM", photo: null, gradient: "from-stone-300 to-stone-400", confirmed: false },

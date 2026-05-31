@@ -107,6 +107,7 @@ function Dashboard() {
 
   const inProgressTotal    = inProgress?.questionTotal ?? 36;
   const inProgressAnswered = inProgress?.answerCount ?? 0;
+  const inProgressExpiryText = formatExpiryText(inProgress?.expiresAt);
 
   const topAreas = latest?.categoryScores
     ? Object.entries(latest.categoryScores)
@@ -151,6 +152,7 @@ function Dashboard() {
               cooldown={cooldown}
               inProgressTotal={inProgressTotal}
               inProgressAnswered={inProgressAnswered}
+              inProgressExpiryText={inProgressExpiryText}
               downloading={downloading}
               onDownload={handleDownloadCertificate}
             />
@@ -286,7 +288,7 @@ function ScoreRingInline({ score, level }) {
 }
 
 // ── PRIMARY ACTION CARD ────────────────────────────────────────────
-function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressTotal, inProgressAnswered, downloading, onDownload }) {
+function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressTotal, inProgressAnswered, inProgressExpiryText, downloading, onDownload }) {
   let mainCta = null;
 
   if (isLocked) {
@@ -301,7 +303,7 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
       type: "link",
       to: "/assessment",
       title: "Continue Assessment",
-      sub: `${inProgressAnswered} of ${inProgressTotal} answered`,
+      sub: `${inProgressAnswered} of ${inProgressTotal} answered${inProgressExpiryText ? ` · ${inProgressExpiryText}` : ""}`,
       icon: "⏳",
       progress: inProgressTotal > 0 ? (inProgressAnswered / inProgressTotal) * 100 : 0,
     };
@@ -340,8 +342,12 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
       ) : (
         <Link
           to={mainCta.to}
-          className="group flex-1 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
+          className="group flex-1 relative overflow-hidden bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl p-5 flex flex-col justify-between hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md shadow-indigo-200 hover:shadow-lg"
         >
+          <div
+            className="absolute inset-0 opacity-20 pointer-events-none"
+            style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+          />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-2xl leading-none flex-shrink-0">{mainCta.icon}</span>
@@ -671,6 +677,21 @@ function formatCategoryKey(key) {
     .replace(/_/g, " ")
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
+}
+
+function formatExpiryText(expiresAt) {
+  if (!expiresAt) return "";
+  const msRemaining = new Date(expiresAt).getTime() - Date.now();
+  if (msRemaining <= 0) return "expires soon";
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (msRemaining >= dayMs) {
+    const days = Math.ceil(msRemaining / dayMs);
+    return `expires in ${days} day${days === 1 ? "" : "s"}`;
+  }
+
+  const hours = Math.ceil(msRemaining / (60 * 60 * 1000));
+  return `expires in ${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
 export default Dashboard;

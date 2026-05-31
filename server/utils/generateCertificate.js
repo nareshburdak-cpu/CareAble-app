@@ -169,8 +169,8 @@ async function generateCertificate(user, assessment) {
       doc.rect(bm2, bm2, W - bm2 * 2, H - bm2 * 2).lineWidth(0.4).stroke(C.rule);
 
       // ── HEADER ──────────────────────────────────────────────────
-      const headerY = 36, headerH = 90;
-      const logoSize = 68, logoX = 46, logoY = headerY;
+      const headerY = 34, headerH = 82;
+      const logoSize = 58, logoX = 48, logoY = headerY + 2;
 
       if (logoExists) {
         doc.image(LOGO_PATH, logoX, logoY, { width: logoSize, height: logoSize });
@@ -180,17 +180,17 @@ async function generateCertificate(user, assessment) {
           .text("C", logoX, logoY + logoSize / 2 - 16, { width: logoSize, align: "center" });
       }
 
-      const wordmarkX = logoX + logoSize + 12, wordmarkY = logoY + 8;
-      doc.fontSize(26).font("Helvetica-Bold");
+      const wordmarkX = logoX + logoSize + 14, wordmarkY = logoY + 7;
+      doc.fontSize(24).font("Helvetica-Bold");
       const careWidth = doc.widthOfString("Care");
       doc.fillColor(C.teal).text("Care", wordmarkX, wordmarkY, { continued: false, lineBreak: false });
       doc.fillColor(C.blue).text("Able", wordmarkX + careWidth, wordmarkY, { lineBreak: false });
-      doc.fontSize(9).fillColor(C.inkSoft).font("Helvetica")
+      doc.fontSize(8.5).fillColor(C.inkSoft).font("Helvetica")
         .text("Caregiver Capability Certificate", wordmarkX, wordmarkY + 32, { characterSpacing: 1.5 });
-      doc.fontSize(7.5).fillColor(C.inkSoft)
+      doc.fontSize(7).fillColor(C.inkSoft)
         .text("La Trobe University · Capstone 2026 · Team NEXA", wordmarkX, wordmarkY + 48, { characterSpacing: 0.5 });
 
-      const qrSize = 72, qrX = W - 46 - qrSize, qrY = headerY;
+      const qrSize = 66, qrX = W - 48 - qrSize, qrY = headerY + 2;
       if (qrBuffer) {
         doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6).fill(C.white);
         doc.image(qrBuffer, qrX, qrY, { width: qrSize, height: qrSize });
@@ -204,15 +204,24 @@ async function generateCertificate(user, assessment) {
       doc.moveTo(W / 2, ruleY).lineTo(W - bm2 - 4, ruleY).lineWidth(1).stroke(C.blue);
 
       // ── BODY ─────────────────────────────────────────────────────
-      let y = ruleY + 20;
+      let y = ruleY + 18;
 
       doc.fontSize(10).fillColor(C.inkSoft).font("Helvetica")
         .text("This certifies that", 0, y, { align: "center", width: W, characterSpacing: 1 });
-      y += 20;
+      y += 18;
 
-      doc.fontSize(34).fillColor(C.blueDark).font("Helvetica-Bold")
-        .text(user.name, 0, y, { align: "center", width: W });
-      y += 44;
+      doc.font("Helvetica-Bold");
+      const nameText = user.name || "CareAble participant";
+      const nameMaxWidth = W - 180;
+      let nameFontSize = 34;
+      while (nameFontSize > 24) {
+        doc.fontSize(nameFontSize);
+        if (doc.widthOfString(nameText) <= nameMaxWidth) break;
+        nameFontSize -= 1;
+      }
+      doc.fillColor(C.blueDark)
+        .text(nameText, 90, y, { align: "center", width: nameMaxWidth, lineGap: 1 });
+      y += nameFontSize + 14;
 
       const nameLineLen = 220, nameCX = W / 2;
       doc.moveTo(nameCX - nameLineLen / 2, y - 6).lineTo(nameCX, y - 6).lineWidth(0.8).stroke(C.teal);
@@ -225,9 +234,9 @@ async function generateCertificate(user, assessment) {
       doc.text(levelMeta.descriptor, 0, y, { align: "center", width: W });
       y += 24;
 
-      doc.fontSize(19).fillColor(C.tealDark).font("Helvetica-Bold")
+      doc.fontSize(18).fillColor(C.tealDark).font("Helvetica-Bold")
         .text(levelMeta.honorific, 0, y, { align: "center", width: W, characterSpacing: 0.5 });
-      y += 30;
+      y += 27;
 
       const scoreStr = assessment.overallScore != null
         ? `Overall capability score: ${assessment.overallScore.toFixed(2)} / 5.00`
@@ -242,8 +251,9 @@ async function generateCertificate(user, assessment) {
           .text("Top capability areas:", 0, y, { align: "center", width: W });
         y += 14;
 
-        const chipPadX = 10, chipPadY = 4, chipFontSize = 7.5, chipGap = 8;
+        const chipPadX = 9, chipPadY = 4, chipFontSize = 7.2, chipGap = 7;
         const chipH = chipFontSize + chipPadY * 2 + 2;
+        const safeW = W - bm2 * 2 - 40;
 
         doc.fontSize(chipFontSize).font("Helvetica-Bold");
         const chipData = topAreas.map(([key, score]) => {
@@ -253,37 +263,60 @@ async function generateCertificate(user, assessment) {
           doc.font("Helvetica");
           const scoreW = doc.widthOfString(scoreLabel);
           doc.font("Helvetica-Bold");
-          return { label, scoreLabel, width: labelW + scoreW + chipPadX * 2 };
+          return {
+            label,
+            scoreLabel,
+            width: Math.min(labelW + scoreW + chipPadX * 2, safeW),
+          };
         });
 
-        const totalChipW = chipData.reduce((s, c) => s + c.width, 0) + chipGap * (chipData.length - 1);
-        const safeW = W - bm2 * 2 - 16;
-        const effectiveGap = totalChipW > safeW
-          ? Math.max(2, chipGap - Math.ceil((totalChipW - safeW) / chipData.length))
-          : chipGap;
-        const adjustedTotalW = chipData.reduce((s, c) => s + c.width, 0) + effectiveGap * (chipData.length - 1);
-        let chipX = (W - adjustedTotalW) / 2;
-
+        const rows = [[]];
+        let rowW = 0;
         for (const chip of chipData) {
-          doc.roundedRect(chipX, y, chip.width, chipH, 4).fill(C.chipBg);
-          doc.fontSize(chipFontSize).fillColor(C.chipText).font("Helvetica-Bold")
-            .text(chip.label, chipX + chipPadX, y + chipPadY + 1, { lineBreak: false });
-          const labelW = doc.widthOfString(chip.label);
-          doc.font("Helvetica").fillColor(C.inkSoft)
-            .text(chip.scoreLabel, chipX + chipPadX + labelW, y + chipPadY + 1, { lineBreak: false });
-          chipX += chip.width + effectiveGap;
+          const nextW = rowW === 0 ? chip.width : rowW + chipGap + chip.width;
+          if (nextW > safeW && rows.length < 2) {
+            rows.push([chip]);
+            rowW = chip.width;
+          } else {
+            rows[rows.length - 1].push(chip);
+            rowW = nextW;
+          }
         }
-        y += chipH + 8;
+
+        for (const row of rows) {
+          const totalRowW = row.reduce((s, c) => s + c.width, 0) + chipGap * (row.length - 1);
+          let chipX = (W - totalRowW) / 2;
+
+          for (const chip of row) {
+            doc.roundedRect(chipX, y, chip.width, chipH, 4).fill(C.chipBg);
+            const textW = chip.width - chipPadX * 2;
+            doc.fontSize(chipFontSize).fillColor(C.chipText).font("Helvetica-Bold")
+              .text(chip.label, chipX + chipPadX, y + chipPadY + 1, {
+                width: textW - 26,
+                ellipsis: true,
+                lineBreak: false,
+              });
+            doc.font("Helvetica").fillColor(C.inkSoft)
+              .text(chip.scoreLabel.trim(), chipX + chip.width - chipPadX - 24, y + chipPadY + 1, {
+                width: 24,
+                align: "right",
+                lineBreak: false,
+              });
+            chipX += chip.width + chipGap;
+          }
+          y += chipH + 5;
+        }
+        y += 2;
       }
 
       // ── RULE 2 ───────────────────────────────────────────────────
-      const footerZoneTop = H - 75;
-      const rule2Y = Math.min(y + 10, footerZoneTop - 70);
+      const footerZoneTop = H - 82;
+      const rule2Y = Math.min(y + 10, footerZoneTop - 72);
       doc.moveTo(bm2 + 4, rule2Y).lineTo(W / 2, rule2Y).lineWidth(0.8).stroke(C.teal);
       doc.moveTo(W / 2, rule2Y).lineTo(W - bm2 - 4, rule2Y).lineWidth(0.8).stroke(C.blue);
 
       // ── PARTNER LOGO ZONE ────────────────────────────────────────
-      const pzt = rule2Y + 8;
+      const pzt = rule2Y + 7;
       const pzb = footerZoneTop - 6;
       const pzh = pzb - pzt;
 
@@ -327,7 +360,7 @@ async function generateCertificate(user, assessment) {
       }
 
       // ── FOOTER ───────────────────────────────────────────────────
-      const footerY = H - 62;
+      const footerY = H - 60;
 
       doc.fontSize(7.5).fillColor(C.inkSoft).font("Helvetica")
         .text("DATE OF ISSUE", 46, footerY, { characterSpacing: 1 });

@@ -47,6 +47,18 @@ const SETTING_SCHEMA = {
       return null;
     },
   },
+  inProgressAssessmentExpiryDays: {
+    default: 7,
+    type: "number",
+    description:
+      "How many days carers have to complete an in-progress assessment before it expires and is deleted. Default is 7 days.",
+    validate: (v) => {
+      if (!Number.isInteger(v)) return "Must be a whole number";
+      if (v < 1) return "Must be at least 1 day";
+      if (v > 90) return "Maximum is 90 days";
+      return null;
+    },
+  },
 };
 
 // In-memory cache

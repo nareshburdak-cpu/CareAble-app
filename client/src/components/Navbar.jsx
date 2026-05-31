@@ -168,6 +168,10 @@ function Navbar() {
               {/* User card */}
               {isAuthenticated && user && (
                 <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-700 rounded-2xl p-5 mb-4 overflow-hidden">
+                  <div
+                    className="absolute inset-0 opacity-20 pointer-events-none"
+                    style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "24px 24px" }}
+                  />
                   <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
                   <div className="absolute -bottom-12 -left-8 w-32 h-32 bg-purple-400/20 rounded-full blur-2xl pointer-events-none" />
                   <div className="relative flex items-center gap-3">

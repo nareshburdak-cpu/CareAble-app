@@ -35,6 +35,8 @@ export default function Assessment() {
   const [error, setError]               = useState(null);
   const [submitting, setSubmitting]     = useState(false);
   const [savingIds, setSavingIds]       = useState(new Set());
+  const [assessmentExpiresAt, setAssessmentExpiresAt] = useState(null);
+  const [introOpen, setIntroOpen]       = useState(true);
 
   const hasStarted   = useRef(false);
   const rushedNudge  = useRef(false);
@@ -56,6 +58,10 @@ export default function Assessment() {
       try {
         const startRes = await api.post("/assessments/start");
         const started  = startRes.data.data.assessment;
+        setAssessmentExpiresAt(started.expiresAt || null);
+        if (startRes.data.data.expiredDraftDeleted) {
+          toast.info("Your previous in-progress assessment expired, so we started a fresh one with the latest questions.");
+        }
 
         const questionsRes = await api.get("/questions", {
           params: { assessmentId: started._id },
@@ -82,6 +88,11 @@ export default function Assessment() {
           }
         }
       } catch (err) {
+        if (err.status === 410 || err.extra?.expiredAssessment) {
+          toast.error("This assessment expired. Please start again to use the latest questions.");
+          navigate("/dashboard");
+          return;
+        }
         if (err.status === 429 && err.extra?.cooldown?.active) {
           const days = err.extra.cooldown.daysRemaining;
           toast.error(`Retake available in ${days} day${days === 1 ? "" : "s"}.`);
@@ -102,6 +113,9 @@ export default function Assessment() {
   const totalPages     = Math.ceil(totalQuestions / QUESTIONS_PER_PAGE);
   const answeredCount  = Object.keys(answers).length;
   const allAnswered    = answeredCount >= totalQuestions && totalQuestions > 0;
+  const hasSavedProgress = answeredCount > 0;
+  const expiryText = formatExpiryText(assessmentExpiresAt);
+  const expiryDateText = formatExpiryDate(assessmentExpiresAt);
   const progressPercent = totalQuestions > 0
     ? Math.round((answeredCount / totalQuestions) * 100)
     : 0;
@@ -138,7 +152,12 @@ export default function Assessment() {
         body.value = String(rawValue);
       }
       await api.patch(`/assessments/${assessmentId}/answer`, body);
-    } catch {
+    } catch (err) {
+      if (err.status === 410 || err.extra?.expiredAssessment) {
+        toast.error("This assessment expired. Starting a fresh one now.");
+        navigate("/assessment", { replace: true });
+        return;
+      }
       setAnswers((prev) => {
         const next = { ...prev };
         delete next[qIdStr];
@@ -152,7 +171,7 @@ export default function Assessment() {
         return next;
       });
     }
-  }, [assessmentId]);
+  }, [assessmentId, navigate]);
 
   const handleAnswerSelect = useCallback((question, rawValue) => {
     saveAnswer(question._id, question, rawValue);
@@ -201,6 +220,11 @@ export default function Assessment() {
       toast.success("Assessment submitted! 🎉");
       setTimeout(() => navigate(`/results/${res.data.data.assessment._id}`), 400);
     } catch (err) {
+      if (err.status === 410 || err.extra?.expiredAssessment) {
+        toast.error("This assessment expired. Please start again to use the latest questions.");
+        navigate("/dashboard");
+        return;
+      }
       toast.error(
         err.message?.toLowerCase().includes("verify")
           ? "Please verify your email first before submitting."
@@ -233,6 +257,17 @@ export default function Assessment() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {introOpen && (
+        <AssessmentIntroModal
+          isResume={hasSavedProgress}
+          totalQuestions={totalQuestions}
+          answeredCount={answeredCount}
+          expiryText={expiryText}
+          expiryDateText={expiryDateText}
+          onStart={() => setIntroOpen(false)}
+          onExit={() => navigate("/dashboard")}
+        />
+      )}
 
       {/* ── Sticky exit button — top right corner ── */}
       <div className="sticky top-2 z-40 pointer-events-none">
@@ -420,6 +455,132 @@ export default function Assessment() {
 }
 
 // ── QuestionCard ───────────────────────────────────────────────────
+function AssessmentIntroModal({
+  isResume,
+  totalQuestions,
+  answeredCount,
+  expiryText,
+  expiryDateText,
+  onStart,
+  onExit,
+}) {
+  const primaryLabel = isResume ? "Continue assessment" : "Start assessment";
+  const title = isResume ? "Resume your assessment" : "Before you begin";
+
+  const instructions = [
+    "No right or wrong answers. Use your own caregiving experience.",
+    "Answers save automatically, so you can exit and return before expiry.",
+    "All questions must be answered before submission.",
+    "After submission, results and certificate are locked.",
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-3 py-3 sm:px-4 sm:py-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="assessment-intro-title"
+    >
+      <div className="flex w-full max-w-lg max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 sm:max-h-[min(720px,calc(100dvh-3rem))]">
+        <div className="shrink-0 border-b border-gray-100 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 px-4 py-4 sm:px-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+                Assessment instructions
+              </p>
+              <h2 id="assessment-intro-title" className="mt-1 text-xl sm:text-2xl font-bold leading-tight text-gray-950">
+                {title}
+              </h2>
+            </div>
+            <div className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm">
+              {answeredCount}/{totalQuestions || 0}
+            </div>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 sm:px-4">
+            <div className="flex items-start gap-2.5">
+              <svg className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold leading-snug text-amber-900">
+                  In-progress assessments expire {expiryText || "after 7 days"}.
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                  Expired drafts are deleted, and the next attempt uses the latest questions and domains.
+                  {expiryDateText ? ` Expires ${expiryDateText}.` : ""}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          <div className="space-y-2.5">
+            {instructions.map((item) => (
+              <div key={item} className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
+                <p className="text-sm leading-snug text-gray-600">{item}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 sm:px-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Test-style reminder</p>
+            <p className="mt-1 text-sm leading-snug text-gray-700">
+              Take your time and answer honestly. The assessment is designed for reflection, not speed.
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 flex flex-col-reverse gap-2 border-t border-gray-100 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-5">
+          <button
+            type="button"
+            onClick={onExit}
+            className="rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+          >
+            Back to dashboard
+          </button>
+          <button
+            type="button"
+            onClick={onStart}
+            className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+          >
+            {primaryLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatExpiryText(expiresAt) {
+  if (!expiresAt) return "";
+  const msRemaining = new Date(expiresAt).getTime() - Date.now();
+  if (msRemaining <= 0) return "soon";
+
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (msRemaining >= dayMs) {
+    const days = Math.ceil(msRemaining / dayMs);
+    return `in ${days} day${days === 1 ? "" : "s"}`;
+  }
+
+  const hours = Math.ceil(msRemaining / (60 * 60 * 1000));
+  return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
+function formatExpiryDate(expiresAt) {
+  if (!expiresAt) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(expiresAt));
+}
+
 function QuestionCard({ question, questionNumber, answer, saving, onAnswer, innerRef }) {
   return (
     <div

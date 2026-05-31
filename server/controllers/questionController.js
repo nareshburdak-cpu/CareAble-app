@@ -65,6 +65,18 @@ const getQuestions = asyncHandler(async (req, res) => {
     if (assessment.user.toString() !== req.user._id.toString()) {
       throw new ApiError(403, "Not your assessment");
     }
+    if (
+      assessment.status === "in-progress" &&
+      assessment.expiresAt &&
+      assessment.expiresAt.getTime() <= Date.now()
+    ) {
+      await Assessment.findByIdAndDelete(assessment._id);
+      throw new ApiError(
+        410,
+        "This in-progress assessment has expired. Please start a new assessment to get the latest questions.",
+        { expiredAssessment: true }
+      );
+    }
 
     if (assessment.categoryOrder && assessment.categoryOrder.length > 0) {
       categoryKeys = assessment.categoryOrder;
