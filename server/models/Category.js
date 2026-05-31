@@ -23,10 +23,6 @@
 
 const mongoose = require("mongoose");
 
-// Allowed colour palettes — must mirror keys in client/src/utils/categoryColors.js.
-// Adding a new colour requires updating both files (categoryColors.js needs the
-// actual Tailwind classes; admins can't pick a colour at runtime that doesn't
-// have CSS to back it).
 const ALLOWED_COLORS = [
   "indigo",
   "pink",
