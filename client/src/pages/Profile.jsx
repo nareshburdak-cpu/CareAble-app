@@ -145,14 +145,14 @@ const ROLE_META = {
 };
 
 function DefaultRoleCard() {
-  const { user, activeRole, switchRole, roleDestination } = useAuth();
+  const { user, activeRole, preferredRole, switchRole, setPreferredRole, roleDestination } = useAuth();
   const navigate = useNavigate();
 
   if (!user?.roles || user.roles.length <= 1) return null;
 
   const handleSelect = (role) => {
+    setPreferredRole(role);
     switchRole(role);
-    localStorage.setItem("activeRole", role);
     toast.success(`Default role: ${ROLE_META[role]?.label}`);
     navigate(roleDestination(role));
   };
@@ -162,7 +162,7 @@ function DefaultRoleCard() {
       <div className="flex flex-wrap gap-1.5">
         {user.roles.map((role) => {
           const meta = ROLE_META[role];
-          const active = role === activeRole;
+          const active = role === (preferredRole || activeRole);
           if (!meta) return null;
 
           return (

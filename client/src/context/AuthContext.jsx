@@ -8,7 +8,9 @@
  *
  * Phase 12-B: Role switcher support.
  *   - activeRole: the currently active role context
+ *   - preferredRole: the user's default landing role
  *   - switchRole(role): switch active role, persists to localStorage
+ *   - setPreferredRole(role): set default landing role
  */
 
 import { createContext, useEffect, useState, useCallback } from "react";
@@ -16,8 +18,12 @@ import api from "../api/axios";
 
 export const AuthContext = createContext(null);
 
-// Priority order for default role selection
-const ROLE_PRIORITY = ["carer", "employer", "admin"];
+// Priority order for first-time role selection.
+const ROLE_PRIORITY = ["admin", "employer", "carer"];
+
+function preferredRoleKey(email) {
+  return email ? `preferredRole:${email.toLowerCase()}` : null;
+}
 
 function computeDefaultRole(roles) {
   if (!Array.isArray(roles) || roles.length === 0) return "carer";
@@ -27,9 +33,37 @@ function computeDefaultRole(roles) {
   return roles[0];
 }
 
+function getStoredPreferredRole(u) {
+  const roles = u?.roles || [];
+  const key = preferredRoleKey(u?.email);
+  const savedForUser = key ? localStorage.getItem(key) : null;
+
+  if (savedForUser && roles.includes(savedForUser)) return savedForUser;
+  return null;
+}
+
+function resolvePreferredRole(u) {
+  return getStoredPreferredRole(u) || computeDefaultRole(u?.roles);
+}
+
+function persistPreferredRole(u, role) {
+  if (!u?.roles?.includes(role)) return;
+  const key = preferredRoleKey(u.email);
+  if (key) localStorage.setItem(key, role);
+}
+
+function resolveSessionRole(u) {
+  const roles = u?.roles || [];
+  const savedSession = localStorage.getItem("activeRole");
+
+  if (savedSession && roles.includes(savedSession)) return savedSession;
+  return resolvePreferredRole(u);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser]           = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [preferredRole, setPreferredRoleState] = useState(null);
   const [activeRole, setActiveRoleState] = useState(() => {
     return localStorage.getItem("activeRole") || null;
   });
@@ -37,12 +71,11 @@ export function AuthProvider({ children }) {
   const applyAuthenticatedUser = useCallback((u) => {
     localStorage.setItem("user", JSON.stringify(u));
 
-    const saved = localStorage.getItem("activeRole");
-    const defaultRole = (saved && u.roles?.includes(saved))
-      ? saved
-      : computeDefaultRole(u.roles);
+    const defaultRole = resolvePreferredRole(u);
 
     localStorage.setItem("activeRole", defaultRole);
+    persistPreferredRole(u, defaultRole);
+    setPreferredRoleState(defaultRole);
     setActiveRoleState(defaultRole);
     setUser(u);
   }, []);
@@ -60,20 +93,18 @@ export function AuthProvider({ children }) {
         const u = res.data.data.user;
         setUser(u);
 
-        // Restore or compute active role
-        const saved = localStorage.getItem("activeRole");
-        if (saved && u.roles?.includes(saved)) {
-          setActiveRoleState(saved);
-        } else {
-          const defaultRole = computeDefaultRole(u.roles);
-          setActiveRoleState(defaultRole);
-          localStorage.setItem("activeRole", defaultRole);
-        }
+        const defaultRole = resolvePreferredRole(u);
+        const sessionRole = resolveSessionRole(u);
+        persistPreferredRole(u, defaultRole);
+        setPreferredRoleState(defaultRole);
+        setActiveRoleState(sessionRole);
+        localStorage.setItem("activeRole", sessionRole);
       } catch {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         localStorage.removeItem("activeRole");
         setUser(null);
+        setPreferredRoleState(null);
         setActiveRoleState(null);
       } finally {
         setLoading(false);
@@ -88,6 +119,7 @@ export function AuthProvider({ children }) {
       if (e.key === "token") {
         if (!e.newValue) {
           setUser(null);
+          setPreferredRoleState(null);
           setActiveRoleState(null);
         } else if (e.newValue !== e.oldValue) {
           api
@@ -95,20 +127,19 @@ export function AuthProvider({ children }) {
             .then((res) => {
               const u = res.data.data.user;
               setUser(u);
-              const saved = localStorage.getItem("activeRole");
-              if (saved && u.roles?.includes(saved)) {
-                setActiveRoleState(saved);
-              } else {
-                const defaultRole = computeDefaultRole(u.roles);
-                setActiveRoleState(defaultRole);
-                localStorage.setItem("activeRole", defaultRole);
-              }
+              const defaultRole = resolvePreferredRole(u);
+              const sessionRole = resolveSessionRole(u);
+              persistPreferredRole(u, defaultRole);
+              setPreferredRoleState(defaultRole);
+              setActiveRoleState(sessionRole);
+              localStorage.setItem("activeRole", sessionRole);
             })
             .catch(() => {
               localStorage.removeItem("token");
               localStorage.removeItem("user");
               localStorage.removeItem("activeRole");
               setUser(null);
+              setPreferredRoleState(null);
               setActiveRoleState(null);
             });
         }
@@ -160,6 +191,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("user");
     localStorage.removeItem("activeRole");
     setUser(null);
+    setPreferredRoleState(null);
     setActiveRoleState(null);
   };
 
@@ -179,6 +211,12 @@ export function AuthProvider({ children }) {
     setActiveRoleState(role);
   }, [user]);
 
+  const setPreferredRole = useCallback((role) => {
+    if (!user?.roles?.includes(role)) return;
+    persistPreferredRole(user, role);
+    setPreferredRoleState(role);
+  }, [user]);
+
   const hasRole = (roleName) =>
     Array.isArray(user?.roles) && user.roles.includes(roleName);
 
@@ -194,7 +232,9 @@ export function AuthProvider({ children }) {
     isAuthenticated: !!user,
     loading,
     activeRole,
+    preferredRole,
     switchRole,
+    setPreferredRole,
     roleDestination,
     login,
     requestLoginOtp,

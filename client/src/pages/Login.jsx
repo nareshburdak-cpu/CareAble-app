@@ -127,9 +127,13 @@ function Login() {
       return;
     }
 
-    const PRIORITY = ["admin", "employer", "carer"];
-    const computedRole = Array.isArray(user.roles)
-      ? PRIORITY.find((r) => user.roles.includes(r)) ?? "carer"
+    const restoredRole = localStorage.getItem("activeRole");
+    const computedRole = user.roles?.includes(restoredRole)
+      ? restoredRole
+      : user.roles?.includes("admin")
+      ? "admin"
+      : user.roles?.includes("employer")
+      ? "employer"
       : "carer";
 
     navigate(from || roleDestination(computedRole), { replace: true });
