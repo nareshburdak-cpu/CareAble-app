@@ -42,7 +42,6 @@ app.use(cookieParser());
 // ---- CORS ----
 // In dev: allow anything (Vite proxy handles it anyway)
 // In prod: only allow the deployed frontend URL
-// ---- CORS ----
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",

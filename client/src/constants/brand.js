@@ -116,10 +116,6 @@ export const STEPS = [
   },
 ];
 
-// client/src/constants/brand.js — add before `export default BRAND`
-
-// client/src/constants/brand.js — replace PARTNERS and TEAM exports
-
 export const PARTNERS = [
   {
     name: "La Trobe University",
