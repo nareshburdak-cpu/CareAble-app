@@ -57,7 +57,7 @@ const ROLE_CARDS = [
 // ── main component ─────────────────────────────────────────────────
 function Register() {
   const navigate = useNavigate();
-  const { register, authenticateWithGoogle } = useAuth();
+  const { register, registerWithGoogle } = useAuth();
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const [step, setStep]           = useState(1);
@@ -218,7 +218,7 @@ function Register() {
     }
     setSubmitting(true);
     try {
-      const user = await authenticateWithGoogle(response.credential, {
+      const user = await registerWithGoogle(response.credential, {
         roles: selectedRoles, acceptedTerms: true, consentToResearch,
       });
       redirectAfterSignup(user);

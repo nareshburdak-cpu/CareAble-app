@@ -170,8 +170,16 @@ export function AuthProvider({ children }) {
     return u;
   };
 
-  const authenticateWithGoogle = async (credential, payload = {}) => {
-    const res = await api.post("/auth/google", { credential, ...payload });
+  const loginWithGoogle = async (credential) => {
+    const res = await api.post("/auth/google/login", { credential });
+    const { token, user: u } = res.data.data;
+    localStorage.setItem("token", token);
+    applyAuthenticatedUser(u);
+    return u;
+  };
+
+  const registerWithGoogle = async (credential, payload = {}) => {
+    const res = await api.post("/auth/google/register", { credential, ...payload });
     const { token, user: u } = res.data.data;
     localStorage.setItem("token", token);
     applyAuthenticatedUser(u);
@@ -239,7 +247,8 @@ export function AuthProvider({ children }) {
     login,
     requestLoginOtp,
     loginWithOtp,
-    authenticateWithGoogle,
+    loginWithGoogle,
+    registerWithGoogle,
     register,
     logout,
     refreshUser,

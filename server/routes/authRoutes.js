@@ -16,7 +16,8 @@ const {
   verifyOtp,
   requestLoginOtp,
   verifyLoginOtp,
-  googleAuth,
+  googleLogin,
+  googleRegister,
   completeOnboarding,
 } = require("../controllers/authController");
 
@@ -51,6 +52,35 @@ router.post(
   login
 );
 router.post(
+  "/google/login",
+  [
+    body("credential")
+      .trim()
+      .notEmpty().withMessage("Google credential is required"),
+  ],
+  validate,
+  googleLogin
+);
+router.post(
+  "/google/register",
+  [
+    body("credential")
+      .trim()
+      .notEmpty().withMessage("Google credential is required"),
+    body("roles")
+      .optional()
+      .isArray().withMessage("Roles must be an array"),
+    body("acceptedTerms")
+      .optional()
+      .isBoolean().withMessage("acceptedTerms must be true or false"),
+    body("consentToResearch")
+      .optional()
+      .isBoolean().withMessage("consentToResearch must be true or false"),
+  ],
+  validate,
+  googleRegister
+);
+router.post(
   "/google",
   [
     body("credential")
@@ -67,7 +97,7 @@ router.post(
       .isBoolean().withMessage("consentToResearch must be true or false"),
   ],
   validate,
-  googleAuth
+  googleRegister
 );
 router.post(
   "/login-otp/request",

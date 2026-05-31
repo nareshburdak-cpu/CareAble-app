@@ -299,14 +299,7 @@ const login = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Authenticate with Google Identity token
- * @route   POST /api/auth/google
- * @access  Public
- */
-const googleAuth = asyncHandler(async (req, res) => {
-  const { credential, roles, acceptedTerms, consentToResearch } = req.body;
-
+async function getGoogleProfile(credential) {
   if (!credential) {
     throw new ApiError(400, "Google credential is required.");
   }
@@ -319,6 +312,62 @@ const googleAuth = asyncHandler(async (req, res) => {
   const displayName =
     (payload.name || `${firstName} ${lastName}`.trim() || email.split("@")[0]).trim();
 
+  return { payload, email, googleId, firstName, lastName, displayName };
+}
+
+async function attachGoogleToUser(user, googleProfile) {
+  const { payload, googleId, firstName, lastName, displayName } = googleProfile;
+
+  user.googleId = user.googleId || googleId;
+  user.googleAvatar = payload.picture || user.googleAvatar;
+  user.emailVerified = true;
+
+  if (!user.name) user.name = displayName;
+  if (!user.firstName && firstName) user.firstName = firstName;
+  if (!user.lastName && lastName) user.lastName = lastName;
+  if (!user.authProviders?.includes("google")) {
+    user.authProviders = [...new Set([...(user.authProviders || []), "google"])];
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save({ validateBeforeSave: false });
+}
+
+/**
+ * @desc    Login existing user with Google Identity token
+ * @route   POST /api/auth/google/login
+ * @access  Public
+ */
+const googleLogin = asyncHandler(async (req, res) => {
+  const googleProfile = await getGoogleProfile(req.body.credential);
+  const user = await User.findOne({ email: googleProfile.email });
+
+  if (!user) {
+    throw new ApiError(
+      404,
+      "No CareAble account exists for this Google email. Please sign up first.",
+      { code: "ACCOUNT_NOT_FOUND" }
+    );
+  }
+
+  if (user.isActive === false) {
+    throw new ApiError(403, "This account has been deactivated. Please contact support.");
+  }
+
+  await attachGoogleToUser(user, googleProfile);
+  issueAuthResponse(res, user, 200, "Logged in successfully.");
+});
+
+/**
+ * @desc    Register or login with Google Identity token
+ * @route   POST /api/auth/google/register
+ * @access  Public
+ */
+const googleRegister = asyncHandler(async (req, res) => {
+  const { roles, acceptedTerms, consentToResearch } = req.body;
+  const googleProfile = await getGoogleProfile(req.body.credential);
+  const { payload, email, googleId, firstName, lastName, displayName } = googleProfile;
+
   let user = await User.findOne({ email });
 
   if (user) {
@@ -326,30 +375,16 @@ const googleAuth = asyncHandler(async (req, res) => {
       throw new ApiError(403, "This account has been deactivated. Please contact support.");
     }
 
-    user.googleId = user.googleId || googleId;
-    user.googleAvatar = payload.picture || user.googleAvatar;
-    user.emailVerified = true;
-
-    if (!user.name) user.name = displayName;
-    if (!user.firstName && firstName) user.firstName = firstName;
-    if (!user.lastName && lastName) user.lastName = lastName;
-    if (!user.authProviders?.includes("google")) {
-      user.authProviders = [...new Set([...(user.authProviders || []), "google"])];
-    }
-
-    user.lastLoginAt = new Date();
-    await user.save({ validateBeforeSave: false });
-
-    const token = generateToken(user._id);
-    return res.status(200).json({
-      success: true,
-      message: "Logged in successfully.",
-      data: { user, token },
-    });
+    await attachGoogleToUser(user, googleProfile);
+    return issueAuthResponse(res, user, 200, "Logged in successfully.");
   }
 
   if (!acceptedTerms) {
-    throw new ApiError(400, "Please accept the Terms of Service to continue with Google.");
+    throw new ApiError(
+      400,
+      "Please accept the Terms of Service to continue with Google.",
+      { code: "TERMS_REQUIRED" }
+    );
   }
 
   const ALLOWED_SIGNUP_ROLES = ["carer", "employer"];
@@ -1088,7 +1123,8 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 module.exports = {
   register,
   login,
-  googleAuth,
+  googleLogin,
+  googleRegister,
   requestLoginOtp,
   verifyLoginOtp,
   getMe,

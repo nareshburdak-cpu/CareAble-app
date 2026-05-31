@@ -31,7 +31,7 @@ function Login() {
     login,
     requestLoginOtp,
     loginWithOtp,
-    authenticateWithGoogle,
+    loginWithGoogle,
     roleDestination,
   } = useAuth();
 
@@ -198,10 +198,14 @@ function Login() {
     }
     setIsSubmitting(true);
     try {
-      const user = await authenticateWithGoogle(response.credential);
+      const user = await loginWithGoogle(response.credential);
       completeLogin(user);
     } catch (err) {
-      toast.error(err.message || "Could not continue with Google.");
+      if (err.extra?.code === "ACCOUNT_NOT_FOUND" || err.status === 404) {
+        toast.error("No CareAble account exists for this Google email. Please sign up first.");
+      } else {
+        toast.error(err.message || "Could not continue with Google.");
+      }
     } finally {
       setIsSubmitting(false);
     }
