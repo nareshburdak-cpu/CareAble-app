@@ -1,3 +1,4 @@
+/** @file JWT creation helper for authenticated users. */
 /**
  * generateToken
  * -------------

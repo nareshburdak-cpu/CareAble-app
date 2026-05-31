@@ -1,3 +1,4 @@
+/** @file Route definition for the public contact form endpoint. */
 // server/routes/contactRoutes.js
 
 const express = require("express");

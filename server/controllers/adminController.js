@@ -1,3 +1,4 @@
+/** @file Admin endpoints for analytics, user management, questions, and assessments. */
 // server/controllers/adminController.js
 
 /**
@@ -281,6 +282,7 @@ const updateUser = asyncHandler(async (req, res) => {
       user.roles.push("employer");
     }
 
+    // Keep the legacy single-role field aligned for older JWT and middleware checks.
     user.syncLegacyRole();
 
     await logAdminAction(req, role === "admin" ? "user.promote" : "user.demote", {
@@ -301,6 +303,7 @@ const updateUser = asyncHandler(async (req, res) => {
     }
     if (!user.roles.includes(addRole)) {
       user.roles.push(addRole);
+      // Keep the legacy single-role field aligned for older JWT and middleware checks.
       user.syncLegacyRole();
       await logAdminAction(req, "user.role.add", {
         targetType: "user",
@@ -321,6 +324,7 @@ const updateUser = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Cannot remove all roles — user must have at least one role");
     }
     user.roles = afterRemoval;
+    // Keep the legacy single-role field aligned for older JWT and middleware checks.
     user.syncLegacyRole();
     await logAdminAction(req, "user.role.remove", {
       targetType: "user",

@@ -1,3 +1,4 @@
+/** @file Custom API error type carrying status codes and optional metadata. */
 /**
  * ApiError
  * --------

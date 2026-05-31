@@ -1,3 +1,4 @@
+/** @file Array shuffling helper for randomized assessment question order. */
 /**
  * Fisher-Yates shuffle — the gold standard for random array shuffling.
  *

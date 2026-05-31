@@ -1,3 +1,4 @@
+/** @file Express async wrapper that forwards rejected promises to error middleware. */
 /**
  * asyncHandler
  * ------------

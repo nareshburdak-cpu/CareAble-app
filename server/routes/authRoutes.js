@@ -1,3 +1,4 @@
+/** @file Route definitions for authentication, registration, OTP, and profile actions. */
 const express = require("express");
 const { body, validationResult } = require("express-validator");
 

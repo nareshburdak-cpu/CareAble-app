@@ -1,3 +1,4 @@
+/** @file Seed-time capability domain metadata for assessment categories. */
 // server/utils/categories.js
 
 /**

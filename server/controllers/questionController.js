@@ -1,3 +1,4 @@
+/** @file Question list endpoint for active categories and assessment ordering. */
 // server/controllers/questionController.js
 
 /**
@@ -124,7 +125,6 @@ const getQuestions = asyncHandler(async (req, res) => {
     })
     .filter(Boolean);
 
-  // ── NEW: flat interleaved question list for the paginated assessment UI ──
   // Strategy: interleave round-robin across categories so adjacent questions
   // are from different domains. This prevents the user from noticing domain
   // patterns even without visible domain labels.

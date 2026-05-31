@@ -1,3 +1,4 @@
+/** @file Assessment lifecycle endpoints for starting, saving, submitting, and certificates. */
 // server/controllers/assessmentController.js
 
 /**

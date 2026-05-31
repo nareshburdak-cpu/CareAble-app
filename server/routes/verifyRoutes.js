@@ -1,3 +1,4 @@
+/** @file Route definitions for public and authenticated certificate verification. */
 // server/routes/verifyRoutes.js
 
 /**

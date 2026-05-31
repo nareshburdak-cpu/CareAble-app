@@ -1,3 +1,4 @@
+/** @file Email cooldown and daily cap helpers backed by email logs. */
 /**
  * Email Rate Limiter
  * ------------------

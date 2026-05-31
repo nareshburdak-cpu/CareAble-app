@@ -1,3 +1,4 @@
+/** @file Route definitions for admin category CRUD, archive, restore, and reorder actions. */
 // server/routes/categoryRoutes.js
 
 /**

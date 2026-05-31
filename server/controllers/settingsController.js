@@ -1,3 +1,4 @@
+/** @file Admin settings endpoints for assessment configuration. */
 // server/controllers/settingsController.js
 
 /**

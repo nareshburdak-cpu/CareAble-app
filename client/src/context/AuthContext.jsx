@@ -1,3 +1,4 @@
+/** @file Authentication provider and role-selection state for the React app. */
 // client/src/context/AuthContext.jsx
 
 /* eslint-disable react-refresh/only-export-components */

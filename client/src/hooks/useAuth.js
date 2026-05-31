@@ -1,3 +1,4 @@
+/** @file Hook for reading the global authentication context. */
 /**
  * useAuth — Custom hook to consume AuthContext
  */

@@ -1,3 +1,4 @@
+/** @file Admin audit logging helper with guarded failure handling. */
 // server/utils/audit.js
 
 /**
