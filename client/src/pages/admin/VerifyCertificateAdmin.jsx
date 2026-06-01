@@ -233,7 +233,7 @@ export default function VerifyCertificateAdmin() {
 function PanelCard({ eyebrow, title, note, children, className = "" }) {
   return (
     <div className={`rounded-2xl border border-stone-200 bg-white p-4 shadow-sm ${className}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-400">{eyebrow}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-400">{eyebrow}</p>
       <h3 className="mt-1 text-sm font-semibold text-stone-900 md:text-base">{title}</h3>
       <p className="mt-1 text-sm text-stone-500">{note}</p>
       <div className="mt-2.5 md:mt-3">{children}</div>
@@ -244,7 +244,7 @@ function PanelCard({ eyebrow, title, note, children, className = "" }) {
 function WorkflowStep({ number, text }) {
   return (
     <div className="flex items-start gap-3 rounded-xl bg-stone-50 px-3 py-3">
-      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-[11px] font-semibold text-white">
+      <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white">
         {number}
       </div>
       <p className="text-sm text-stone-600">{text}</p>
@@ -298,7 +298,7 @@ function ResultCard({ result }) {
         <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${isRevoked ? "text-red-700" : "text-emerald-700"}`}>
           {isRevoked ? "Certificate revoked" : "Certificate verified"}
         </span>
-        <span className="truncate font-mono text-[11px] text-stone-500">{result.certificateId}</span>
+        <span className="truncate font-mono text-xs text-stone-500">{result.certificateId}</span>
       </div>
 
       <div className="space-y-4 p-4 md:p-5">
@@ -341,7 +341,7 @@ function ResultCard({ result }) {
 
         {result.topAreas?.length > 0 && (
           <div>
-             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">
               Top capability areas
             </p>
             <div className="flex flex-wrap gap-2">
@@ -359,7 +359,7 @@ function ResultCard({ result }) {
 
         {domainEntries.length > 0 && (
           <div>
-             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">
+             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">
               Domain scores
             </p>
             <div className="space-y-2.5">
@@ -390,8 +390,8 @@ function ResultCard({ result }) {
 function InfoBox({ label, children, mono = false }) {
   return (
     <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{label}</p>
-      <p className={`mt-1 text-sm font-medium text-stone-800 ${mono ? "break-all font-mono text-[10px]" : ""}`}>{children}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">{label}</p>
+      <p className={`mt-1 text-sm font-medium text-stone-800 ${mono ? "break-all font-mono text-xs" : ""}`}>{children}</p>
     </div>
   );
 }

@@ -113,11 +113,11 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
           <div className="border-b border-stone-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#faf7ff_100%)] px-4 py-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-6 md:py-3.5 md:pt-3.5">
             <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-indigo-600">Admin panel</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">Admin panel</p>
               <h2 id="user-drawer-title" className="mt-0.5 text-lg font-semibold text-stone-900 md:mt-1 md:text-xl">
                 User details
               </h2>
-              {!loading && user && <p className="mt-0.5 text-[11px] text-stone-400">Account control</p>}
+              {!loading && user && <p className="mt-0.5 text-xs text-stone-400">Account control</p>}
             </div>
             <button
               onClick={onClose}
@@ -243,7 +243,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                             </div>
 
                             {isSelfAdmin ? (
-                              <span className="text-[11px] italic text-stone-400">Locked</span>
+                              <span className="text-xs italic text-stone-400">Locked</span>
                             ) : hasThisRole ? (
                               <button
                                 onClick={() => handleRemoveRole(roleObj.key)}
@@ -271,7 +271,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
                   <div className="rounded-[1.25rem] border border-stone-200 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">Latest assessment</p>
-                      <span className="text-[11px] text-stone-400">{assessments.length} total</span>
+                      <span className="text-xs text-stone-400">{assessments.length} total</span>
                     </div>
 
                     {latestAssessment ? (
@@ -322,7 +322,7 @@ function UserDetailDrawer({ userId, onClose, onUpdate }) {
 function StatTile({ label, value }) {
   return (
     <div className="rounded-[1rem] border border-stone-200 bg-white p-3 shadow-sm">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">{label}</p>
       <p className="mt-1.5 text-sm font-semibold text-stone-900">{value}</p>
     </div>
   );
@@ -331,7 +331,7 @@ function StatTile({ label, value }) {
 function MiniStat({ label, value, mono = false }) {
   return (
     <div className="rounded-lg border border-stone-200 bg-white px-2.5 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-400">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-400">{label}</p>
       <p className={`mt-1 truncate text-xs font-medium text-stone-800 ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );

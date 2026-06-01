@@ -116,7 +116,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
             <h2 id="otp-modal-title" className="font-serif text-2xl font-bold text-stone-900 mb-2">
               {title}
             </h2>
-            <p className="text-base text-stone-500">
+            <p className="text-sm text-stone-500">
               For your security, we've sent a 6-digit code to your email.
             </p>
           </div>
@@ -127,7 +127,7 @@ function OtpModal({ action, title, onVerified, onClose }) {
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
                 <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              <p className="text-base text-stone-500">Sending code...</p>
+              <p className="text-sm text-stone-500">Sending code...</p>
             </div>
           )}
 

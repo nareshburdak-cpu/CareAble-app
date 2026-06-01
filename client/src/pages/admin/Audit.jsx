@@ -117,7 +117,7 @@ function Audit() {
               <span>{item.icon}</span>
               <span>{item.label}</span>
               <span
-                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs font-bold ${
                   filter === item.key ? "bg-white/20 text-white" : "bg-stone-100 text-stone-500"
                 }`}
               >
@@ -215,14 +215,14 @@ function AuditRow({ log }) {
   return (
     <li className={`border-l-4 transition hover:bg-stone-50/60 ${color.border}`}>
       <div className="flex items-start gap-3 px-4 py-3.5 md:px-5 md:py-4">
-        <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-[11px] font-bold text-white md:h-9 md:w-9">
+        <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white md:h-9 md:w-9">
           {actorInitials}
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold leading-tight text-stone-900">{log.actor?.name || "Unknown admin"}</span>
-            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${color.badge}`}>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${color.badge}`}>
               <span className="font-mono leading-none">{meta.icon}</span>
               {meta.label}
             </span>
@@ -235,7 +235,7 @@ function AuditRow({ log }) {
             </p>
           )}
 
-          <p className="mt-1 text-[10px] text-stone-400 md:hidden" title={abs}>
+          <p className="mt-1 text-xs text-stone-400 md:hidden" title={abs}>
             {rel} · {abs}
           </p>
         </div>
@@ -244,7 +244,7 @@ function AuditRow({ log }) {
           <span className="text-xs font-medium text-stone-500" title={abs}>
             {rel}
           </span>
-          <span className="text-[10px] text-stone-400">{abs}</span>
+          <span className="text-xs text-stone-400">{abs}</span>
         </div>
       </div>
     </li>

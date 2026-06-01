@@ -84,7 +84,7 @@ function Categories() {
     <div className="mx-auto max-w-[1360px] p-4 md:p-8 xl:p-10">
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="mb-2 font-serif text-3xl font-bold text-stone-900">Capability Domains</h1>
+          <h1 className="mb-2 font-serif text-2xl font-bold text-stone-900 md:text-3xl">Capability Domains</h1>
           <p className="max-w-3xl text-sm text-stone-600">
             Manage the top-level domains carers are assessed against. Default domains come from the Capstone Brief and can be extended here.
           </p>
@@ -218,12 +218,12 @@ function CategoryRow({ category, isFirstActive, isLastActive, onEdit, onArchive,
 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-[15px] font-semibold leading-snug text-stone-900 md:text-base">
+                      <h3 className="text-sm font-semibold leading-snug text-stone-900 md:text-base">
                         {category.label}
                       </h3>
 
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${colorPillClass}`}
+                        className={`rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-[0.12em] ${colorPillClass}`}
                       >
                         {category.color}
                       </span>
@@ -288,7 +288,7 @@ function CategoryRow({ category, isFirstActive, isLastActive, onEdit, onArchive,
             </div>
 
             <div className="mt-4 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 md:hidden">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+              <span className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
                 Reorder
               </span>
 

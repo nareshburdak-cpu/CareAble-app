@@ -356,7 +356,7 @@ function MobileCard({ user, onView }) {
       </div>
 
       <div className="ml-1 flex flex-shrink-0 flex-col items-end gap-1.5">
-        <p className="text-[10px] text-stone-400">{joined}</p>
+        <p className="text-xs text-stone-400">{joined}</p>
         <svg className="h-4 w-4 text-stone-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>

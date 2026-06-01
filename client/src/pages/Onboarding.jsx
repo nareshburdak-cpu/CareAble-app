@@ -379,7 +379,7 @@ export default function Onboarding() {
             {stepLabels.map((label, i) => (
               <span
                 key={label}
-                className={`text-[11px] font-medium transition ${
+                className={`text-xs font-medium transition ${
                   i === stepIndex ? "text-indigo-600" :
                   i < stepIndex  ? "text-emerald-500" :
                                    "text-stone-300"

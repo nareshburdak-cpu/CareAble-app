@@ -726,7 +726,7 @@ function ConsentBox({ checked, onToggle, showInfo, onInfoToggle }) {
             <button
               type="button"
               onClick={onInfoToggle}
-              className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 flex items-center justify-center transition leading-none text-[10px] font-bold"
+              className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-200 hover:bg-indigo-100 text-gray-500 hover:text-indigo-600 flex items-center justify-center transition leading-none text-xs font-bold"
               aria-label="More information about research consent"
             >
               i

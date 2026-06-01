@@ -475,7 +475,7 @@ function TopAreasCard({ topAreas, categoryScores }) {
           <h2 className="text-sm font-bold text-gray-900">Top Capability Areas</h2>
           <p className="text-xs text-gray-400">Domains scored 4.0 or above</p>
         </div>
-        <span className="flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
+        <span className="flex-shrink-0 text-xs font-semibold px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">
           {topAreas.length} {topAreas.length === 1 ? "strength" : "strengths"}
         </span>
       </div>
@@ -625,7 +625,7 @@ function HistoryCard({ assessment, isLatest, onDelete }) {
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-sm font-semibold text-gray-900">{shortDate(dateSource)}</p>
                 {isLatest && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide flex-shrink-0">Latest</span>
+                  <span className="text-xs font-bold px-1.5 py-0.5 bg-indigo-600 text-white rounded-full uppercase tracking-wide flex-shrink-0">Latest</span>
                 )}
                 {isSubmitted && meta && (
                   <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${meta.badge}`}>{meta.label}</span>

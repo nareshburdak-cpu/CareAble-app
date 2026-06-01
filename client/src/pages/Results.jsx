@@ -182,7 +182,7 @@ function Results() {
 
                 {/* Level — right-aligned */}
                 <div className="text-right">
-                  <p className="text-[10px] text-indigo-300 uppercase tracking-wider mb-0.5">Level</p>
+                  <p className="text-xs text-indigo-300 uppercase tracking-wider mb-0.5">Level</p>
                   <p className="font-bold text-sm leading-none">{meta.emoji} {assessment.level}</p>
                 </div>
               </div>

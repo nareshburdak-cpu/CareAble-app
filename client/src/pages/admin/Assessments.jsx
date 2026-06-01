@@ -454,7 +454,7 @@ function Section({ title, children }) {
 function InfoBox({ label, children }) {
   return (
     <div className="bg-stone-50 rounded-xl p-3 border border-stone-100">
-      <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-1">{label}</p>
       <div>{children}</div>
     </div>
   );

@@ -58,7 +58,7 @@ function Settings() {
     <div className="mx-auto max-w-[1360px] space-y-6 p-4 md:p-8 xl:p-10">
       {/* Header */}
       <div>
-        <h1 className="mb-2 font-serif text-3xl font-bold text-stone-900">
+        <h1 className="mb-2 font-serif text-2xl font-bold text-stone-900 md:text-3xl">
           Settings
         </h1>
         <p className="text-stone-500">
@@ -311,15 +311,15 @@ function NumberInput({ value, onChange, min, max, defaultValue }) {
                   }`}>
                   {i + 1}
                   {isDefault && !isCurrent && (
-                    <span className="block text-[8px] leading-none opacity-60">dflt</span>
+                    <span className="block text-xs leading-none opacity-60">dflt</span>
                   )}
                 </button>
               );
             })}
           </div>
           <div className="flex justify-between mt-1 px-0.5">
-            <span className="text-[10px] text-stone-400">Shorter</span>
-            <span className="text-[10px] text-stone-400">Longer</span>
+            <span className="text-xs text-stone-400">Shorter</span>
+            <span className="text-xs text-stone-400">Longer</span>
           </div>
         </div>
       </div>
@@ -369,7 +369,7 @@ function DaysInput({ value, onChange, defaultValue }) {
           >
             {p.label}
             {p.days === defaultValue && value !== p.days && (
-              <span className="ml-1 opacity-60 text-[10px]">(default)</span>
+              <span className="ml-1 opacity-60 text-xs">(default)</span>
             )}
           </button>
         ))}
@@ -409,7 +409,7 @@ function DaysInput({ value, onChange, defaultValue }) {
         </span>
       </div>
 
-      <p className="mt-2 text-[11px] text-stone-400">Enter any value between 1 and 90 days.</p>
+      <p className="mt-2 text-xs text-stone-400">Enter any value between 1 and 90 days.</p>
     </div>
   );
 }
@@ -467,7 +467,7 @@ function TimeInput({ value, onChange, defaultValue }) {
           >
             {p.label}
             {p.hours === defaultValue && value !== p.hours && (
-              <span className="ml-1 opacity-60 text-[10px]">(default)</span>
+              <span className="ml-1 opacity-60 text-xs">(default)</span>
             )}
           </button>
         ))}
@@ -510,7 +510,7 @@ function TimeInput({ value, onChange, defaultValue }) {
         </div>
       </div>
 
-      <p className="mt-2 text-[11px] text-stone-400">Enter any value between 1 and 720 hours (30 days).</p>
+      <p className="mt-2 text-xs text-stone-400">Enter any value between 1 and 720 hours (30 days).</p>
     </div>
   );
 }

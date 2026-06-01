@@ -22,7 +22,7 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-base font-bold text-emerald-700">S</span>
-          <p className="text-base font-semibold text-emerald-800">Your Strength</p>
+          <p className="text-sm font-semibold text-emerald-800">Your Strength</p>
         </div>
         {allSame ? (
           <p className="text-sm leading-relaxed text-emerald-700">
@@ -30,7 +30,7 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
           </p>
         ) : (
           <>
-            <p className="mb-1 text-base font-medium text-emerald-900">
+            <p className="mb-1 text-sm font-medium text-emerald-900">
               {strongest.icon} {strongest.label}
             </p>
             <p className="text-sm leading-relaxed text-emerald-700">
@@ -43,7 +43,7 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
       <div className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-base font-bold text-amber-700">G</span>
-          <p className="text-base font-semibold text-amber-800">Growth Area</p>
+          <p className="text-sm font-semibold text-amber-800">Growth Area</p>
         </div>
         {allSame ? (
           <p className="text-sm leading-relaxed text-amber-700">
@@ -51,7 +51,7 @@ function ResultsSummary({ categoryScores, categoryMeta }) {
           </p>
         ) : (
           <>
-            <p className="mb-1 text-base font-medium text-amber-900">
+            <p className="mb-1 text-sm font-medium text-amber-900">
               {weakest.icon} {weakest.label}
             </p>
             <p className="text-sm leading-relaxed text-amber-700">
@@ -74,7 +74,7 @@ function EmptyCard({ icon, title, color, text }) {
     <div className={`rounded-2xl border p-5 ${colors[color]}`}>
       <div className="mb-3 flex items-center gap-2">
         <span className="text-base font-bold text-gray-700">{icon}</span>
-        <p className="text-base font-semibold text-gray-700">{title}</p>
+        <p className="text-sm font-semibold text-gray-700">{title}</p>
       </div>
       <p className="text-sm text-gray-500">{text}</p>
     </div>

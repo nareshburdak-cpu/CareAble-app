@@ -61,7 +61,7 @@ function Profile() {
               {initials}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-base md:text-xl font-bold text-gray-900 truncate">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">
                 {user?.name}
               </h1>
               <p className="text-xs md:text-sm text-gray-500 truncate">{user?.email}</p>

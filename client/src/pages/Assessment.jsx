@@ -485,7 +485,7 @@ function AssessmentIntroModal({
         <div className="shrink-0 border-b border-gray-100 bg-gradient-to-br from-indigo-50 via-white to-emerald-50 px-4 py-4 sm:px-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
+              <p className="text-xs font-bold uppercase tracking-wider text-indigo-600">
                 Assessment instructions
               </p>
               <h2 id="assessment-intro-title" className="mt-1 text-xl sm:text-2xl font-bold leading-tight text-gray-950">

@@ -272,7 +272,7 @@ function Questions() {
       {/* Header */}
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="mb-2 font-serif text-3xl font-bold text-stone-900">
+          <h1 className="mb-2 font-serif text-2xl font-bold text-stone-900 md:text-3xl">
             Questions
           </h1>
           <p className="text-stone-600">
@@ -730,7 +730,7 @@ function QuestionRow({ question, tier, isFirst, isLast, onEdit, onArchive, onReo
                   </span>
                 )}
               </div>
-              <p className="text-sm font-medium leading-6 text-stone-900 md:text-[15px]">
+              <p className="text-sm font-medium leading-6 text-stone-900 md:text-sm">
                 <Highlight text={question.text} term={searchTerm} />
               </p>
             </div>
@@ -787,7 +787,7 @@ function QuestionRow({ question, tier, isFirst, isLast, onEdit, onArchive, onReo
           )}
 
           <div className="mt-3 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 md:hidden">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+            <span className="text-xs font-semibold uppercase tracking-[0.14em] text-stone-500">
               Reorder
             </span>
 

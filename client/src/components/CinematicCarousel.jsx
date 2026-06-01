@@ -194,9 +194,9 @@ function TeamFlipCard({ member, isActive, flipped }) {
           border: "1px solid rgba(255,255,255,0.15)",
         }}>
           <p className="font-bold text-white text-sm leading-tight tracking-tight">{member.name}</p>
-          <p className="text-[11px] font-medium mt-0" style={{ color: "rgba(167,139,250,1)" }}>{member.role}</p>
+          <p className="text-xs font-medium mt-0" style={{ color: "rgba(167,139,250,1)" }}>{member.role}</p>
           {isActive && (
-            <p className="text-[10px] text-white/40 text-right mt-0.5">tap for bio →</p>
+            <p className="text-xs text-white/40 text-right mt-0.5">tap for bio →</p>
           )}
         </div>
       </div>
@@ -218,13 +218,13 @@ function TeamFlipCard({ member, isActive, flipped }) {
           </div>
           <div>
             <p className="font-bold text-white text-xs leading-tight">{member.name}</p>
-            <p className="text-[10px] text-white/70">{member.org}</p>
+            <p className="text-xs text-white/70">{member.org}</p>
           </div>
         </div>
         <div className="h-px bg-white/20 mb-3" />
-        <p className="text-[11px] text-white/85 leading-relaxed line-clamp-5">{member.bio}</p>
+        <p className="text-xs text-white/85 leading-relaxed line-clamp-5">{member.bio}</p>
       </div>
-      <p className="text-[10px] text-white/40 text-right">tap to close →</p>
+      <p className="text-xs text-white/40 text-right">tap to close →</p>
     </div>
   );
 
@@ -296,9 +296,9 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
           border: "1px solid rgba(255,255,255,0.12)",
         }}>
           <p className="font-bold text-white text-sm leading-tight tracking-tight">{partner.name}</p>
-          <p className="text-[11px] font-medium mt-0.5" style={{ color: "rgba(167,139,250,1)" }}>{roleLabel}</p>
+          <p className="text-xs font-medium mt-0.5" style={{ color: "rgba(167,139,250,1)" }}>{roleLabel}</p>
           {isActive && (
-            <p className="text-[10px] text-white/40 text-right mt-0.5">tap for info →</p>
+            <p className="text-xs text-white/40 text-right mt-0.5">tap for info →</p>
           )}
         </div>
       </div>
@@ -314,11 +314,11 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
           </div>
           <div>
             <p className="font-bold text-white text-xs leading-tight">{partner.name}</p>
-            <p className="text-[10px] text-white/70">{roleLabel}</p>
+            <p className="text-xs text-white/70">{roleLabel}</p>
           </div>
         </div>
         <div className="h-px bg-white/20 mb-3" />
-        <p className="text-[11px] text-white/90 leading-relaxed line-clamp-5">{partner.description}</p>
+        <p className="text-xs text-white/90 leading-relaxed line-clamp-5">{partner.description}</p>
       </div>
       <div className="flex items-center justify-between mt-2">
         {partner.url ? (
@@ -327,14 +327,14 @@ function PartnerFlipCard({ partner, isActive, flipped }) {
             target="_blank"
             rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
-            className="text-[11px] text-white font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition"
+            className="text-xs text-white font-semibold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition"
           >
             Visit website →
           </a>
         ) : (
           <span />
         )}
-        <span className="text-[10px] text-white/40">← close</span>
+        <span className="text-xs text-white/40">← close</span>
       </div>
     </div>
   );
