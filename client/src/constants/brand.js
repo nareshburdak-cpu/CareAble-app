@@ -13,6 +13,7 @@ import shivanshi from "../assets/team/shivanshi.png";
 import yogesh from "../assets/team/yogesh.png";
 import jayan from "../assets/team/jayan.png";
 import sreenivasulu from "../assets/team/sreenivasulu.png";
+import priya from "../assets/team/priya.png";
 
 
 import acami from "../assets/partners/acami.jpg";
@@ -209,7 +210,7 @@ export const TEAM = [
   org: "La Trobe University",
   bio: "Contributed across frontend and backend, building responsive UI components, integrating APIs, and supporting authentication flows.",
   initials: "HP",
-  photo: null,
+  photo: priya,
   gradient: "from-emerald-500 to-teal-500",
   confirmed: true,
 },
