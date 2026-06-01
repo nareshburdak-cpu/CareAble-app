@@ -321,7 +321,7 @@ function PrimaryActionCard({ inProgress, latest, isLocked, cooldown, inProgressT
       to: "/assessment",
       title: "Start Assessment",
       sub: "Discover your caregiver profile",
-      icon: "▶",
+      icon: "🚀",
     };
   }
 

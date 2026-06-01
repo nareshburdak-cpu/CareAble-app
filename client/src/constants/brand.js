@@ -12,6 +12,8 @@ import Phu from "../assets/team/Phu.png";
 import shivanshi from "../assets/team/shivanshi.png";
 import yogesh from "../assets/team/yogesh.png";
 import jayan from "../assets/team/jayan.png";
+import sreenivasulu from "../assets/team/sreenivasulu.png";
+
 
 import acami from "../assets/partners/acami.jpg";
 import la_trobe from "../assets/partners/la_trobe.jpg";
@@ -217,7 +219,7 @@ export const TEAM = [
   org: "La Trobe University",
   bio: "Built CareAble's analytics dashboards and data visualisations. Manages MongoDB schema design and database performance to support assessment scoring and reporting.",
   initials: "SR",
-  photo: null,
+  photo: sreenivasulu,
   gradient: "from-blue-500 to-indigo-500",
   confirmed: true,
 },
