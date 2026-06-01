@@ -20,7 +20,7 @@ CareAble is a full-stack web application that allows caregivers to self-assess t
 |---|---|
 | Frontend | https://careable.site |
 | Backend API | https://careable-api.onrender.com |
-| Admin Panel | https://careable.site/admin-******* |
+| Admin Panel | https://careable.site/admin-*** |
 | Certificate Verify | https://careable.site/verify/`<certificateId>` |
 
 > **Note:** The backend runs on Render's free tier — expect a ~30 s cold start on first request after inactivity.
@@ -238,7 +238,8 @@ Errors thrown via `new ApiError(statusCode, message, extra?)` and caught by the 
 | Certificates | PDF + QR, public verify endpoint, brand redesign |
 | Admin panel | Analytics, audit log, user/question/category management |
 | Multi-role | roles array, employer registration, requireCarer/Employer middleware |
-| Employer dashboard | *(in progress — Phase 12-A Task 5)* |
+| Employer dashboard | Certificate verification widget, role-aware routing, EmployerRoute guard |
+| Assessment templates | Multi-template support, admin create/edit/archive, carer template selection |
 
 ---
 
